@@ -1,0 +1,81 @@
+#!/bin/bash
+# This script will download and attempt to build and install
+# 4dfp tools locally.
+tools_dir=$(realpath $(dirname $(command -v $0)))
+pushd $tools_dir > /dev/null
+
+# check if files are already downloaded
+files_exist=1
+[[ -f pkg/4dfp_scripts.tar ]] || files_exist=0
+[[ -f pkg/nil-tools.tar ]] || files_exist=0
+[[ -f pkg/refdir.tar ]] || files_exist=0
+
+# if files missing, switch to package directory and download 4dfp
+if [[ $files_exist -eq 0 ]]; then
+    [[ -d pkg ]] && rm -rf pkg
+    mkdir -p pkg
+    echo "Downloading 4dfp tools..."
+    pushd pkg > /dev/null
+    ${tools_dir}/get_4dfp.sh
+    popd > /dev/null
+fi
+
+# untar files
+pushd pkg > /dev/null
+[[ -d scripts ]] && rm -rf scripts
+mkdir -p scripts
+tar -xvf 4dfp_scripts.tar -C scripts
+
+[[ -d nil-tools ]] && rm -rf nil-tools
+mkdir -p nil-tools
+tar -xvf nil-tools.tar -C nil-tools
+
+[[ -d refdir ]] && rm -rf refdir
+mkdir -p refdir
+tar -xvf refdir.tar -C refdir
+popd > /dev/null
+
+# set environment variables
+[[ -d ${tools_dir}/bin ]] && rm -rf ${tools_dir}/bin
+mkdir -p $tools_dir/bin
+# copy scripts into bin
+cp -r pkg/scripts/* $tools_dir/bin/
+export NILSRC=${tools_dir}/pkg/nil-tools
+export RELEASE=${tools_dir}/bin
+export REFDIR=${tools_dir}/pkg/refdir
+
+# build nil-tools
+pushd ${NILSRC} > /dev/null
+
+# insert extra compile flags (These seem to be needed for gcc >10)
+# set global flag for -fallow-invalid-boz -fallow-argument-mismatch and ignore warnings
+sed -i "18 i set FC = \"\$FC -fallow-invalid-boz -fallow-argument-mismatch -w\"" make_nil-tools.csh
+
+# librms fixes
+sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -ffixed-line-length-132 -fcray-pointer -fallow-invalid-boz/g" librms/librms.mak
+sed -i "s/not('40000'x)/not(int('40000'x))/g" TRX/fomega.f
+
+# Globals in knee.h are not defined correctly...
+# Not sure if intentional... or if it's relying on bad compiler behavior
+# but here are some corrections:
+# Create a header guard for knee_h
+sed -i "1 i #ifndef knee_h" diff4dfp/knee.h
+sed -i "2 i #define knee_h" diff4dfp/knee.h
+sed -i -e "\$a #endif" diff4dfp/knee.h
+# Set array declarations to static
+sed -i "s/PBLOB   objects/static PBLOB   objects/g" diff4dfp/knee.h
+sed -i "s/CONT    cont/static CONT    cont/g" diff4dfp/knee.h
+sed -i "s/CDEFF   cdeff/static CDEFF   cdeff/g" diff4dfp/knee.h
+sed -i "s/FITLINE fitline/static FITLINE fitline/g" diff4dfp/knee.h
+
+# imgreg fixes
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" imgreg_4dfp/imgreg_4dfp.mak
+sed -i "s/f77 -O -I4 -e/gcc -O2 -w -ffixed-line-length-132 -fno-second-underscore -fcray-pointer -fallow-invalid-boz/g" imgreg_4dfp/basis_opt_AT.mak
+
+# t4img fixes
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" t4imgs_4dfp/t4imgs_4dfp.mak
+
+tcsh -e make_nil-tools.csh
+popd > /dev/null
+
+popd > /dev/null
