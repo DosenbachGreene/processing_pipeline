@@ -13,7 +13,8 @@ classifiers = ["License :: OSI Approved :: MIT License", "Programming Language :
 urls = { github = "https://github.com/DosenbachGreene/processing_pipeline" }
 version = "0.0.1"
 dependencies = [
-  "memori >= 0.3.3"
+  "memori >= 0.3.3",
+  "xnat >= 0.4.3",
 ]
 
 [project.optional-dependencies]
