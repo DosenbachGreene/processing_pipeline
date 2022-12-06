@@ -37,7 +37,7 @@ target-version = ["py37", "py38", "py39", "py310"]
 
 [tool.pytest.ini_options]
 addopts = "-v --pycodestyle"
-testpaths = ["tests"]
+testpaths = ["tests", "me_pipeline"]
 
 [tool.coverage.run]
 command_line = "-m pytest"
