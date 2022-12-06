@@ -3,34 +3,34 @@ from dataclasses import dataclass
 import pydicom
 import re
 import logging
-from typing import cast, List, Tuple, Union
+from typing import List, Union
 
 # Globals defining regex and match patterns
+# TODO: if this gets too long, move to a separate file.
+# Possibly some sort of external JSON file that's read
+# in during module import?
 
 # For T1w and T2w studies
-# TODO: if this gets too long, move to a separate file
-# possibly some sort of external JSON file that's read
-# in during module import?
-REGEX_SEARCH_MPR = [
+REGEX_SEARCH_MPR: List[str] = [
     r"T1w.*(?<!setter)$",
 ]
 
-REGEX_SEARCH_T2W = [
+REGEX_SEARCH_T2W: List[str] = [
     r"T2w.*(?<!setter)$",
 ]
 
-# These specify image tags to match for the T1w and T2w studies
-# They are ordered by priority, so the first match is used
-# We do this so that we grab the best possible scan for each study
-IMAGE_TYPE_PATTERN = [
-    ["MEAN", "NORM"],  # For Multi-Echo, Pre-scan Normalized Structurals
-    ["MEAN"],  # For Multi-Echo, Pre-scan Non-Normalized Structurals
-    ["NORM"],  # For Single-Echo, Pre-scan Normalized Structurals
-    ["*"],  # Use anything that was found
+# These patterns specify image tags to match for the T1w and T2w studies.
+# They are ordered by priority, so the first match is used.
+# We do this so that we grab the best possible scan for each session.
+STRUCTURAL_IMAGE_TYPE_PATTERNS: List[List[str]] = [
+    ["MEAN", "NORM"],  # For multi-echo, pre-scan normalized structurals
+    ["MEAN"],  # For multi-echo structurals
+    ["NORM"],  # For single-echo, pre-scan normalized structurals
+    ["*"],  # At lowest priority, just use anything that was found...
 ]
 
 
-def test_image_type(image_type_pattern: List[str], image_type: List[str]) -> bool:
+def _test_image_type(image_type_pattern: List[str], image_type: List[str]) -> bool:
     """Test if an image type pattern matches the image type.
 
     Parameters
@@ -53,7 +53,7 @@ def test_image_type(image_type_pattern: List[str], image_type: List[str]) -> boo
     return all(elem in image_type for elem in image_type_pattern)
 
 
-def test_regex_list(regex_list: List[str], str_to_test) -> bool:
+def _test_regex_list(regex_list: List[str], str_to_test) -> bool:
     """Test a list of regex patterns against a string.
 
     Parameters
@@ -74,7 +74,7 @@ def test_regex_list(regex_list: List[str], str_to_test) -> bool:
     return False
 
 
-def find_studies_files(search_directory: Path, search_depth: int = 2) -> List[Path]:
+def _find_studies_files(search_directory: Path, search_depth: int = 2) -> List[Path]:
     """Returns the path to the all studies.txt file within the search directory.
 
     Parameters
@@ -99,35 +99,36 @@ def find_studies_files(search_directory: Path, search_depth: int = 2) -> List[Pa
         # use recursion to search for studies.txt file in subdirectories
         if path.is_dir() and not search_depth == 0:
             # extend the studies list with the found path
-            studies_list.extend(find_studies_files(path, search_depth - 1))
+            studies_list.extend(_find_studies_files(path, search_depth - 1))
     # return list of found studies for this directory
     return studies_list
 
 
-def generate_anatomical_paths(search_directory: Path) -> Tuple[List[Path], List[Path]]:
-    """Compiles list of T1 and T2 study folders automatically for given folder.
+def _generate_paths(search_directory: Path, regex_list: List[str], image_type_patterns: List[List[str]]) -> List[Path]:
+    """Compiles list of paths to study folders based on regex and image type patterns.
 
     Parameters
     ----------
-    search+directory : Path
-        Path to directory search for T1w and T2w folders.
+    search_directory : Path
+        Path to recursively search for study folders.
+    regex_list : List[str]
+        List of regex patterns to search for.
+    image_type_patterns : List[str]
+        Image Type patterns to filter by.
 
     Returns
     -------
-    str
-        T1w directories.
-    str
-        T2w directories
+    List[Path]
+        List of study folder paths matching criteria.
     """
     # make sure search directory is absolute
     search_directory = search_directory.absolute()
 
     # find all studies files in the search directory
-    studies_file_paths = find_studies_files(search_directory)
+    studies_file_paths = _find_studies_files(search_directory)
 
-    # create list for mprdirs and t2wdirs
-    mpr_dirs = []
-    t2w_dirs = []
+    # create list for mstudy paths
+    study_dirs = []
 
     # now loop over the studies files
     for studies_file_path in studies_file_paths:
@@ -138,8 +139,7 @@ def generate_anatomical_paths(search_directory: Path) -> Tuple[List[Path], List[
         # now we read in the studies file
         with open(studies_file_path, "r") as studies_file:
             # create list for session
-            session_mpr_dirs = []
-            session_t2w_dirs = []
+            session_dirs = []
 
             # loop over the lines in the studies file
             for line in studies_file:
@@ -147,70 +147,38 @@ def generate_anatomical_paths(search_directory: Path) -> Tuple[List[Path], List[
                     # read in the study_number and study_name
                     study_number, _, study_name, _ = line.split()
 
-                    # T1w: test if the study name matches the regex patterns
-                    if test_regex_list(REGEX_SEARCH_MPR, study_name):
-                        # create path to study folder, make relative to search directory
-                        study_path = session_dir / f"study{study_number}"
-
-                        # Nnw we open one of the dicoms in the study folder
-                        dcm_path = next(study_path.iterdir())
-
-                        # and grab it's ImageType tag
-                        image_type = pydicom.read_file(str(dcm_path)).ImageType
-
-                        # now make the study path relative to the search directory
-                        study_path = study_path.relative_to(search_directory)
-
-                        # append the path and its image type to the session_mpr_dirs list
-                        session_mpr_dirs.append((study_path, image_type))
-                    elif test_regex_list(REGEX_SEARCH_T2W, study_name):
-                        # create path to study folder and make relative to search directory
+                    # test if the study name matches the regex patterns
+                    if _test_regex_list(regex_list, study_name):
+                        # create path to study folder
                         study_path = session_dir / f"study{study_number}"
 
                         # now we open one of the dicoms in the study folder
                         dcm_path = next(study_path.iterdir())
 
-                        # and grab it's ImageType tag
+                        # and grab its ImageType tag
                         image_type = pydicom.read_file(str(dcm_path)).ImageType
 
                         # now make the study path relative to the search directory
                         study_path = study_path.relative_to(search_directory)
 
-                        # append the path and its image type to the session_t2w_dirs list
-                        session_t2w_dirs.append((study_path, image_type))
+                        # and append the study path and its image type to the session_dirs list
+                        session_dirs.append((study_path, image_type))
                 except ValueError:
                     logging.info(f"Error parsing studies text file: {str(studies_file_path)}")
 
-        # now for each structural session dir, filter by the image type
-        # so we obtain the best possible structural scan for the session
-        # we do this by looping over the image type patterns
-
-        # mpr dirs
-        for image_type_pattern in IMAGE_TYPE_PATTERN:
+        # now for each session dir, filter by the image type
+        # so we obtain the best possible scan for the session
+        for image_type_pattern in image_type_patterns:
             # check if the current image type pattern is present in any of the session_mpr_dirs
-            potential_mpr_dirs = [
-                study[0] for study in session_mpr_dirs if test_image_type(image_type_pattern, study[1])
-            ]
-            # if we find any, this is the best possible T1w
-            # append to the mpr_dirs list and break
-            if potential_mpr_dirs:
-                mpr_dirs.extend(potential_mpr_dirs)
+            potential_dirs = [study[0] for study in session_dirs if _test_image_type(image_type_pattern, study[1])]
+            # if we find any, this is the best possible list of studies
+            # for this session, append to the study_dirs list and break from loop
+            if potential_dirs:
+                study_dirs.extend(potential_dirs)
                 break
 
-        # t2w dirs
-        for image_type_pattern in IMAGE_TYPE_PATTERN:
-            # check if the current image type pattern is present in any of the session_t2w_dirs
-            potential_t2w_dirs = [
-                study[0] for study in session_t2w_dirs if test_image_type(image_type_pattern, study[1])
-            ]
-            # if we find any, this is the best possible T1w
-            # append to the t2w_dirs list and break
-            if potential_t2w_dirs:
-                t2w_dirs.extend(potential_t2w_dirs)
-                break
-
-    # return the mpr_dirs and t2w_dirs
-    return mpr_dirs, t2w_dirs
+    # return the list of study dirs
+    return study_dirs
 
 
 @dataclass
@@ -236,6 +204,7 @@ class StructuralParams:
     postfsdir : Path
         Path to post FreeSurfer outputs.
     """
+
     base_dir: Path
     patid: str
     structid: str
@@ -245,7 +214,7 @@ class StructuralParams:
     fsdir: Path
     postfsdir: Path
 
-    def save(self, path: Union[Path, str, None] = None) -> None:
+    def save_params(self, path: Union[Path, str, None] = None) -> None:
         """Saves the parameters to a params file.
 
         Parameters
@@ -273,7 +242,7 @@ class StructuralParams:
             params_file.write("set PostFSdir = %s\n" % (str(self.postfsdir)))
 
 
-def generate_structural_params_file(
+def generate_structural_params(
     subject_dir: Union[Path, str],
     base_dir: Union[Path, str, None] = None,
     patient_id: Union[str, None] = None,
@@ -321,7 +290,8 @@ def generate_structural_params_file(
     subject_path = Path(subject_dir).absolute()
 
     # search for T1w and T2w directories in path
-    mpr_dirs, t2w_dirs = generate_anatomical_paths(subject_path)
+    mpr_dirs = _generate_paths(subject_path, REGEX_SEARCH_MPR, STRUCTURAL_IMAGE_TYPE_PATTERNS)
+    t2w_dirs = _generate_paths(subject_path, REGEX_SEARCH_T2W, STRUCTURAL_IMAGE_TYPE_PATTERNS)
 
     # make structural params object
     struct_params = StructuralParams(
@@ -339,5 +309,5 @@ def generate_structural_params_file(
     return struct_params
 
 
-def generate_functional_params_file(patient_id):
+def generate_functional_params():
     pass
