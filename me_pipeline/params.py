@@ -1,5 +1,5 @@
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import pydicom
 import re
 import logging
@@ -187,7 +187,7 @@ class StructuralParams:
 
     Attributes
     ----------
-    base_dir : Path
+    project_dir : Path
         Path to the directory to write params file to.
     patid : str
         Patient ID.
@@ -205,7 +205,7 @@ class StructuralParams:
         Path to post FreeSurfer outputs.
     """
 
-    base_dir: Path
+    project_dir: Path
     patid: str
     structid: str
     studydir: Path
@@ -223,7 +223,7 @@ class StructuralParams:
             Path to save the params file.
         """
         if path is None:
-            path = self.base_dir / "struct.params"
+            path = self.project_dir / "struct.params"
         path = Path(path)
 
         # turn mprdir and t2wdir into strings
@@ -244,7 +244,7 @@ class StructuralParams:
 
 def generate_structural_params(
     subject_dir: Union[Path, str],
-    base_dir: Union[Path, str, None] = None,
+    project_dir: Union[Path, str, None] = None,
     patient_id: Union[str, None] = None,
     fs_dir: Union[Path, str] = "fs",
     post_fs_dir: Union[Path, str] = "FREESURFER_fs_LR",
@@ -256,8 +256,8 @@ def generate_structural_params(
     subject_dir : Union[Path, str]
         Subject path to generate the AA_struct.params file for. This will contain subdirectories (sessions)
         with T1w and T2w data.
-    base_dir : Union[Path, str, None], optional
-        Base directory to place the AA_struct.params file in. By default None, which sets it to the parent of the
+    project_dir : Union[Path, str, None], optional
+        Project directory to place the AA_struct.params file in. By default None, which sets it to the parent of the
         subject_dir.
     patient_id : Union[str, None], optional
         Patient ID to use for the AA_struct.params file, by default None, which sets it to the basename of the
@@ -273,10 +273,10 @@ def generate_structural_params(
     StructuralParams
         Dataclass containing the parameters for the structural pipeline.
     """
-    # if base_dir not defined, set it to the parent of the subject_dir
-    if base_dir is None:
-        base_dir = Path(subject_dir).parent
-    base_dir = Path(base_dir).absolute()
+    # if project_dir not defined, set it to the parent of the subject_dir
+    if project_dir is None:
+        project_dir = Path(subject_dir).parent
+    project_dir = Path(project_dir).absolute()
 
     # if patient_id not defined, set it to the basename of the subject_dir
     if patient_id is None:
@@ -295,7 +295,7 @@ def generate_structural_params(
 
     # make structural params object
     struct_params = StructuralParams(
-        base_dir=base_dir,
+        project_dir=project_dir,
         patid=patient_id,
         structid=patient_id,
         studydir=subject_path.parent,
@@ -311,3 +311,261 @@ def generate_structural_params(
 
 def generate_functional_params():
     pass
+
+
+@dataclass
+class Instructions:
+    """Dataclass defining the instructions params for a project.
+
+    Attributes
+    ----------
+    project_dir : Path
+        Path to the project directory.
+    """
+
+    # TODO: The instructions params use shell environment variables
+    # which means many datatypes that should be Paths are set to
+    # string types to handle them. In the future, we should shift
+    # away from using shell variables and handle these paths on the
+    # python side of things.
+
+    # path to project directory
+    project_dir: Path
+
+    # Delete intermediary files for significant data storage improvement
+    cleanup: bool = True
+
+    # controls saving of intermediary files
+    economy: int = 0
+
+    # path to sorted dicoms
+    # this will be relative to where the script is run
+    # usually in a directory with the studies.txt
+    # if the script is run in the studies directory, this will just be "$cwd"
+    inpath: str = "$cwd"
+
+    # atlas-representation target in 711-2B space
+    target: str = "$REFDIR/TRIO_Y_NDC"
+
+    # final fMRI data resolution and space
+    outspace_flag: str = "mni2mm"
+
+    # if set script will invoke fnirt
+    nlalign: int = 0
+
+    # for GRE ($distort == 2); difference in echo time between the two magnitude images
+    delta: float = 0.00246
+
+    # compute fitted signal and optimally combined signal from multi-echo data
+    ME_reg: int = 1
+
+    dbnd_flag: int = 1
+
+    # if NORDIC collected
+    isnordic: bool = True
+
+    # if running NORDIC
+    runnordic: bool = True
+
+    # the term used to invoke matlab on your system, e.g., matlab, matlab19, matlab20
+    matlab: str = "matlab"
+
+    # path to NORDIC code
+    NORDIClib: str = "/data/nil-bluearc/GMT/Laumann/NORDIC_Raw-main"
+
+    # synthetic field map variables - affect processing only if $distor == 3
+    bases: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_basis.4dfp.img"
+    mean: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_mean.4dfp.img"
+    # number of bases to use
+    nbases: int = 5
+    # number of synthetic field map iterations
+    niter: int = 5
+
+    # when set enables retrieval of sequence parameters from DICOMS
+    GetBoldConfig: bool = True
+
+    # number of pre-steady-state frames
+    skip: int = 0
+    # when set causes frame-to-frame intensity stabilization (never use with resting state data)
+    normode: bool = False
+    # when set enabes intensity biasfield correction
+    BiasField: bool = True
+    # when set prevents re-computation of extant t4 files
+    useold: bool = True
+
+    # name of FCmaps folder
+    FCdir: str = "FCmaps"
+
+    # ???
+    ncontig: int = 3
+
+    # when set causes FD frame censoring at specified threshold in mm
+    FDthresh: float = 0.08
+
+    # DVARS frame censoring threshold; 0 -> compute threshold using DVARS autocrit
+    # disables DVARS censoring if not set
+    DVARthresh: float = 0.0
+    # standard deviation from the mode used in computing the DVARS autocrit
+    DVARsd: float = 3.5
+    # spatial smoothing in mm interal compute_dvars_4dfp
+    DVARblur: float = 10.0
+
+    # bandpass_4dfp parameters
+    bpss_params: List[str] = field(default_factory=lambda: ["-bl0.005", "-ol2", "-bh0.1", "-oh2"])
+
+    # gauss_4dfp lowpass spatial frequency in 1/cm
+    blur: float = 1.4701
+
+    # low pass filter movement parameters: 0 = all parameters (x,y,z,xrot,yrot,zrot);
+    # 1 = x; 2 = y; 3 = z; 4 = xrot; 5 = yrot; 6 = zrot.
+    lomotil: int = 0
+
+    # If using NORDIC, set number of noise frames used
+    noiseframes: int = 3
+
+    # Number of parallel processors used during resampling step
+    OSResample_parallel: int = 10
+
+    # cifti-creation parameters
+    # If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
+    # otherwise will use subcortical voxels based on individual-subject segmentation.
+    # Must have performed FNIRT.
+    Atlas_ROIs: bool = True
+    surfsmooth: float = 1.7
+    subcortsmooth: float = 1.7
+
+    # image-derived nuisance regressors
+    CSF_excl_lim: float = 0.15
+    CSF_lcube: int = 4
+    CSF_svdt: float = 0.15
+    WM_lcube: int = 3
+    WM_svdt: float = 0.15
+    # limit on number of nuisance regressors
+    nRegress: int = 20
+    min_frames: int = 50
+
+    # seed correl
+    ROIdir: str = "$REFDIR/CanonicalROIsNP705"
+    ROIimg: str = "CanonicalROIsNP705_on_MNI152_2mm.4dfp.img"
+
+    def save_params(self, path: Union[Path, str, None] = None) -> None:
+        """Save the instructions params to a file.
+
+        Parameters
+        ----------
+        path : Union[Path, str], optional
+            Path to the file to save the params to, by default None, which
+            saves to self.project_dir / "instructions.params"
+        """
+        if path is None:
+            path = self.project_dir / "instructions.params"
+        path = Path(path).absolute()
+
+        # prepare variables to write to params file
+        cleanup = "1" if self.cleanup else "0"
+        economy = str(self.economy)
+        inpath = self.inpath
+        target = self.target
+        outspace_flag = self.outspace_flag
+        nlalign = "1" if self.nlalign else "0"
+        delta = str(self.delta)
+        ME_reg = "1" if self.ME_reg else "0"
+        dbnd_flag = str(self.dbnd_flag)
+        isnordic = "1" if self.isnordic else "0"
+        runnordic = "1" if self.runnordic else "0"
+        matlab = self.matlab
+        NORDIClib = self.NORDIClib
+        bases = self.bases
+        mean = self.mean
+        nbases = str(self.nbases)
+        niter = str(self.niter)
+        GetBoldConfig = "1" if self.GetBoldConfig else "0"
+        skip = str(self.skip)
+        normode = "1" if self.normode else "0"
+        BiasField = "1" if self.BiasField else "0"
+        useold = "1" if self.useold else "0"
+        FCdir = self.FCdir
+        ncontig = str(self.ncontig)
+        FDthresh = str(self.FDthresh)
+        DVARthresh = str(self.DVARthresh)
+        DVARsd = str(self.DVARsd)
+        DVARblur = str(self.DVARblur)
+        bpss_params = " ".join(self.bpss_params)
+        bpss_params = f"( {bpss_params} )"
+        blur = str(self.blur)
+        lomotil = str(self.lomotil)
+        noiseframes = str(self.noiseframes)
+        OSResample_parallel = str(self.OSResample_parallel)
+        Atlas_ROIs = "1" if self.Atlas_ROIs else "0"
+        surfsmooth = str(self.surfsmooth)
+        subcortsmooth = str(self.subcortsmooth)
+        CSF_excl_lim = str(self.CSF_excl_lim)
+        CSF_lcube = str(self.CSF_lcube)
+        CSF_svdt = str(self.CSF_svdt)
+        WM_lcube = str(self.WM_lcube)
+        WM_svdt = str(self.WM_svdt)
+        nRegress = str(self.nRegress)
+        min_frames = str(self.min_frames)
+        ROIdir = self.ROIdir
+        ROIimg = self.ROIimg
+
+        # write params to file
+        with open(path, "w") as params_file:
+            params_file.write(f"set cleanup = {cleanup}\n")
+            params_file.write(f"@ cleanup = {cleanup}\n")  # TODO: maybe this isn't needed?
+            params_file.write(f"set economy = {economy}\n")
+            params_file.write(f"set inpath = {inpath}\n")
+            params_file.write(f"set target = {target}\n")
+            params_file.write(f"set outspace_flag = {outspace_flag}\n")
+            params_file.write(f"@ nlalign = {nlalign}\n")
+            params_file.write(f"set delta = {delta}\n")
+            params_file.write(f"set ME_reg = {ME_reg}\n")
+            params_file.write(f"set dbnd_flag = {dbnd_flag}\n")
+            params_file.write(f"set isnordic = {isnordic}\n")
+            params_file.write(f"set runnordic = {runnordic}\n")
+            params_file.write(f"set matlab = {matlab}\n")
+            params_file.write(f"set NORDIClib = {NORDIClib}\n")
+            params_file.write(f"set bases = {bases}\n")
+            params_file.write(f"set mean = {mean}\n")
+            params_file.write(f"@ nbases = {nbases}\n")
+            params_file.write(f"@ niter = {niter}\n")
+            params_file.write(f"@ GetBoldConfig = {GetBoldConfig}\n")
+            params_file.write(f"@ skip = {skip}\n")
+            params_file.write(f"@ normode = {normode}\n")
+            params_file.write(f"@ BiasField = {BiasField}\n")
+            params_file.write(f"@ useold = {useold}\n")
+            params_file.write(f"set FCdir = {FCdir}\n")
+            params_file.write(f"set ncontig = {ncontig}\n")
+            params_file.write(f"set FDthresh = {FDthresh}\n")
+            if not self.DVARthresh == 0:
+                params_file.write(f"set DVARthresh = {DVARthresh}\n")
+            params_file.write(f"set DVARsd = {DVARsd}\n")
+            params_file.write(f"set DVARblur = {DVARblur}\n")
+            params_file.write(f"set bpss_params = {bpss_params}\n")
+            params_file.write(f"set blur = {blur}\n")
+            params_file.write(f"@ lomotil = {lomotil}\n")
+            params_file.write(f"set noiseframes = {noiseframes}\n")
+            params_file.write(f"@ OSResample_parallel = {OSResample_parallel}\n")
+            params_file.write(f"@ Atlas_ROIs = {Atlas_ROIs}\n")
+            params_file.write(f"set surfsmooth = {surfsmooth}\n")
+            params_file.write(f"set subcortsmooth = {subcortsmooth}\n")
+            params_file.write(f"set CSF_excl_lim = {CSF_excl_lim}\n")
+            params_file.write(f"set CSF_lcube = {CSF_lcube}\n")
+            params_file.write(f"set CSF_svdt = {CSF_svdt}\n")
+            params_file.write(f"set WM_lcube = {WM_lcube}\n")
+            params_file.write(f"set WM_svdt = {WM_svdt}\n")
+            params_file.write(f"set nRegress = {nRegress}\n")
+            params_file.write(f"set min_frames = {min_frames}\n")
+            params_file.write(f"set ROIdir = {ROIdir}\n")
+            params_file.write(f"set ROIimg = {ROIimg}\n")
+
+
+def generate_instructions(project_dir: Union[Path, str]) -> Instructions:
+    """Generate a instructions file for a project.
+
+    Parameters
+    ----------
+    project_dir : Union[Path, str]
+        Path to the project directory.
+    """
+    return Instructions(project_dir=Path(project_dir).absolute())
