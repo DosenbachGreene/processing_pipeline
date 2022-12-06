@@ -462,102 +462,62 @@ class Instructions:
         path = Path(path).absolute()
 
         # prepare variables to write to params file
-        cleanup = "1" if self.cleanup else "0"
-        economy = str(self.economy)
-        inpath = self.inpath
-        target = self.target
-        outspace_flag = self.outspace_flag
-        nlalign = "1" if self.nlalign else "0"
-        delta = str(self.delta)
-        ME_reg = "1" if self.ME_reg else "0"
-        dbnd_flag = str(self.dbnd_flag)
-        isnordic = "1" if self.isnordic else "0"
-        runnordic = "1" if self.runnordic else "0"
-        matlab = self.matlab
-        NORDIClib = self.NORDIClib
-        bases = self.bases
-        mean = self.mean
-        nbases = str(self.nbases)
-        niter = str(self.niter)
-        GetBoldConfig = "1" if self.GetBoldConfig else "0"
-        skip = str(self.skip)
-        normode = "1" if self.normode else "0"
-        BiasField = "1" if self.BiasField else "0"
-        useold = "1" if self.useold else "0"
-        FCdir = self.FCdir
-        ncontig = str(self.ncontig)
-        FDthresh = str(self.FDthresh)
-        DVARthresh = str(self.DVARthresh)
-        DVARsd = str(self.DVARsd)
-        DVARblur = str(self.DVARblur)
-        bpss_params = " ".join(self.bpss_params)
-        bpss_params = f"( {bpss_params} )"
-        blur = str(self.blur)
-        lomotil = str(self.lomotil)
-        noiseframes = str(self.noiseframes)
-        OSResample_parallel = str(self.OSResample_parallel)
-        Atlas_ROIs = "1" if self.Atlas_ROIs else "0"
-        surfsmooth = str(self.surfsmooth)
-        subcortsmooth = str(self.subcortsmooth)
-        CSF_excl_lim = str(self.CSF_excl_lim)
-        CSF_lcube = str(self.CSF_lcube)
-        CSF_svdt = str(self.CSF_svdt)
-        WM_lcube = str(self.WM_lcube)
-        WM_svdt = str(self.WM_svdt)
-        nRegress = str(self.nRegress)
-        min_frames = str(self.min_frames)
-        ROIdir = self.ROIdir
-        ROIimg = self.ROIimg
+        # TODO: this is very unmanageable, should be refactored
+        # to be more automatic
+        bpass_params = " ".join(self.bpss_params)
+        variables_to_write = {
+            "cleanup": "1" if self.cleanup else "0",
+            "economy": str(self.economy),
+            "inpath": self.inpath,
+            "target": self.target,
+            "outspace_flag": self.outspace_flag,
+            "nlalign": "1" if self.nlalign else "0",
+            "delta": str(self.delta),
+            "ME_reg": "1" if self.ME_reg else "0",
+            "dbnd_flag": str(self.dbnd_flag),
+            "isnordic": "1" if self.isnordic else "0",
+            "runnordic": "1" if self.runnordic else "0",
+            "matlab": self.matlab,
+            "NORDIClib": self.NORDIClib,
+            "bases": self.bases,
+            "mean": self.mean,
+            "nbases": str(self.nbases),
+            "niter": str(self.niter),
+            "GetBoldConfig": "1" if self.GetBoldConfig else "0",
+            "skip": str(self.skip),
+            "normode": "1" if self.normode else "0",
+            "BiasField": "1" if self.BiasField else "0",
+            "useold": "1" if self.useold else "0",
+            "FCdir": self.FCdir,
+            "ncontig": str(self.ncontig),
+            "FDthresh": str(self.FDthresh),
+            "DVARthresh": str(self.DVARthresh) if self.DVARthresh != 0 else None,
+            "DVARsd": str(self.DVARsd),
+            "DVARblur": str(self.DVARblur),
+            "bpass_params": f"( {bpass_params} )",
+            "blur": str(self.blur),
+            "lomotil": str(self.lomotil),
+            "noiseframes": str(self.noiseframes),
+            "OSResample_parallel": str(self.OSResample_parallel),
+            "Atlas_ROIs": "1" if self.Atlas_ROIs else "0",
+            "surfsmooth": str(self.surfsmooth),
+            "subcortsmooth": str(self.subcortsmooth),
+            "CSF_excl_lim": str(self.CSF_excl_lim),
+            "CSF_lcube": str(self.CSF_lcube),
+            "CSF_svdt": str(self.CSF_svdt),
+            "WM_lcube": str(self.WM_lcube),
+            "WM_sydt": str(self.WM_svdt),
+            "nRegress": str(self.nRegress),
+            "min_frames": str(self.min_frames),
+            "ROIdir": self.ROIdir,
+            "ROIimg": self.ROIimg,
+        }
 
         # write params to file
         with open(path, "w") as params_file:
-            params_file.write(f"set cleanup = {cleanup}\n")
-            params_file.write(f"@ cleanup = {cleanup}\n")  # TODO: maybe this isn't needed?
-            params_file.write(f"set economy = {economy}\n")
-            params_file.write(f"set inpath = {inpath}\n")
-            params_file.write(f"set target = {target}\n")
-            params_file.write(f"set outspace_flag = {outspace_flag}\n")
-            params_file.write(f"@ nlalign = {nlalign}\n")
-            params_file.write(f"set delta = {delta}\n")
-            params_file.write(f"set ME_reg = {ME_reg}\n")
-            params_file.write(f"set dbnd_flag = {dbnd_flag}\n")
-            params_file.write(f"set isnordic = {isnordic}\n")
-            params_file.write(f"set runnordic = {runnordic}\n")
-            params_file.write(f"set matlab = {matlab}\n")
-            params_file.write(f"set NORDIClib = {NORDIClib}\n")
-            params_file.write(f"set bases = {bases}\n")
-            params_file.write(f"set mean = {mean}\n")
-            params_file.write(f"@ nbases = {nbases}\n")
-            params_file.write(f"@ niter = {niter}\n")
-            params_file.write(f"@ GetBoldConfig = {GetBoldConfig}\n")
-            params_file.write(f"@ skip = {skip}\n")
-            params_file.write(f"@ normode = {normode}\n")
-            params_file.write(f"@ BiasField = {BiasField}\n")
-            params_file.write(f"@ useold = {useold}\n")
-            params_file.write(f"set FCdir = {FCdir}\n")
-            params_file.write(f"set ncontig = {ncontig}\n")
-            params_file.write(f"set FDthresh = {FDthresh}\n")
-            if not self.DVARthresh == 0:
-                params_file.write(f"set DVARthresh = {DVARthresh}\n")
-            params_file.write(f"set DVARsd = {DVARsd}\n")
-            params_file.write(f"set DVARblur = {DVARblur}\n")
-            params_file.write(f"set bpss_params = {bpss_params}\n")
-            params_file.write(f"set blur = {blur}\n")
-            params_file.write(f"@ lomotil = {lomotil}\n")
-            params_file.write(f"set noiseframes = {noiseframes}\n")
-            params_file.write(f"@ OSResample_parallel = {OSResample_parallel}\n")
-            params_file.write(f"@ Atlas_ROIs = {Atlas_ROIs}\n")
-            params_file.write(f"set surfsmooth = {surfsmooth}\n")
-            params_file.write(f"set subcortsmooth = {subcortsmooth}\n")
-            params_file.write(f"set CSF_excl_lim = {CSF_excl_lim}\n")
-            params_file.write(f"set CSF_lcube = {CSF_lcube}\n")
-            params_file.write(f"set CSF_svdt = {CSF_svdt}\n")
-            params_file.write(f"set WM_lcube = {WM_lcube}\n")
-            params_file.write(f"set WM_svdt = {WM_svdt}\n")
-            params_file.write(f"set nRegress = {nRegress}\n")
-            params_file.write(f"set min_frames = {min_frames}\n")
-            params_file.write(f"set ROIdir = {ROIdir}\n")
-            params_file.write(f"set ROIimg = {ROIimg}\n")
+            for variable, value in variables_to_write.items():
+                if value is not None:
+                    params_file.write(f"set {variable} = {value}\n")
 
 
 def generate_instructions(project_dir: Union[Path, str]) -> Instructions:
