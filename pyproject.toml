@@ -15,6 +15,7 @@ version = "0.0.1"
 dependencies = [
   "memori >= 0.3.3",
   "xnat >= 0.4.3",
+  "pydicom >= 2.3.1",
 ]
 
 [project.optional-dependencies]
