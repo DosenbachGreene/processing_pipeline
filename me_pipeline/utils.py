@@ -5,7 +5,7 @@ from typing import cast, Union
 def flatten_dicom_dir(dicom_dir: Union[Path, str], base_dir: Union[Path, None] = None) -> None:
     """Flattens a dicom directory.
 
-        This moves all the dicom files in a top-level directory called "DICOMs" under base_dir.
+        This moves all the dicom files in a top-level directory called "SCANS" under base_dir.
         It removes all other subdirectories in the base_dir.
 
     Parameters
@@ -24,16 +24,16 @@ def flatten_dicom_dir(dicom_dir: Union[Path, str], base_dir: Union[Path, None] =
         base_dir = cast(Path, dicom_dir)
 
     # ensure base_dir / DICOM exists
-    (base_dir / "DICOMs").mkdir(parents=True, exist_ok=True)
+    (base_dir / "SCANS").mkdir(parents=True, exist_ok=True)
 
     # iterate through dicom_dir
     for path in cast(Path, dicom_dir).iterdir():
         # skip the DICOMs directory
-        if path == (base_dir / "DICOMs"):
+        if path == (base_dir / "SCANS"):
             continue
         # if the path is a file, move it to base_dir / DICOM
         if path.is_file():
-            path.rename(base_dir / Path("DICOMs") / path.name)
+            path.rename(base_dir / Path("SCANS") / path.name)
         # if the path is a directory, recursively call this function
         # then delete this directory
         elif path.is_dir():

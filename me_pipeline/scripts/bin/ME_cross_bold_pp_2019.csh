@@ -633,7 +633,6 @@ while ($k <= ${#runID})
 		set echo_mag = $patid"_b"${run}${nordstr}_echo${e}.nii
 		set echo_ph =  $patid"_b"${run}${nordstr}_echo${e}_ph.nii
 		set outname =  $patid"_b"${run}_echo${e}
-		# LOL REALLY?!?!
 		echo "try"								>! runnordic.m
 		echo "	addpath('${NORDIClib}');"					>> runnordic.m
 		echo "	ARG.noise_volume_last=${noiseframes};"				>> runnordic.m
