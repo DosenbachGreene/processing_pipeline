@@ -158,8 +158,11 @@ def _generate_paths(search_directory: Path, regex_list: List[str], image_type_pa
                         # and grab its ImageType tag
                         image_type = pydicom.read_file(str(dcm_path)).ImageType
 
-                        # now make the study path relative to the search directory
-                        study_path = study_path.relative_to(search_directory)
+                        # # now make the study path relative to the search directory
+                        # study_path = study_path.relative_to(search_directory)
+
+                        # make the study path absolute
+                        study_path = study_path.absolute()
 
                         # and append the study path and its image type to the session_dirs list
                         session_dirs.append((study_path, image_type))
@@ -187,7 +190,7 @@ class StructuralParams:
 
     Attributes
     ----------
-    project_dir : Path
+    write_dir : Path
         Path to the directory to write params file to.
     patid : str
         Patient ID.
@@ -205,7 +208,7 @@ class StructuralParams:
         Path to post FreeSurfer outputs.
     """
 
-    project_dir: Path
+    write_dir: Path
     patid: str
     structid: str
     studydir: Path
@@ -223,7 +226,7 @@ class StructuralParams:
             Path to save the params file.
         """
         if path is None:
-            path = self.project_dir / "struct.params"
+            path = self.write_dir / "struct.params"
         path = Path(path)
 
         # turn mprdir and t2wdir into strings
@@ -244,21 +247,20 @@ class StructuralParams:
 
 def generate_structural_params(
     subject_dir: Union[Path, str],
-    project_dir: Union[Path, str, None] = None,
+    write_dir: Union[Path, str, None] = None,
     patient_id: Union[str, None] = None,
     fs_dir: Union[Path, str] = "fs",
     post_fs_dir: Union[Path, str] = "FREESURFER_fs_LR",
 ) -> StructuralParams:
-    """Creates AA_struct.params file for structural preprocessing pipeline.
+    """Creates struct.params file for structural preprocessing pipeline.
 
     Parameters
     ----------
     subject_dir : Union[Path, str]
-        Subject path to generate the AA_struct.params file for. This will contain subdirectories (sessions)
+        Subject path to generate the struct.params file for. This will contain subdirectories (sessions)
         with T1w and T2w data.
-    project_dir : Union[Path, str, None], optional
-        Project directory to place the AA_struct.params file in. By default None, which sets it to the parent of the
-        subject_dir.
+    write_dir : Union[Path, str, None], optional
+        Directory to place the struct.params file in. By default None, which sets it to the subject_dir.
     patient_id : Union[str, None], optional
         Patient ID to use for the AA_struct.params file, by default None, which sets it to the basename of the
         subject_dir.
@@ -274,9 +276,9 @@ def generate_structural_params(
         Dataclass containing the parameters for the structural pipeline.
     """
     # if project_dir not defined, set it to the parent of the subject_dir
-    if project_dir is None:
-        project_dir = Path(subject_dir).parent
-    project_dir = Path(project_dir).absolute()
+    if write_dir is None:
+        write_dir = Path(subject_dir)
+    write_dir = Path(write_dir).absolute()
 
     # if patient_id not defined, set it to the basename of the subject_dir
     if patient_id is None:
@@ -295,7 +297,7 @@ def generate_structural_params(
 
     # make structural params object
     struct_params = StructuralParams(
-        project_dir=project_dir,
+        write_dir=write_dir,
         patid=patient_id,
         structid=patient_id,
         studydir=subject_path.parent,
@@ -396,7 +398,7 @@ class Instructions:
     # name of FCmaps folder
     FCdir: str = "FCmaps"
 
-    # ???
+    # number of contiguous frames for fd threshold (for fc processing)
     ncontig: int = 3
 
     # when set causes FD frame censoring at specified threshold in mm

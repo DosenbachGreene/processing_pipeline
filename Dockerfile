@@ -33,6 +33,8 @@ RUN python3 -m pip install fslpy
 RUN mkdir -p /opt/4dfp
 COPY --from=fdfp /opt/tools/bin /opt/4dfp/bin
 COPY --from=fdfp /opt/tools/pkg/refdir /opt/4dfp/refdir
+ENV RELEASE=/opt/4dfp/bin
+ENV REFDIR=/opt/4dfp/refdir
 
 # minimal fsl setup
 # this installs only needed programs
@@ -97,8 +99,26 @@ ENV FSLWISH=/usr/bin/wish
 ENV FSLGECUDAQ=cuda.q
 ENV FSL_LOAD_NIFTI_EXTENSIONS=0
 ENV FSL_SKIP_GLOBAL=0
-
-ENV RELEASE=/opt/4dfp/bin
-ENV REFDIR=/opt/4dfp/refdir
 ENV FSLDIR=/opt/fsl
-ENV PATH=${PATH:+${PATH}:}${RELEASE}:${FSLDIR}/bin
+
+# install freesurfer
+RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer_ubuntu22-7.3.2_amd64.deb && \
+    apt install -y ./freesurfer_ubuntu22-7.3.2_amd64.deb && \
+    rm freesurfer_ubuntu22-7.3.2_amd64.deb
+# add the freesufer license
+# TODO: we may need to remove this when this pipeline is public
+# since we aren't allowed to distribute the license
+ADD tools/license.txt /usr/local/freesurfer/7.3.2/license.txt
+# set freesurfer env variable
+ENV FREESURFER_HOME=/usr/local/freesurfer/7.3.2
+
+# add this repo
+ADD . /opt/processing_pipeline
+# and install
+RUN cd /opt/processing_pipeline && \
+    # upgrade pip before install
+    python3 -m pip install pip --upgrade && \
+    python3 -m pip install ./ -v
+
+# set paths to programs
+ENV PATH=${PATH:+${PATH}:}${RELEASE}:${FSLDIR}/bin:/opt/workbench/bin_linux64

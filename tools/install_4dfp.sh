@@ -5,6 +5,8 @@ tools_dir=$(realpath $(dirname $(command -v $0)))
 pushd $tools_dir > /dev/null
 
 # check if files are already downloaded
+# we do these checks so we don't have to download the files every time
+# we run this script (because the 4dfp ftp server is slow...)
 files_exist=1
 [[ -f pkg/4dfp_scripts.tar ]] || files_exist=0
 [[ -f pkg/nil-tools.tar ]] || files_exist=0

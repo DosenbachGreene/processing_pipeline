@@ -1,4 +1,4 @@
-from os.path import join
+from pathlib import Path
 from xnat import connect, mixin
 from typing import cast, List, Tuple, Union
 
@@ -133,8 +133,8 @@ class XNATSession:
         project: str,
         subject: str,
         session: str,
-        download_dir: str,
-    ) -> str:
+        download_dir: Union[Path, str],
+    ) -> Path:
         """Gets data from an xnat server and saves it locally to the specified directory.
 
         Parameters
@@ -145,12 +145,12 @@ class XNATSession:
             Subject to download data for.
         session : str
             Session to download data for.
-        download_dir : str
+        download_dir : Union[Path, str]
             Directory to download data to.
 
         Returns
         -------
-        str
+        Path
             Path to downloaded data.
         """
         # get project
@@ -163,7 +163,7 @@ class XNATSession:
         session_data: mixin.ExperimentData = subject_data.experiments[session]
 
         # download data
-        session_data.download_dir(download_dir)
+        session_data.download_dir(str(download_dir))
 
         # return the directory of the downloaded data
-        return join(download_dir, session_data.label)
+        return Path(download_dir) / session_data.label

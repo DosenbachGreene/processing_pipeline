@@ -1,9 +1,30 @@
 import argparse
-from me_pipeline.params import generate_structural_params_file
+from me_pipeline.params import generate_instructions, generate_structural_params
 from . import epilog
 
 
 def main():
     # TODO: add description
     parser = argparse.ArgumentParser(description="TODO", epilog=f"{epilog} 12/02/2022")
-    parser.add_argument("patient_id", help="Patient ID")
+    subparser = parser.add_subparsers(
+        title="params_type", dest="params_type", required=True, help="params type to generate"
+    )
+
+    # instructions params
+    instructions = subparser.add_parser("instructions", help="generate instructions params")
+    instructions.add_argument("project_dir", help="path to project folder to generate instructions params for.")
+
+    # structural params
+    structural = subparser.add_parser("structural", help="generate structural params")
+    structural.add_argument("subject_dir", help="path to subject folder to generate structural params for.")
+
+    # parse args
+    args = parser.parse_args()
+
+    # generate params
+    if args.params_type == "instructions":
+        instructions_params = generate_instructions(args.project_dir)
+        instructions_params.save_params()
+    elif args.params_type == "structural":
+        struct_params = generate_structural_params(args.subject_dir)
+        struct_params.save_params()

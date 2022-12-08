@@ -1,6 +1,5 @@
 #!/bin/csh
 ## TOL, Version 1, 08/2021
-set workbenchdir = /data/nil-bluearc/GMT/Laumann/workbench_v1.5/bin_rh_linux64/
 set program = $0; set program = $program:t
 
 ###########################
@@ -501,7 +500,7 @@ pushd subcortical_mask
 cp ${T1dir}/atlas/${structid}_wmparc_on_${outspace:t}.nii.gz .
 cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/FreeSurferSubcorticalLabelTableLut* .
 cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/global/templates/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
-${workbenchdir}/wb_command -volume-label-import ${structid}_wmparc_on_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut.txt 
+wb_command -volume-label-import ${structid}_wmparc_on_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut.txt 
 subcortical_mask_LR_${outspace:t}.nii -discard-others -unlabeled-value 0
 
 popd
