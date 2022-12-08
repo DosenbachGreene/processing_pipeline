@@ -80,4 +80,22 @@ sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixe
 tcsh -e make_nil-tools.csh
 popd > /dev/null
 
+### REFDIR fixes ###
+# some files that are available on NIL REFDIR need to generated
+
+# fix missing ifh file in refdir
+cp pkg/refdir/711-2B_mask_g5_111.4dfp.ifh pkg/refdir/711-2B_mask_g5_111z.4dfp.ifh
+sed -i "s/:= t4imgs_4dfp/:= zero_lt_4dfp/g" pkg/refdir/711-2B_mask_g5_111z.4dfp.ifh
+sed -i "s/711-2B_mask_g5_111.4dfp.img/711-2B_mask_g5_111z.4dfp.img/g" pkg/refdir/711-2B_mask_g5_111z.4dfp.ifh
+
+# convert files to nifti
+for f in pkg/refdir/*.img; do basename=$(echo $f | sed 's/.4dfp.img//g'); nifti_4dfp -n $basename $basename.nii; done
+for f in pkg/refdir/CanonicalROIsNP705/*.img; do basename=$(echo $f | sed 's/.4dfp.img//g'); nifti_4dfp -n $basename $basename.nii; done
+for f in pkg/refdir/MNI152/*.img; do basename=$(echo $f | sed 's/.4dfp.img//g'); nifti_4dfp -n $basename $basename.nii; done
+for f in pkg/refdir/MNI152/FSL/*.img; do basename=$(echo $f | sed 's/.4dfp.img//g'); nifti_4dfp -n $basename $basename.nii; done
+for f in pkg/refdir/zhangd_ROIs/*.img; do basename=$(echo $f | sed 's/.4dfp.img//g'); nifti_4dfp -n $basename $basename.nii; done
+
+# copy FSLTransforms to refdir
+cp -r FSLTransforms pkg/refdir/
+
 popd > /dev/null
