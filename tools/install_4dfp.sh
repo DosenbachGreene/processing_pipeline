@@ -77,7 +77,12 @@ sed -i "s/f77 -O -I4 -e/gcc -O2 -w -ffixed-line-length-132 -fno-second-underscor
 # t4img fixes
 sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" t4imgs_4dfp/t4imgs_4dfp.mak
 
+# run build script
 tcsh -e make_nil-tools.csh
+
+# for some reason this program doesn't get copied...
+cp ${NILSRC}/blur_n_thresh_4dfp/blur_n_thresh_4dfp ${RELEASE}/
+
 popd > /dev/null
 
 ### REFDIR fixes ###

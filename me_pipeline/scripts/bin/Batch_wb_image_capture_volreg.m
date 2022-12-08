@@ -29,8 +29,8 @@ copyfile(Rwhite,[capturefolder '/R.white.surf.gii']);
 
 height = 800;
 width = 2450;
-systemcall_silent(['wb_command -volume-palette ' capturefolder '/volume.nii.gz MODE_AUTO_SCALE_PERCENTAGE -pos-percent 57 96']);
-systemcall_silent(['wb_command -show-scene ' capturefolder '/Capture_volreg.scene 1 ' outname '.png ' num2str(width) ' ' num2str(height)]);
+system(['wb_command -volume-palette ' capturefolder '/volume.nii.gz MODE_AUTO_SCALE_PERCENTAGE -pos-percent 57 96']);
+system(['wb_command -show-scene ' capturefolder '/Capture_volreg.scene 1 ' outname '.png ' num2str(width) ' ' num2str(height)]);
 
 try rmdir(capturefolder,'s'); catch; end
 

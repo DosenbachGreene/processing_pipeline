@@ -10,7 +10,7 @@ WORKDIR /opt
 # get dependencies
 RUN apt-get update && \
     apt-get install -y build-essential ftp tcsh wget \
-    python3 python3-pip gawk gfortran tcl wish
+    python3 python3-pip gawk gfortran tcl wish unzip
 
 # get and install 4dfp
 FROM base as fdfp
@@ -67,6 +67,11 @@ COPY --from=fsl /opt/fsl/bin/tmpnam /opt/fsl/bin/
 COPY --from=fsl /opt/fsl/bin/fslorient /opt/fsl/bin/
 COPY --from=fsl /opt/fsl/bin/fnirt /opt/fsl/bin/
 COPY --from=fsl /opt/fsl/bin/fnirtfileutils /opt/fsl/bin/
+COPY --from=fsl /opt/fsl/bin/msm /opt/fsl/bin/
+COPY --from=fsl /opt/fsl/bin/msmapplywarp /opt/fsl/bin/
+COPY --from=fsl /opt/fsl/bin/msmresample /opt/fsl/bin/
+COPY --from=fsl /opt/fsl/bin/average_surfaces /opt/fsl/bin/
+COPY --from=fsl /opt/fsl/bin/estimate_metric_distortion /opt/fsl/bin/
 # symlink python scripts
 RUN ln -s /usr/local/bin/atlasq /opt/fsl/bin/atlasq
 RUN ln -s /usr/local/bin/fsl_abspath /opt/fsl/bin/fsl_abspath
@@ -111,6 +116,12 @@ RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer
 ADD tools/license.txt /usr/local/freesurfer/7.3.2/license.txt
 # set freesurfer env variable
 ENV FREESURFER_HOME=/usr/local/freesurfer/7.3.2
+
+# install connectome workbench
+RUN wget https://www.humanconnectome.org/storage/app/media/workbench/workbench-linux64-v1.5.0.zip && \
+    unzip workbench-linux64-v1.5.0.zip && \
+    rm workbench-linux64-v1.5.0.zip && \
+    mv workbench /opt/workbench
 
 # add this repo
 ADD . /opt/processing_pipeline

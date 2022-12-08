@@ -3,6 +3,9 @@
 source $1 #Subject-specific instructions
 source $2 #Project instructions
 
+set wb_command = `which wb_command`
+set workbenchdir = `dirname $wb_command`
+
 if ( $#mprdirs > 1 ) then
 	set mpr = ${structid}_T1w_debias_avg
 else
@@ -75,7 +78,6 @@ set T2dir = ${studydir}/${patid}/T2
 set T2_Nativevol = ${t2wimg}
 
 set nativedir = ${PostFSdir}/${structid}/NativeVol
-set workbenchdir = /data/nil-bluearc/GMT/Laumann/workbench_v1.5/bin_rh_linux64
 set resampledir = ${PostFSdir}/${structid}/${atlasdir}
 
 if ( -e ${resampledir} ) rm -rf ${resampledir}
@@ -129,7 +131,7 @@ end
 ${workbenchdir}/wb_command -add-to-spec-file ${structid}.native.wb.spec OTHER ${resampledir}/${T1_Atlasvol}.nii.gz
 ${workbenchdir}/wb_command -add-to-spec-file ${structid}.native.wb.spec OTHER ${resampledir}/${T2_Atlasvol}.nii.gz
 popd
-echo hello
+
 #Fsaverage32k
 pushd fsaverage_LR32k
 foreach surface ( $surfaces )

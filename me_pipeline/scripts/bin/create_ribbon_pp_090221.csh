@@ -4,6 +4,9 @@ echo "\n START: CreateRibbon"
 source $1 #Subject-specific instructions
 source $2 #Project instructions
 
+set wb_command = `which wb_command`
+set workbenchdir = `dirname $wb_command`
+
 if ( $#mprdirs > 1 ) then
 	set mpr = ${structid}_T1w_debias_avg
 else
@@ -71,8 +74,7 @@ else
 endif
 
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
-set workbenchdir = /data/nil-bluearc/GMT/Laumann/workbench_v1.5/bin_rh_linux64
-set freelabels = /data/nil-bluearc/GMT/Laumann/FreeSurferAllLut.txt
+set freelabels = ${DATA_DIR}/FreeSurferAllLut.txt
 
 set LeftGreyRibbonValue="3"
 set LeftWhiteMaskValue="2"

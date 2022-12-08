@@ -6,11 +6,11 @@
 #Aug2021, TOL 
 
 #Script and Program Locations:	
-SurfaceAtlasDir="/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/global/templates/standard_mesh_atlases"
-PipelineScripts="/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/scripts"  
-Caret7dir="/data/nil-bluearc/GMT/Laumann/workbench_v1.4/bin_rh_linux64" #Location of Caret7 wb_command
-MSMBINDIR="/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/MSM/"
-MSMCONFIGDIR="/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/MSM/"
+SurfaceAtlasDir="${DATA_DIR}/standard_mesh_atlases"
+PipelineScripts=$(dirname $(command -v FreeSurfer2CaretConvertAndRegisterNonlinear_MSM.sh))
+Caret7dir=$(dirname $(command -v wb_command))
+MSMBINDIR=$(dirname $(command -v msm))
+MSMCONFIGDIR="${DATA_DIR}/MSM"
 
 Subject=$1 			#Struct ID name
 FreesurferImportLocation=$2 	#Input freesurfer path
