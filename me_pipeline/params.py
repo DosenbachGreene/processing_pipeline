@@ -158,6 +158,16 @@ def _generate_paths(search_directory: Path, regex_list: List[str], image_type_pa
                         # and grab its ImageType tag
                         image_type = pydicom.read_file(str(dcm_path)).ImageType
 
+                        # TODO: absolute paths seem to work better over relative paths for now
+                        # if relative is used, the script is assumed to run from the session
+                        # level directory, but with absolute paths the script can run anywhere
+                        # but at the cost of not being able to move the data on the disk and
+                        # the pipeline still working. But it's likely that the data will not be
+                        # moved after it has been processed or that the pipeline will not be run
+                        # on it again anyway. If it does need to be moved, and the pipeline needs
+                        # to be rerun, the params file must be regenerated to update the paths,
+                        # before running the pipeline again.
+
                         # # now make the study path relative to the search directory
                         # study_path = study_path.relative_to(search_directory)
 

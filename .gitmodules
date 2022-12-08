@@ -1,0 +1,3 @@
+[submodule "extern/NORDIC_Raw"]
+	path = extern/NORDIC_Raw
+	url = https://github.com/vanandrew/NORDIC_Raw.git

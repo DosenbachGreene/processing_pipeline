@@ -8,11 +8,11 @@ This pipeline requires 4dfp, fsl, freesurfer, and connectome workbench.
 
 ### Non-Docker Usage
 
-TODO: This universal install script probably breaks license agreements...
-To install the dependencies, the can use the `install_` scripts found in the `tools` folder of this repo.
+TODO: This install script probably breaks license agreements...
+To install the dependencies, you can use the `install_` scripts found in the `tools` folder of this repo.
 
-There dependencies for each of these tools may need to be installed separately, and you may refer to the `Dockerfile`
-and the appropriate software's documentation for more details.
+There are dependencies for each of these tools that may need to be installed separately, and you may need to refer to
+the `Dockerfile` and/or the appropriate software's documentation for more details on how to install them.
 
 ### Docker Usage
 
@@ -68,6 +68,16 @@ you also aim to modify any params for a particular subject/session before runnin
 - Level 2: Fully automated pipeline (TODO: NOT YET IMPLEMENTED).
 
 - Level 3: Web Interface (TODO: NOT YET IMPLEMENTED).
+
+### Running csh scripts
+
+To run any of the csh scripts, you can use the `run_script` command:
+
+```bash
+run_script Structural_pp_090121.csh [struct.params] [instructions.params]
+```
+
+To see the full list of scripts you can run, check `run_script --help`.
 
 ### Data Layout
 

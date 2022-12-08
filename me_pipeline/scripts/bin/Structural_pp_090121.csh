@@ -35,7 +35,7 @@ if (${#argv} > 1) then
 	cat $instructions
 	source $instructions
 endif
-
+set basedir = $cwd
 set subdir = $studydir/$patid
 set T1dir  = $subdir/T1
 set T2dir  = $subdir/T2
@@ -150,7 +150,7 @@ foreach mprdir ( $mprdirs )
 	set mpr = ${structid}_T1w_${i}
 	
 	# Convert dcm to nii
-	dcm2niix -o . -f $mpr -z n ${mprdir} || exit $status
+	dcm2niix -o . -f $mpr -z n ${basedir}/${mprdir} || exit $status
 	nifti_4dfp -4 $mpr $mpr -N
 	rm ${mpr}.nii
 	nifti_4dfp -n $mpr $mpr
@@ -206,7 +206,7 @@ foreach t2wdir ( $t2wdirs )
 	set t2w = ${structid}_T2w_${i}
 	
 	# Convert dcm to nii
-	dcm2niix -o . -f $t2w -z n ${t2wdir} || exit $status
+	dcm2niix -o . -f $t2w -z n ${basedir}/${t2wdir} || exit $status
 	
 	# Bias field correction of t2w
 	bet $t2w ${t2w}_brain -R || exit $status
@@ -402,8 +402,7 @@ echo "############## Run Freesurfer ##############"
 pushd ${T1dir}
 if ( ! -d ${FSdir} ) mkdir ${FSdir}
 echo "recon-all -all -sd ${FSdir} -s ${structid} -i ${mpr}.nii.gz -T2 ../T2/${t2wimg}_on_${mpr}.nii.gz -T2pial"
-recon-all -all -sd ${FSdir} -s ${structid} -i ${mpr}.nii.gz -T2 ./atlas/${t2wimg}_on_${mpr}.nii.gz -T2pial -parallel || exit ${status} #-custom-tal-atlas 
-TRIO_Y_NDC_as_mni_average_305
+recon-all -all -sd ${FSdir} -s ${structid} -i ${mpr}.nii.gz -T2 ./atlas/${t2wimg}_on_${mpr}.nii.gz -T2pial -parallel || exit ${status} #-custom-tal-atlas TRIO_Y_NDC_as_mni_average_305
 cp ${mpr}.nii.gz ${FSdir}/${structid} 
 popd
 if ( $doexit ) exit
@@ -413,7 +412,7 @@ POSTFREESURFER:
 # Post-Freesurfer pipeline for generating fsLR surfaces in workbench format
 #############################################################################
 echo "############## Run PostFreesurfer Surface pipeline ##############"
-/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/PostFreeSurferPipeline_fsavg2fslr_080921.bat ${structid} ${FSdir} ${mpr} ${PostFSdir} || exit ${status}
+PostFreeSurferPipeline_fsavg2fslr_080921.bat ${structid} ${FSdir} ${mpr} ${PostFSdir} || exit ${status}
 if ( $doexit ) exit
 
 SEG2ATL:
@@ -498,10 +497,9 @@ pushd ${subdir}
 if (! -d subcortical_mask ) mkdir subcortical_mask
 pushd subcortical_mask
 cp ${T1dir}/atlas/${structid}_wmparc_on_${outspace:t}.nii.gz .
-cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/FreeSurferSubcorticalLabelTableLut* .
-cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/global/templates/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
-wb_command -volume-label-import ${structid}_wmparc_on_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut.txt 
-subcortical_mask_LR_${outspace:t}.nii -discard-others -unlabeled-value 0
+cp ${DATA_DIR}/FreeSurferSubcorticalLabelTableLut* .
+cp ${DATA_DIR}/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
+wb_command -volume-label-import ${structid}_wmparc_on_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut.txt subcortical_mask_LR_${outspace:t}.nii -discard-others -unlabeled-value 0
 
 popd
 popd
@@ -516,7 +514,7 @@ if ( $nlalign ) then
 	echo "WARNING: postfreesurfer2atl and subsequent steps only work with linear alignment"
 	exit
 else
-	/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/native_to_atlas_resample_surface_090221.csh $1 $2 || exit ${status}
+native_to_atlas_resample_surface_090221.csh $1 $2 || exit ${status}
 endif
 if ( $doexit ) exit
 
@@ -525,7 +523,7 @@ CREATE_RIBBON:
 # Create cortical ribbon volume
 #############################################################################
 echo "############## Create Ribbon in final outspace ##############"
-/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/create_ribbon_pp_090221.csh $1 $2
+create_ribbon_pp_090221.csh $1 $2
 if ( $doexit ) exit
 
 
@@ -551,3 +549,4 @@ matlab -batch "Batch_wb_image_capture_volreg('${volume}','${Lpial}','${Lwhite}',
 eog ${outname}.png &
 popd
 exit
+
