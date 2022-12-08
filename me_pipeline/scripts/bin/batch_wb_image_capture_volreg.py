@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from random import randint
 
-def batch_wb_image_capture_volreg(volume, Lpial, Lwhite, Rpial, Rwhite, outname):
+def batch_wb_image_capture_volreg(volume, lpial, lwhite, rpial, rwhite, outname):
 
     orig_capture_folder = '/data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/image_capture_template/'
 
@@ -17,19 +17,19 @@ def batch_wb_image_capture_volreg(volume, Lpial, Lwhite, Rpial, Rwhite, outname)
     rand_num = str(randint(1, 1000000))
     capture_folder_path = dir_name / f"temp_image_capture_files{rand_num}"
     volume_path = capture_folder_path / "volume.nii.gz"
-    Lpial_path = capture_folder_path / "L.pial.surf.gii"
-    Rpial_path = capture_folder_path / "R.pial.surf.gii"
-    Lwhite_path = capture_folder_path / "L.white.surf.gii"
-    Rwhite_path = capture_folder_path / "R.white.surf.gii"
+    lpial_path = capture_folder_path / "L.pial.surf.gii"
+    rpial_path = capture_folder_path / "R.pial.surf.gii"
+    lwhite_path = capture_folder_path / "L.white.surf.gii"
+    rwhite_path = capture_folder_path / "R.white.surf.gii"
     volreg_path = capture_folder_path / "Capture_volreg.scene"
 
     # Copy contents to capture folder
     shutil.copytree(orig_capture_folder, capture_folder_path)
     shutil.copy(volume, volume_path)
-    shutil.copy(Lpial, Lpial_path)
-    shutil.copy(Rpial, Rpial_path)
-    shutil.copy(Lwhite, Lwhite_path)
-    shutil.copy(Rwhite, Rwhite_path)
+    shutil.copy(lpial, lpial_path)
+    shutil.copy(rpial, rpial_path)
+    shutil.copy(lwhite, lwhite_path)
+    shutil.copy(rwhite, rwhite_path)
 
     # Run wb command
     height = "800"
