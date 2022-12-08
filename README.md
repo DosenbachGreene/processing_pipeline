@@ -71,6 +71,8 @@ you also aim to modify any params for a particular subject/session before runnin
 
 ### Running csh scripts
 
+This is for Level 0 users. Skip this section if you are not using this level of usage.
+
 To run any of the csh scripts, you can use the `run_script` command:
 
 ```bash
@@ -78,6 +80,7 @@ run_script Structural_pp_090121.csh [struct.params] [instructions.params]
 ```
 
 To see the full list of scripts you can run, check `run_script --help`.
+
 
 ### Data Layout
 
@@ -142,10 +145,22 @@ generate_params instructions [project_dir]
 # Structural params file should be at subject directory level
 generate_params structural [subject_dir]
 # Functional params file should be at session directory level
+# NOT YET IMPLEMENTED
 generate_params functional [session_dir]
 ```
 
 ### Running the Pipeline
 
-TODO
+For all pipelines, the instructions file is expected to be at the project directory level, the structural
+params file is expected to be at the subject directory level, and the functional params file is expected to be at
+the session directory level.
 
+#### Structural Pipeline
+
+To run the structural pipeline, use the `run_pipeline` command:
+
+```bash
+run_pipeline structural [project_dir] [subject_label]
+```
+
+This will run the pipeline for the subject [subject-label] in the project [project_dir].

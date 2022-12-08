@@ -540,13 +540,12 @@ set Rwhite = "${PostFSdir}/${structid}/${atlasdir}/Native/${structid}.R.white.na
 
 set volume = "${T1dir}/atlas/${mpr}_on_${outspacestr}.nii.gz"
 set outname = "${T1dir}/atlas/${mpr}_on_${outspacestr}_regcheck"
-pushd ${DATA_DIR}/../bin
-matlab -batch "Batch_wb_image_capture_volreg('${volume}','${Lpial}','${Lwhite}','${Rpial}','${Rwhite}','${outname}')"
+batch_wb_image_capture_volreg $volume $Lpial $Lwhite $Rpial $Rwhite $outname
+eog ${outname}.png &
 
 set volume = "${T1dir}/atlas/${t2wimg}_on_${outspacestr}.nii.gz"
 set outname = "${T1dir}/atlas/${t2wimg}_on_${outspacestr}_regcheck"
-matlab -batch "Batch_wb_image_capture_volreg('${volume}','${Lpial}','${Lwhite}','${Rpial}','${Rwhite}','${outname}')"
+batch_wb_image_capture_volreg $volume $Lpial $Lwhite $Rpial $Rwhite $outname
 eog ${outname}.png &
-popd
 exit
 
