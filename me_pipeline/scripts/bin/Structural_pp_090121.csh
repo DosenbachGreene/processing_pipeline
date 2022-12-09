@@ -141,7 +141,7 @@ T1_DCM:
 # Convert dcm to nii, debias
 ################
 echo "############## T1, DCM to NII conversion and Debias ##############"
-mkdir $T1dir
+mkdir -p  $T1dir
 pushd $T1dir
 
 @ i = 1
@@ -197,7 +197,7 @@ T2_DCM:
 # Convert dcm to nii, debias
 ################
 echo "############## T2, DCM to NII conversion and Debias ##############"
-mkdir $T2dir
+mkdir -p $T2dir
 pushd $T2dir
 
 @ i = 1
@@ -251,7 +251,7 @@ T1_REG2ATL:
 ###########################
 echo "############## Register T1 to Atlas ##############"
 pushd $T1dir
-if ( ! -d atlas) mkdir atlas
+if ( ! -d atlas) mkdir -p atlas
 pushd atlas
 if ( $#mprdirs > 1 ) then
 	set mpr = ${structid}_T1w_debias_avg
@@ -288,7 +288,7 @@ niftigz_4dfp -n ${mpr} ${mpr}
 # Perform non-linear registration if flagged and transform to outspace
 ########################################################################
 if ( $nlalign ) then
-	if ( ! -d fnirt ) mkdir fnirt
+	if ( ! -d fnirt ) mkdir -p fnirt
 	pushd fnirt
 	# must have .mat file from target 111 711-2B to the reference
 	if ( ! -e ${fnwarp}.nii || ! $useold ) then	
@@ -400,7 +400,7 @@ SURFACE_CREATION:
 ###########################################################
 echo "############## Run Freesurfer ##############"
 pushd ${T1dir}
-if ( ! -d ${FSdir} ) mkdir ${FSdir}
+if ( ! -d ${FSdir} ) mkdir -p ${FSdir}
 echo "recon-all -all -sd ${FSdir} -s ${structid} -i ${mpr}.nii.gz -T2 ../T2/${t2wimg}_on_${mpr}.nii.gz -T2pial"
 recon-all -all -sd ${FSdir} -s ${structid} -i ${mpr}.nii.gz -T2 ./atlas/${t2wimg}_on_${mpr}.nii.gz -T2pial -parallel || exit ${status} #-custom-tal-atlas TRIO_Y_NDC_as_mni_average_305
 cp ${mpr}.nii.gz ${FSdir}/${structid} 
@@ -494,7 +494,7 @@ SUBCORTICAL_MASK:
 ###############################################
 echo "############## Make subcortical mask ##############"
 pushd ${subdir}
-if (! -d subcortical_mask ) mkdir subcortical_mask
+if (! -d subcortical_mask ) mkdir -p subcortical_mask
 pushd subcortical_mask
 cp ${T1dir}/atlas/${structid}_wmparc_on_${outspace:t}.nii.gz .
 cp ${DATA_DIR}/FreeSurferSubcorticalLabelTableLut* .

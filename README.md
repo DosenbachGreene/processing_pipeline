@@ -31,6 +31,24 @@ pip install /path/to/repo -v
 pip install -e /path/to/repo -v
 ```
 
+## Repository Structure
+
+This section is for developers. Skip this section if you aren't intending to push any code changes.
+
+The repo is organized as follows:
+
+    - `me_pipeline`: contains the main pipeline scripts, and associated pipeline wrappers. `me_pipeline/scripts` holds
+    python scripts that define a single function (.i.e. `main`) that is installed as a script during installation. The
+    if the file name is `script_to_call.py`, then after installation of this package, it can be simply called from
+    the command line as `script_to_call`. `me_pipeline/scripts/bin` and `me_pipeline/scripts/data` holds shell scripts
+    and reference data from the original pipeline that are called by the python scripts in `me_pipeline/scripts`.
+
+    - `extern`: for external git repos used in this pipeline. Currently the only one in use is for NORDIC.
+
+    - `tools`: contains scripts for installing external dependencies. These include 4dfp, fsl, freesurfer, connectome
+    workbench, and the MATLAB compiler runtime. Any MATLAB code called by the pipeline also lives here.
+    
+
 ## Some Terminology Definitions
 
 MR data has many terms that often get used interchangeably. Here are some definitions to help clarify the terms used

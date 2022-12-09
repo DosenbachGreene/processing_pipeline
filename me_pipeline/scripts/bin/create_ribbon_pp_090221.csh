@@ -100,7 +100,7 @@ foreach hem ( L R )
    
 
   echo "${outputdir}"
-  mkdir "${outputdir}"
+  mkdir -p "${outputdir}"
   echo ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.white.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.white.native.nii.gz 
   ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.white.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.white.native.nii.gz 
   ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.pial.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.pial.native.nii.gz 
@@ -137,7 +137,7 @@ foreach hem ( L R )
    
 
   echo "${outputdir}"
-  mkdir "${outputdir}"
+  mkdir -p "${outputdir}"
   echo ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.white.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.white.native.nii.gz 
   ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.white.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.white.native.nii.gz 
   ${workbenchdir}/wb_command -create-signed-distance-volume ${origdir}/${structid}.${hem}.pial.native.surf.gii ${T1image} ${outputdir}/${structid}.${hem}.pial.native.nii.gz 

@@ -33,7 +33,9 @@ def main():
     structural = subparser.add_parser("structural", help="Structural Pipeline")
     structural.add_argument("project_dir", help="Path to project directory.")
     structural.add_argument("subject_label", help="Subject label to run pipeline on.")
-    structural.add_argument("--module_start", help="Module to start pipeline on.", choices=STRUCTURAL_MODULES)
+    structural.add_argument(
+        "--module_start", default="T1_DCM", help="Module to start pipeline on.", choices=STRUCTURAL_MODULES
+    )
     structural.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
 
     # parse arguments
@@ -57,8 +59,10 @@ def main():
         # save the current working directory
         cwd = getcwd()
 
-        # change to subject directory
-        chdir(subject_dir)
+        # change to root directory
+        # this is necessary because some of the paths are relative to the
+        # current working directory, and we mainly use absolute paths
+        chdir("/")
 
         # run the structural pipeline
         run(

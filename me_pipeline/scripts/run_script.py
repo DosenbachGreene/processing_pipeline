@@ -15,7 +15,7 @@ SCRIPTS = [script.name for script in BIN_DIR.iterdir() if script.is_file()]
 
 def main():
     parser = argparse.ArgumentParser(
-        description="TODO",
+        description="Good Luck Brave Soul!",
         epilog=f"{epilog} 12/08/2022",
     )
     parser.add_argument(

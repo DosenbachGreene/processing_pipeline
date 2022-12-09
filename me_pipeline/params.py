@@ -256,6 +256,7 @@ class StructuralParams:
 
 
 def generate_structural_params(
+    project_dir: Union[Path, str],
     subject_dir: Union[Path, str],
     write_dir: Union[Path, str, None] = None,
     patient_id: Union[str, None] = None,
@@ -266,6 +267,8 @@ def generate_structural_params(
 
     Parameters
     ----------
+    project_dir : Union[Path, str]
+        Project path to generate the struct.params file for. This will contain subdirectories (subjects)
     subject_dir : Union[Path, str]
         Subject path to generate the struct.params file for. This will contain subdirectories (sessions)
         with T1w and T2w data.
@@ -285,7 +288,11 @@ def generate_structural_params(
     StructuralParams
         Dataclass containing the parameters for the structural pipeline.
     """
-    # if project_dir not defined, set it to the parent of the subject_dir
+    # make project_dir and subject_dir absolute paths
+    project_dir = Path(project_dir).absolute()
+    subject_dir = Path(subject_dir).absolute()
+
+    # if write_dir not defined, set it to the parent of the subject_dir
     if write_dir is None:
         write_dir = Path(subject_dir)
     write_dir = Path(write_dir).absolute()
@@ -295,22 +302,19 @@ def generate_structural_params(
         patient_id = str(Path(subject_dir).name)
 
     # make fs_dir and post_fs_dir absolute paths
-    fs_dir = Path(fs_dir).absolute()
-    post_fs_dir = (fs_dir / Path(post_fs_dir)).absolute()
-
-    # turn subject dir into a Path object and get absolute path
-    subject_path = Path(subject_dir).absolute()
+    fs_dir = (project_dir / fs_dir).absolute()
+    post_fs_dir = (project_dir / post_fs_dir).absolute()
 
     # search for T1w and T2w directories in path
-    mpr_dirs = _generate_paths(subject_path, REGEX_SEARCH_MPR, STRUCTURAL_IMAGE_TYPE_PATTERNS)
-    t2w_dirs = _generate_paths(subject_path, REGEX_SEARCH_T2W, STRUCTURAL_IMAGE_TYPE_PATTERNS)
+    mpr_dirs = _generate_paths(subject_dir, REGEX_SEARCH_MPR, STRUCTURAL_IMAGE_TYPE_PATTERNS)
+    t2w_dirs = _generate_paths(subject_dir, REGEX_SEARCH_T2W, STRUCTURAL_IMAGE_TYPE_PATTERNS)
 
     # make structural params object
     struct_params = StructuralParams(
         write_dir=write_dir,
         patid=patient_id,
         structid=patient_id,
-        studydir=subject_path.parent,
+        studydir=project_dir,
         mprdir=mpr_dirs,
         t2wdir=t2w_dirs,
         fsdir=fs_dir,
@@ -331,8 +335,39 @@ class FunctionalParams:
         Path to directory to write params file to.
     """
 
+    day1_patid: str
+    day1_path: Path
+    patid: str
+    mpr: str
+    t2wimg: str
+    BOLDgrps: List[int]
+    runID: List[int]
+    FCrunID: List[int]
+    sefm: List[int]
+    FSdir: Path
+    PostFSdir: Path
+    maskdir: Path
 
-def generate_functional_params():
+    # set day1_patid = MSC02
+    # set day1_path = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/MSC02_struct_v2/T1/atlas
+    # set patid = Pilot_ME_Nordic_res04_2mm_nonordic
+    # set mpr = MSC02_T1w_debias_avg
+    # set t2wimg = MSC02_T2w_debias_avg
+    # set BOLDgrps = (14 42)
+    # set runID    = (14 42)
+    # set FCrunID = ($runID)
+    # set sefm = (7,8 39,40)
+    # set FSdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/fs7.2/MSC02
+    # set PostFSdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/fs7.2/FREESURFER_fs_LR/
+    # set maskdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/MSC02_struct_v2/subcortical_mask
+
+
+def generate_functional_params(
+    subject_dir: Union[Path, str],
+    session_dir: Union[Path, str],
+    fs_dir,
+    write_dir: Union[Path, str, None] = None,
+) -> FunctionalParams:
     pass
 
 

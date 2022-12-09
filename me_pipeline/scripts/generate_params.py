@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 from me_pipeline.params import generate_instructions, generate_structural_params
 from . import epilog
 
@@ -17,6 +18,11 @@ def main():
     # structural params
     structural = subparser.add_parser("structural", help="generate structural params")
     structural.add_argument("subject_dir", help="path to subject folder to generate structural params for.")
+    structural.add_argument(
+        "--project_dir",
+        help="path to project folder to generate structural params for. By "
+        "default, this assumes this is the parent directory of the subject folder.",
+    )
 
     # parse args
     args = parser.parse_args()
@@ -26,5 +32,7 @@ def main():
         instructions_params = generate_instructions(args.project_dir)
         instructions_params.save_params()
     elif args.params_type == "structural":
-        struct_params = generate_structural_params(args.subject_dir)
+        if args.project_dir is None:
+            args.project_dir = Path(args.subject_dir).parent
+        struct_params = generate_structural_params(args.project_dir, args.subject_dir)
         struct_params.save_params()

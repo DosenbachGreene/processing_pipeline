@@ -96,8 +96,8 @@ endif
 
 set vol2surfdir = surf_timecourses
 set ciftidir = cifti_timeseries_normalwall_atlas_freesurf
-mkdir ${vol2surfdir}
-mkdir ${ciftidir}
+mkdir -p ${vol2surfdir}
+mkdir -p ${ciftidir}
 
 foreach run ( ${runID} ) 
 	echo "##################  processing session: ${patid} ${run}#######################"
