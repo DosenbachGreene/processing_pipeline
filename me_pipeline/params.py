@@ -321,6 +321,17 @@ def generate_structural_params(
     return struct_params
 
 
+@dataclass
+class FunctionalParams:
+    """Dataclass defining the functional params for a project.
+
+    Attributes
+    ----------
+    write_dir : Path
+        Path to directory to write params file to.
+    """
+
+
 def generate_functional_params():
     pass
 

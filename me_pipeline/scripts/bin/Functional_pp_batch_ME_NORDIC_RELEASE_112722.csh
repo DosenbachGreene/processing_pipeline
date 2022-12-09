@@ -36,7 +36,6 @@ if (${#argv} > 1) then
 endif
 
 
-set scriptdir = /data/nil-bluearc/GMT/Laumann/NEW_PROC_TEST
 set wrkdir = $cwd
 
 if ( ! $?nlalign ) set nlalign = 0
@@ -129,7 +128,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-$RELEASE/ME_cross_bold_pp_2019.csh $1 $2 > ${patid}_ME_cross_bold_pp_2019.log || exit $status
+ME_cross_bold_pp_2019.csh $1 $2 > ${patid}_ME_cross_bold_pp_2019.log || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -155,13 +154,12 @@ set Lpial = "${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.L.pial.
 set Rpial = "${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.R.pial.native.surf.gii"
 set Lwhite = "${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.L.white.native.surf.gii"
 set Rwhite = "${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.R.white.native.surf.gii"
-pushd /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/
 foreach run ( $runID )
 	set volume = "${wrkdir}/bold${run}/$patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg.nii.gz"
 	set outname = "${wrkdir}/atlas/$patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg_regcheck"	
-echo   ${matlab} -batch "Batch_wb_image_capture_volreg('${volume}','${Lpial}','${Lwhite}','${Rpial}','${Rwhite}','${outname}')"
-	${matlab} -batch "Batch_wb_image_capture_volreg('${volume}','${Lpial}','${Lwhite}','${Rpial}','${Rwhite}','${outname}')"
-	eog ${outname}.png &
+echo batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhite} ${outname}
+batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhite} ${outname}
+# eog ${outname}.png &
 end
 popd
 if ( $doexit ) exit
@@ -171,7 +169,7 @@ GOODVOXELS:
 ### Create goodvoxels masks
 ##################################
 echo "############## Create goodvoxels mask ##############"
-${scriptdir}/RibbonVolumetoSurfaceMapping_090821.csh $1 $2 || exit $status
+RibbonVolumetoSurfaceMapping_090821.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 FCMRI_PP:
@@ -180,7 +178,7 @@ FCMRI_PP:
 ##################################
 echo "############## Run fcMRI processing ##############"
 if ( $#FCrunID ) then
-	$RELEASE/ME_fcMRI_preproc_2019.csh $1 $2 > ${patid}_ME_fcMRI_preproc_2019.log || exit $status
+	ME_fcMRI_preproc_2019.csh $1 $2 > ${patid}_ME_fcMRI_preproc_2019.log || exit $status
 else
 endif
 if ( $doexit ) exit
@@ -227,23 +225,23 @@ foreach run ( $FCrunID )
 	set CSFname = "${atlasdir}/${day1_patid}_VENT_on_${outspacestr}.4dfp.img"
 	set EXname = "${FCmapsdir}/${day1_patid}_ExAxTissue_mask.4dfp.img"
 	
-	pushd /data/nil-bluearc/GMT/Laumann/NEW_PROC_TEST/
+# 	pushd /data/nil-bluearc/GMT/Laumann/NEW_PROC_TEST/
 
-	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm.4dfp.img"
-	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm"	
-echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm.4dfp.img"
+# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm"	
+# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
 
-	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss.4dfp.img"
-	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss"	
-echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss.4dfp.img"
+# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss"	
+# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
 
-	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid.4dfp.img"
-	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid"	
-echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-	popd
+# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid.4dfp.img"
+# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid"	
+# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
+# 	popd
 end
 
 if ( $doexit ) exit
@@ -253,6 +251,6 @@ CIFTI_CREATION:
 ### Create cifti files
 ##################################
 echo "############## Create CIFTI timeseries ##############"
-${scriptdir}/SurfaceMappingCiftiCreation_v3.csh $1 $2 || exit $status
+SurfaceMappingCiftiCreation_v3.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
