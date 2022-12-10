@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from me_pipeline.params import generate_instructions, generate_structural_params
+from me_pipeline.params import generate_instructions, generate_structural_params, generate_functional_params
 from . import epilog
 
 
@@ -24,6 +24,20 @@ def main():
         "default, this assumes this is the parent directory of the subject folder.",
     )
 
+    # functional params
+    functional = subparser.add_parser("functional", help="generate functional params")
+    functional.add_argument("session_dir", help="path to session folder to generate functional params for.")
+    functional.add_argument(
+        "--subject_dir",
+        help="path to subject folder to generate functional params for. By default, this assumes this is the parent "
+        "directory of the session folder.",
+    )
+    functional.add_argument(
+        "--project_dir",
+        help="path to project folder to generate functional params for. By "
+        "default, this assumes this is the parent directory of the subject folder.",
+    )
+
     # parse args
     args = parser.parse_args()
 
@@ -36,3 +50,12 @@ def main():
             args.project_dir = Path(args.subject_dir).parent
         struct_params = generate_structural_params(args.project_dir, args.subject_dir)
         struct_params.save_params()
+    elif args.params_type == "functional":
+        if args.subject_dir is None:
+            args.subject_dir = Path(args.session_dir).parent
+        if args.project_dir is None:
+            args.project_dir = Path(args.subject_dir).parent
+        func_params = generate_functional_params(args.project_dir, args.subject_dir, args.session_dir)
+        func_params.save_params()
+    else:
+        raise ValueError(f"Unknown params type: {args.params_type}")

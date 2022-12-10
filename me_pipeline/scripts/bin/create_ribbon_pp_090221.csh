@@ -112,7 +112,7 @@ foreach hem ( L R )
   fslmaths ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz -mas ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz -mul 255 ${outputdir}/${structid}.${hem}.ribbon_${outspacestr}.nii.gz
   fslmaths ${outputdir}/${structid}.${hem}.ribbon_${outspacestr}.nii.gz -bin -mul $GreyRibbonValue ${outputdir}/${structid}.${hem}.ribbon_${outspacestr}.nii.gz
  
-  rm ${outputdir}/${structid}.${hem}.white.native.nii.gz ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz ${outputdir}/${structid}.${hem}.pial.native.nii.gz ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_mask.native.nii.gz
+  rm -f ${outputdir}/${structid}.${hem}.white.native.nii.gz ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz ${outputdir}/${structid}.${hem}.pial.native.nii.gz ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_mask.native.nii.gz
 end
 
 fslmaths ${outputdir}/${structid}.L.ribbon_${outspacestr}.nii.gz -add ${outputdir}/${structid}.R.ribbon_${outspacestr}.nii.gz ${outputdir}/ribbon_${outspacestr}.nii.gz
@@ -149,7 +149,7 @@ foreach hem ( L R )
   fslmaths ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz -mas ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz -mul 255 ${outputdir}/${structid}.${hem}.ribbon_native.nii.gz
   fslmaths ${outputdir}/${structid}.${hem}.ribbon_native.nii.gz -bin -mul $GreyRibbonValue ${outputdir}/${structid}.${hem}.ribbon_native.nii.gz
  
-  rm ${outputdir}/${structid}.${hem}.white.native.nii.gz ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz ${outputdir}/${structid}.${hem}.pial.native.nii.gz ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_mask.native.nii.gz
+  rm -f ${outputdir}/${structid}.${hem}.white.native.nii.gz ${outputdir}/${structid}.${hem}.white_thr0.native.nii.gz ${outputdir}/${structid}.${hem}.pial.native.nii.gz ${outputdir}/${structid}.${hem}.pial_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_uthr0.native.nii.gz ${outputdir}/${structid}.${hem}.white_mask.native.nii.gz
 end
 
 fslmaths ${outputdir}/${structid}.L.ribbon_native.nii.gz -add ${outputdir}/${structid}.R.ribbon_native.nii.gz ${outputdir}/ribbon_native.nii.gz

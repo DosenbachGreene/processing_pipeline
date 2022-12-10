@@ -85,6 +85,15 @@ cp ${NILSRC}/blur_n_thresh_4dfp/blur_n_thresh_4dfp ${RELEASE}/
 
 popd > /dev/null
 
+### Update some scripts not in default 4dfp install ###
+rm -f bin/sefm_pp_AT.csh
+rm -f bin/one_step_resampling_AT.csh
+cp updated_4dfp_scripts/sefm_pp_AT.csh bin/
+cp updated_4dfp_scripts/one_step_resampling_AT.csh bin/
+cp updated_4dfp_scripts/MEfmri_4dfp_static bin/
+cp updated_4dfp_scripts/Resampling.csh bin/
+cp updated_4dfp_scripts/MEBIDS2params.awk bin/
+
 ### REFDIR fixes ###
 # some files that are available on NIL REFDIR need to generated
 

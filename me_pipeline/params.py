@@ -19,6 +19,14 @@ REGEX_SEARCH_T2W: List[str] = [
     r"T2w.*(?<!setter)$",
 ]
 
+REGEX_SEARCH_BOLD: List[str] = [
+    r"BOLD_NORDIC.*(?<!SBRef)(?<!PhysioLog)$",
+]
+
+REGEX_SEARCH_FMAP: List[str] = [
+    r"SpinEchoFieldMap_AP.*$",
+]
+
 # These patterns specify image tags to match for the T1w and T2w studies.
 # They are ordered by priority, so the first match is used.
 # We do this so that we grab the best possible scan for each session.
@@ -27,6 +35,11 @@ STRUCTURAL_IMAGE_TYPE_PATTERNS: List[List[str]] = [
     ["MEAN"],  # For multi-echo structurals
     ["NORM"],  # For single-echo, pre-scan normalized structurals
     ["*"],  # At lowest priority, just use anything that was found...
+]
+
+# These patterns specify image tags to match for the BOLD studies.
+FUNCTIONAL_IMAGE_TYPE_PATTERNS: List[List[str]] = [
+    ["M"],  # A magnitude image
 ]
 
 
@@ -278,10 +291,9 @@ def generate_structural_params(
         Patient ID to use for the AA_struct.params file, by default None, which sets it to the basename of the
         subject_dir.
     fs_dir : Union[Path, str], optional
-        Path to freesurfer directory, by default "fs"
+        Path to freesurfer directory, relative to project_dir, by default "fs"
     post_fs_dir : Union[Path, str], optional
-        Path to post freesurfer directory, relative to fs_dir. By default "FREESURFER_fs_LR", which resolves
-        to fs_dir / "FREESURFER_fs_LR"
+        Path to post freesurfer directory, relative to project_dir. By default "FREESURFER_fs_LR"
 
     Returns
     -------
@@ -335,6 +347,7 @@ class FunctionalParams:
         Path to directory to write params file to.
     """
 
+    write_dir: Path
     day1_patid: str
     day1_path: Path
     patid: str
@@ -343,32 +356,154 @@ class FunctionalParams:
     BOLDgrps: List[int]
     runID: List[int]
     FCrunID: List[int]
-    sefm: List[int]
+    sefm: List[List[int]]
     FSdir: Path
     PostFSdir: Path
     maskdir: Path
 
-    # set day1_patid = MSC02
-    # set day1_path = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/MSC02_struct_v2/T1/atlas
-    # set patid = Pilot_ME_Nordic_res04_2mm_nonordic
-    # set mpr = MSC02_T1w_debias_avg
-    # set t2wimg = MSC02_T2w_debias_avg
-    # set BOLDgrps = (14 42)
-    # set runID    = (14 42)
-    # set FCrunID = ($runID)
-    # set sefm = (7,8 39,40)
-    # set FSdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/fs7.2/MSC02
-    # set PostFSdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/fs7.2/FREESURFER_fs_LR/
-    # set maskdir = /net/10.20.145.34/DOSENBACH02/GMT2/Laumann/Pilot_ME_res/MSC02_struct_v2/subcortical_mask
+    def save_params(self, path: Union[Path, str, None] = None) -> None:
+        """Saves the parameters to a params file.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to save the params file.
+        """
+        if path is None:
+            path = self.write_dir / "func.params"
+        path = Path(path)
+
+        # form strings for params file
+        BOLDgrps = " ".join([str(i) for i in self.BOLDgrps])
+        BOLDgrps = f"({BOLDgrps})"
+        runID = " ".join([str(i) for i in self.runID])
+        runID = f"({runID})"
+        FCrunID = " ".join([str(i) for i in self.FCrunID])
+        FCrunID = f"({FCrunID})"
+        sefm = " ".join([f"{ap},{pa}" for ap, pa in self.sefm])
+        sefm = f"({sefm})"
+
+        with open(path, "w") as params_file:
+            params_file.write("set day1_patid = %s\n" % (self.day1_patid))
+            params_file.write("set day1_path = %s\n" % (self.day1_path))
+            params_file.write("set patid = %s\n" % (self.patid))
+            params_file.write("set mpr = %s\n" % (self.mpr))
+            params_file.write("set t2wimg = %s\n" % (self.t2wimg))
+            params_file.write("set BOLDgrps = %s\n" % (BOLDgrps))
+            params_file.write("set runID = %s\n" % (runID))
+            params_file.write("set FCrunID = %s\n" % (FCrunID))
+            params_file.write("set sefm = %s\n" % (sefm))
+            params_file.write("set FSdir = %s\n" % (self.FSdir))
+            params_file.write("set PostFSdir = %s\n" % (self.PostFSdir))
+            params_file.write("set maskdir = %s\n" % (self.maskdir))
 
 
 def generate_functional_params(
+    project_dir: Union[Path, str],
     subject_dir: Union[Path, str],
     session_dir: Union[Path, str],
-    fs_dir,
+    mpr: Union[str, None] = None,
+    t2wimg: Union[str, None] = None,
+    fs_dir: Union[Path, str] = "fs",
+    post_fs_dir: Union[Path, str] = "FREESURFER_fs_LR",
+    maskdir: Union[Path, str] = "subcortical_mask",
     write_dir: Union[Path, str, None] = None,
 ) -> FunctionalParams:
-    pass
+    """Generate functional params for a session.
+
+    Parameters
+    ----------
+    project_dir : Union[Path, str]
+        Project directory to use for the functional params.
+    subject_dir : Union[Path, str]
+        Subject directory to use for the functional params.
+    session_dir : Union[Path, str]
+        Session directory to use for the functional params.
+    mpr : Union[str, None], optional
+        T1w filename, by default None, which will be set to [subject_id]_T1w_debias_avg
+    t2wimg : Union[str, None], optional
+        T2w fillename, by default None, which will be set to [subject_id]_T2w_debias_avg
+    fs_dir : Union[Path, str], optional
+        Path to freesurfer directory, relative to project_dir, by default "fs"
+    post_fs_dir : Union[Path, str], optional
+        Path to post freesurfer directory, relative to project_dir. By default "FREESURFER_fs_LR"
+    maskdir : Union[Path, str], optional
+        Path to subcortical directory, relative to project_dir, by default "subcortical_mask"
+    write_dir : Union[Path, str, None], optional
+        Directory to place the struct.params file in. By default None, which sets it to the session_dir.
+
+    Returns
+    -------
+    FunctionalParams
+        Functional params object for the session.
+    """
+    # get absolute paths to everything
+    project_dir = Path(project_dir).absolute()
+    subject_dir = Path(subject_dir).absolute()
+    session_dir = Path(session_dir).absolute()
+
+    # get subject_id
+    subject_id = Path(subject_dir).name
+
+    # set anatomical path to subject_dir / T1 / atlas
+    anat_path = Path(subject_dir) / "T1" / "atlas"
+
+    # if mpr and t2wimg not defined, set them to the [subject_id]_[T1w/T2w]_debias_avg
+    if mpr is None:
+        mpr = f"{subject_id}_T1w_debias_avg"
+    if t2wimg is None:
+        t2wimg = f"{subject_id}_T2w_debias_avg"
+
+    # make fs_dir and post_fs_dir absolute paths
+    fs_dir = (project_dir / fs_dir).absolute()
+    post_fs_dir = (project_dir / post_fs_dir).absolute()
+
+    # make maskdir absolute path
+    maskdir = (subject_dir / maskdir).absolute()
+
+    # if write_dir not defined, set it to session_dir
+    if write_dir is None:
+        write_dir = Path(session_dir)
+    write_dir = Path(write_dir).absolute()
+
+    # find all BOLD study directories
+    bold_dirs = _generate_paths(session_dir, REGEX_SEARCH_BOLD, FUNCTIONAL_IMAGE_TYPE_PATTERNS)
+
+    # grab study numbers from BOLD directories
+    study_numbers = [int(Path(bold_dir).name.split("study")[1]) for bold_dir in bold_dirs]
+
+    # find all AP field map directories
+    ap_field_map_dirs = _generate_paths(session_dir, REGEX_SEARCH_FMAP, [["*"]])
+
+    # grab study numbers from AP field map directories
+    ap_study_numbers = [int(Path(ap_field_map_dir).name.split("study")[1]) for ap_field_map_dir in ap_field_map_dirs]
+
+    # we assume that the PA field map is the next study number
+    # TODO: This is probably a safe assumption, but we should check it
+    pa_study_numbers = [study_number + 1 for study_number in ap_study_numbers]
+
+    # combine AP and PA field map study numbers
+    sefm = [
+        [ap_study_number, pa_study_number]
+        for ap_study_number, pa_study_number in zip(ap_study_numbers, pa_study_numbers)
+    ]
+
+    # return the FunctionalParams object
+    return FunctionalParams(
+        write_dir=write_dir,
+        day1_patid=subject_id,
+        day1_path=anat_path,
+        patid=subject_id,
+        mpr=mpr,
+        t2wimg=t2wimg,
+        BOLDgrps=study_numbers,
+        runID=study_numbers,
+        FCrunID=study_numbers,
+        sefm=sefm,
+        FSdir=fs_dir,
+        PostFSdir=post_fs_dir,
+        maskdir=maskdir,
+    )
 
 
 @dataclass
@@ -411,6 +546,9 @@ class Instructions:
     # if set script will invoke fnirt
     nlalign: int = 0
 
+    # use ME-SDC distortion correction
+    me_sdc: bool = True
+
     # for GRE ($distort == 2); difference in echo time between the two magnitude images
     delta: float = 0.00246
 
@@ -429,7 +567,8 @@ class Instructions:
     matlab: str = "matlab"
 
     # path to NORDIC code
-    NORDIClib: str = "/data/nil-bluearc/GMT/Laumann/NORDIC_Raw-main"
+    # TODO: This should not be hard-coded
+    NORDIClib: str = "/home/vanandrew/Projects/processing_pipeline/extern/NORDIC_Raw"
 
     # synthetic field map variables - affect processing only if $distor == 3
     bases: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_basis.4dfp.img"
@@ -530,6 +669,7 @@ class Instructions:
             "target": self.target,
             "outspace_flag": self.outspace_flag,
             "nlalign": "1" if self.nlalign else "0",
+            "me_sdc": "1" if self.me_sdc else "0",
             "delta": str(self.delta),
             "ME_reg": "1" if self.ME_reg else "0",
             "dbnd_flag": str(self.dbnd_flag),

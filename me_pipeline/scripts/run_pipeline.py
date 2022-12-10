@@ -23,10 +23,23 @@ STRUCTURAL_MODULES = [
 ]
 
 
+# See lines 116 to 123 in Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh
+FUNCTIONAL_MODULES = [
+    "FMRI_PP",
+    "NIFTI",
+    "IMAGEREG_CHECK",
+    "GOODVOXELS",
+    "FCMRI_PP",
+    "FORMAT_CONVERT",
+    "FC_QC",
+    "CIFTI_CREATION",
+]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="TODO",
-        epilog=f"{epilog} 12/02/2022",
+        epilog=f"{epilog} 12/09/2022",
     )
     subparser = parser.add_subparsers(title="pipeline", dest="pipeline", required=True, help="pipeline to run")
 
@@ -37,6 +50,15 @@ def main():
         "--module_start", default="T1_DCM", help="Module to start pipeline on.", choices=STRUCTURAL_MODULES
     )
     structural.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
+
+    functional = subparser.add_parser("functional", help="Functional Pipeline")
+    functional.add_argument("project_dir", help="Path to project directory.")
+    functional.add_argument("subject_label", help="Subject label to run pipeline on.")
+    functional.add_argument("session_label", help="Session label to run pipeline on.")
+    functional.add_argument(
+        "--module_start", default="FMRI_PP", help="Module to start pipeline on.", choices=FUNCTIONAL_MODULES
+    )
+    functional.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
 
     # parse arguments
     args = parser.parse_args()
@@ -69,6 +91,44 @@ def main():
             [
                 "Structural_pp_090121.csh",
                 struct_params,
+                instructions_file,
+                args.module_start,
+                "1" if args.module_exit else "0",
+            ]
+        )
+
+        # change back to original working directory
+        chdir(cwd)
+
+    elif args.pipeline == "functional":
+        # get instructions file from project directory
+        instructions_file = (Path(args.project_dir) / "instructions.params").absolute()
+
+        if not instructions_file.exists():
+            raise FileNotFoundError(f"Instructions file not found at {instructions_file}.")
+
+        # get the subject directory
+        subject_dir = Path(args.project_dir).absolute() / args.subject_label
+
+        # get the session directory
+        session_dir = subject_dir / args.session_label
+
+        # make sure func params exists
+        func_params = session_dir / "func.params"
+        if not func_params.exists():
+            raise FileNotFoundError(f"Functional params not found at {func_params}.")
+
+        # save the current working directory
+        cwd = getcwd()
+
+        # change to session directory
+        chdir(session_dir)
+
+        # run the functional pipeline
+        run(
+            [
+                "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
+                func_params,
                 instructions_file,
                 args.module_start,
                 "1" if args.module_exit else "0",

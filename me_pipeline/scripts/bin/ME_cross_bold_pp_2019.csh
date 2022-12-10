@@ -244,8 +244,8 @@ if (! $?runnordic)	@ runnordic = 0
 set nordstr = ""
 if ($runnordic) then
 	set nordstr = _preNORDIC
-	if ( ! $?MATLAB ) then 
-		echo $program": MATLAB must be defined"
+	if ( ! $?matlab ) then 
+		echo $program": matlab must be defined"
 		exit -1
 	endif
 	if ( ! $?NORDIClib ) then
@@ -646,8 +646,8 @@ while ($k <= ${#runID})
 		echo "exit"								>> runnordic.m
 		cat runnordic.m					>> $log
 		date						>> $log
-	echo	$MATLAB -nosplash -nodesktop -r 'runnordic'	>> $log
-		$MATLAB -nosplash -nodesktop -r 'runnordic'	>> $log
+		echo	$matlab -nosplash -nodesktop -r 'runnordic'	>> $log
+		$matlab -nosplash -nodesktop -r 'runnordic'	>> $log
 		if ($status) exit -1
 		echo "status="$status				>> $log
 		date						>> $log
@@ -935,7 +935,11 @@ while ( $i <= $#BOLDgrps )
 		applywarp --ref=$outspace --in=$adir/${anat}  --warp=$adir/${anat}_to_${outspace:t}_warp \
                              --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
 	else	# no fnirt
-		if ( ! -e $target.nii ) nifti_4dfp -n $target $target:t
+		if ( ! -e $target.nii ) then
+			nifti_4dfp -n $target $target:t
+		else
+			cp $target.nii $target:t.nii
+		endif
 		aff_conv 4f $adir/${anat}_uwrp $target   $adir/${anat}_xr3d_to_${target:t}_t4 \
 			    $adir/${anat}_uwrp $target:t $adir/${anat}_xr3d_to_${target:t}.mat || exit $status
 		convert_xfm -omat $adir/${anat}_xr3d_to_${outspace:t}.mat \
@@ -957,22 +961,22 @@ while ( $i <= $#BOLDgrps )
 	while ( $j <= $#groupruns )
 		set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
 		if ($BiasField) set strwarp = "$strwarp -bias bold$runID[$k]/${patid}_b$runID[$k]_invBF"
-if (0) then	# one_step_resampling_AT.csh alternatives
-		@ n = 1			# works but does not save time eliminating redundant ME operations
-		while ($n <= $necho)
-			 one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln -xr3dmat $xr3dmat \
-			-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-			-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
-			@ n++
-		end
-else if (1) then			# works and executes in ~47% of time needed for redundant ME operations (8 cores)
-	echo	one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
-			-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-			-trailer xr3d_uwrp_on_${outspacestr}
-		one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
-			-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-			-trailer xr3d_uwrp_on_${outspacestr} || exit $status
-endif
+		if (0) then	# one_step_resampling_AT.csh alternatives
+			@ n = 1 # works but does not save time eliminating redundant ME operations
+			while ($n <= $necho)
+				one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln -xr3dmat $xr3dmat \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
+				@ n++
+			end
+		else if (1) then # works and executes in ~47% of time needed for redundant ME operations (8 cores)
+			echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr}
+			one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+		endif
 		@ j++		# index of BOLD run within group
 		@ k++		# index of BOLD run within session
 	end
@@ -984,16 +988,18 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 ###############################
 # model multi-echo BOLD signals
 ###############################
-set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
+# set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
+set C = MEfmri_4dfp_static
 if (! ${?ME_reg}) @ ME_reg = 1
 @ k = 1
 while ($k <= $runs)
 	pushd bold$runID[$k]
 	source  ${patid}"_b"$runID[$k].params
 	echo	$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
-			-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30
-		$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
-			-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30	|| exit $status
+				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30
+	exit 1
+			$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
+				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30	|| exit $status
 	@ k++
 	popd
 end
