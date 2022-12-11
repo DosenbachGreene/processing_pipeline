@@ -159,8 +159,8 @@ else
 	set tres = 711-2B_111;
 	set outspacestr = ""
 endif
-if ( $?me_sdc ) then  # Use multi-echo susceptibility distortion correction
-	set distort = 0
+if ( $me_sdc == 1 ) then  # Use multi-echo susceptibility distortion correction
+	set distort = 4
 	set FMAP = SEFM/${patid}_mesdc_Grp
 else if ( $?sefm ) then				# spin echo distortion correction
 	set distort = 1
@@ -259,14 +259,14 @@ endif
 
 if ( ! ${?regtest} ) @ regtest = 0	# debugging flag
 if ($enter == regtest)	@ regtest++;
-if ($enter == BOLD)	goto BOLD;
+if ($enter == BOLD)	    goto BOLD;
 if ($enter == BOLD1)	goto BOLD1;
 if ($enter == BOLD2)	goto BOLD2;
 if ($enter == BOLD3)	goto BOLD3;
 if ($enter == BOLD4)	goto BOLD4;
 if ($enter == BOLD5)	goto BOLD5;
 if ($enter == MODEL)	goto MODEL;
-if ($enter == NORM)	goto NORM;
+if ($enter == NORM)     goto NORM;
 if ($enter == NORDIC)	goto NORDIC;
 if ($enter == CLEANUP)	goto CLEANUP;
 
@@ -496,11 +496,13 @@ endif	# $isday1 conditional
 #######################
 # distortion correction
 #######################
-if ( $distort == 0 )
+if ( $distort == 4 ) then
 	# warpkit must be installed check before running.
 	python3 -c "import warpkit" || exit 1
 	# run me_sdc
-	me_sdc $inpath FMAP || exit 1
+	echo me_sdc $inpath fmap $patid $BOLDruns
+	me_sdc $inpath fmap $patid $BOLDruns || exit 1
+    exit 1
 else if ( $distort == 1 ) then		# spin echo distortion correction
 	if ( ! -e SEFM ) mkdir SEFM
 	@ i = 1
