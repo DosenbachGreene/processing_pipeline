@@ -547,7 +547,7 @@ class Instructions:
     nlalign: int = 0
 
     # use ME-SDC distortion correction
-    me_sdc: bool = True
+    me_sdc: bool = False
 
     # for GRE ($distort == 2); difference in echo time between the two magnitude images
     delta: float = 0.00246
@@ -627,7 +627,7 @@ class Instructions:
     # If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
     # otherwise will use subcortical voxels based on individual-subject segmentation.
     # Must have performed FNIRT.
-    Atlas_ROIs: bool = True
+    Atlas_ROIs: bool = False
     surfsmooth: float = 1.7
     subcortsmooth: float = 1.7
 
@@ -704,7 +704,7 @@ class Instructions:
             "CSF_lcube": str(self.CSF_lcube),
             "CSF_svdt": str(self.CSF_svdt),
             "WM_lcube": str(self.WM_lcube),
-            "WM_sydt": str(self.WM_svdt),
+            "WM_svdt": str(self.WM_svdt),
             "nRegress": str(self.nRegress),
             "min_frames": str(self.min_frames),
             "ROIdir": self.ROIdir,

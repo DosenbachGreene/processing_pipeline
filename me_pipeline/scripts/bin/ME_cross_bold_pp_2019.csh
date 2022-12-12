@@ -998,8 +998,8 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 ###############################
 # model multi-echo BOLD signals
 ###############################
-# set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
-set C = MEfmri_4dfp_static
+set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
+#set C = MEfmri_4dfp_static
 if (! ${?ME_reg}) @ ME_reg = 1
 @ k = 1
 while ($k <= $runs)
@@ -1007,7 +1007,6 @@ while ($k <= $runs)
 	source  ${patid}"_b"$runID[$k].params
 	echo	$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30
-	exit 1
 			$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30	|| exit $status
 	@ k++

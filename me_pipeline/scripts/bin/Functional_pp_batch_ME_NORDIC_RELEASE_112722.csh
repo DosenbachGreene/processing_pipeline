@@ -128,7 +128,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-ME_cross_bold_pp_2019.csh $1 $2 || exit $status
+ME_cross_bold_pp_2019.csh $1 $2 MODEL || exit $status
 # ME_cross_bold_pp_2019.csh $1 $2 > ${patid}_ME_cross_bold_pp_2019.log || exit $status
 if ( $doexit ) exit
 
@@ -162,7 +162,6 @@ echo batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhit
 batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhite} ${outname}
 # eog ${outname}.png &
 end
-popd
 if ( $doexit ) exit
 
 GOODVOXELS:
