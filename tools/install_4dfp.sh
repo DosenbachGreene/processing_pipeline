@@ -51,10 +51,10 @@ pushd ${NILSRC} > /dev/null
 
 # insert extra compile flags (These seem to be needed for gcc >10)
 # set global flag for -fallow-invalid-boz -fallow-argument-mismatch and ignore warnings
-sed -i "18 i set FC = \"\$FC -fallow-invalid-boz -fallow-argument-mismatch -w\"" make_nil-tools.csh
+sed -i "18 i set FC = \"\$FC -fPIC -fallow-invalid-boz -fallow-argument-mismatch -w\"" make_nil-tools.csh
 
 # librms fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -ffixed-line-length-132 -fcray-pointer -fallow-invalid-boz/g" librms/librms.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -fPIC -ffixed-line-length-132 -fcray-pointer -fallow-invalid-boz/g" librms/librms.mak
 sed -i "s/not('40000'x)/not(int('40000'x))/g" TRX/fomega.f
 
 # Globals in knee.h are not defined correctly...
@@ -71,14 +71,15 @@ sed -i "s/CDEFF   cdeff/static CDEFF   cdeff/g" diff4dfp/knee.h
 sed -i "s/FITLINE fitline/static FITLINE fitline/g" diff4dfp/knee.h
 
 # imgreg fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" imgreg_4dfp/imgreg_4dfp.mak
-sed -i "s/f77 -O -I4 -e/gcc -O2 -w -ffixed-line-length-132 -fno-second-underscore -fcray-pointer -fallow-invalid-boz/g" imgreg_4dfp/basis_opt_AT.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" imgreg_4dfp/imgreg_4dfp.mak
+sed -i "s/f77 -O -I4 -e/gcc -O2 -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fcray-pointer -fallow-invalid-boz/g" imgreg_4dfp/basis_opt_AT.mak
 
 # t4img fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" t4imgs_4dfp/t4imgs_4dfp.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" t4imgs_4dfp/t4imgs_4dfp.mak
 
 # run build script
-tcsh -e make_nil-tools.csh
+export OSTYPE=linux
+tcsh -e make_nil-tools.csh || exit 1
 
 # for some reason this program doesn't get copied...
 cp ${NILSRC}/blur_n_thresh_4dfp/blur_n_thresh_4dfp ${RELEASE}/
@@ -88,11 +89,14 @@ popd > /dev/null
 ### Update some scripts not in default 4dfp install ###
 rm -f bin/sefm_pp_AT.csh
 rm -f bin/one_step_resampling_AT.csh
-cp updated_4dfp_scripts/sefm_pp_AT.csh bin/
-cp updated_4dfp_scripts/one_step_resampling_AT.csh bin/
-cp updated_4dfp_scripts/MEfmri_4dfp_static bin/
-cp updated_4dfp_scripts/Resampling.csh bin/
-cp updated_4dfp_scripts/MEBIDS2params.awk bin/
+cp updated_4dfp_scripts/* bin/
+
+### Build me_fmri ###
+pushd me_fmri > /dev/null
+make -f MEfmri_4dfp.mak clean || true
+make -f MEfmri_4dfp.mak
+popd
+cp me_fmri/MEfmri_4dfp bin/
 
 ### REFDIR fixes ###
 # some files that are available on NIL REFDIR need to generated
@@ -111,5 +115,9 @@ for f in pkg/refdir/zhangd_ROIs/*.img; do basename=$(echo $f | sed 's/.4dfp.img/
 
 # copy FSLTransforms to refdir
 cp -r FSLTransforms pkg/refdir/
+
+# copy over MNI eyes
+cp refdir_extras/* pkg/refdir/ > /dev/null 2>&1
+cp refdir_extras/MNI152/* pkg/refdir/MNI152/
 
 popd > /dev/null

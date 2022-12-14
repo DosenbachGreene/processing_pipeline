@@ -118,7 +118,7 @@ if (! ${?conc}) then
 		@ k++
 	end
 	conc_4dfp $concroot -l$$.lst || exit $status
-	if (-e $$.lst) /bin/rm $$.lst
+	if (-e $$.lst) /bin/rm -f $$.lst
 	/bin/mv $conc* $FCdir
 else
 	if (! -e $conc) then
@@ -144,7 +144,7 @@ endif
 #########################
 # compute frame censoring
 #########################
-rm ${concroot}*format
+rm -f ${concroot}*format
 if (${?DVARthresh}) then
 	if (! ${?DVARsd})   set DVARsd = 3.5
 	if (! ${?DVARblur}) set DVARblur = 10	# dvar_4dfp pre-blur
@@ -173,15 +173,15 @@ else
 	endif
 	set lmstr = "-l$lomotil TR_vol=$TR_vol";
 endif
-if (-e ${patid}_xr3d.FD) /bin/rm ${patid}_xr3d.FD; touch ${patid}_xr3d.FD
+if (-e ${patid}_xr3d.FD) /bin/rm -f ${patid}_xr3d.FD; touch ${patid}_xr3d.FD
 @ k = 1
 while ($k <= $runs)
-	rm $patid*.mat
+	rm -f $patid*.mat
 	ln -s   ../bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat .			|| exit -1
 	echo mat2dat -D -n$skip   $patid"_b"$runID[$k]_xr3d.mat $lmstr
 	mat2dat -D -n$skip        $patid"_b"$runID[$k]_xr3d.mat $lmstr			|| exit -1
 	gawk -f $RELEASE/FD.awk   $patid"_b"$runID[$k]_xr3d.ddat >> ${patid}_xr3d.FD	|| exit -1
-	rm $patid*.mat $patid"_b"$runID[$k]_xr3d.dat $patid*.ddat
+	rm -f $patid*.mat $patid"_b"$runID[$k]_xr3d.dat $patid*.ddat
 	@ k++
 end
 
@@ -256,7 +256,7 @@ while ($k <= $runs)
 	@ k++
 end
 conc_4dfp ${patid}_xr3d_dat -l$$.lst -w || exit $status
-/bin/rm $$.lst
+/bin/rm -f $$.lst
 source ../bold$runID[1]/${patid}_b$runID[1].params	# define $TR_vol (same for all runs)
 bandpass_4dfp ${patid}_xr3d_dat.conc	$TR_vol $bpss_params -EM -F$fmtfile || exit $status	# movement regressors
 4dfptoascii   ${patid}_xr3d_dat.conc    ${patid}_mov_regressors.dat
@@ -298,7 +298,7 @@ maskimg_4dfp		temp$$2 ${concroot}_dfnd temp$$3 || exit $status
 imgopr_4dfp -ptemp$$4	temp$$3 $eyes || exit $status
 imgopr_4dfp -stemp$$5	temp$$4 temp$$0_fill || exit $status
 zero_lt_4dfp 1		temp$$5 ${patid1}_ExAxTissue_mask  || exit $status
-/bin/rm temp$$*		# delete temporary images
+/bin/rm -f temp$$*		# delete temporary images
 
 @ n = `echo $CSF_lcube | awk '{print int($1^3/2)}'`	# minimum cube defined voxel count is 1/2 total
 qntv_4dfp $concb ${patid1}_ExAxTissue_mask -F$fmtfile -l$CSF_lcube -t$CSF_svdt -n$n -D -O4 \
@@ -413,7 +413,7 @@ paste $WB $$_SVD*.dat | gawk '{if(nRegress > NF)nRegress=NF;for(i=1;i<=nRegress;
 else
 	paste $WB $$_SVD*.dat >!	${patid}_nuisance_regressors.dat 	|| exit $status
 endif	
-/bin/rm $$_SVD*.dat $$.dat
+/bin/rm -f $$_SVD*.dat $$.dat
 list_regressors.csh			${patid}_nuisance_regressors.dat 	|| exit $status
 if ($WM == "") then
 	echo ${program}: no white matter regressor

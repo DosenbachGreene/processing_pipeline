@@ -1,0 +1,79 @@
+#!/bin/csh -f
+#$Log$
+set idstr	= '$Id$'
+set program	= $0; set program = $program:t
+echo $idstr
+
+#set echo
+@ debug = 0
+
+######################
+# process command line
+######################
+set ymax = 3.0
+@ k = 0
+@ i = 1
+while ($i <= ${#argv})
+	set swi = `echo $argv[$i] | awk '$1~/^-/{print substr($1,1,2)}'`
+	if (${#swi} > 0) then
+		set arg = `echo $argv[$i] | awk '{print substr($0,3)}'`
+		switch ($swi)
+			case -d:
+				@ debug++;		breaksw;
+			case -y:
+				set ymax = $arg;	breaksw;
+			default:
+				echo $swi option not recognized
+				goto USAGE
+				breaksw;
+		endsw
+	else
+		switch ($k)
+			case 0:
+			set F = $argv[$i]; @ k++;		breaksw;
+			case 1:
+			set FDthresh = $argv[$i]; @ k++;	breaksw;
+		endsw
+	endif
+	@ i++
+end
+if ($k < 2) goto USAGE
+if (! -e $F) then
+	echo $program": "$F not found
+	exit -1
+endif
+
+#######################################
+# create FD time series plot using xmgr
+#######################################
+@ n = `wc $F | gawk '{print $1;}'`
+seq $n >! $$.lst
+paste $$.lst $F   >! $F.dat
+echo 0	$FDthresh >! $F.crit
+echo $n	$FDthresh >> $F.crit
+
+echo "/%title/s/%title/"'"'$F'"/'				>! $$.sed
+echo "/%nframe/s/%nframe/"$n"/"					>> $$.sed
+@ x_tick_minor = `echo $n | awk '{print int($1/65)}'`
+@ x_tick_major = 5 * $x_tick_minor
+echo "/%x_tick_minor/s/%x_tick_minor/"$x_tick_minor"/"		>> $$.sed
+echo "/%x_tick_major/s/%x_tick_major/"$x_tick_major"/"		>> $$.sed
+echo "/%ymax/s/%ymax/"$ymax"/"					>> $$.sed
+set y_tick_major = `echo $ymax | awk '{printf $1/3}'`
+set y_tick_minor = `echo $ymax | awk '{printf $1/6}'`
+echo "/%y_tick_major/s/%y_tick_major/"$y_tick_major"/"		>> $$.sed
+echo "/%y_tick_minor/s/%y_tick_minor/"$y_tick_minor"/"		>> $$.sed
+sed -f $$.sed $RELEASE/${program}_prototype.xmgr		>! $F.xmgr
+
+echo on Solaris
+echo grbatch -p $F.xmgr -nxy $F.dat $F.crit -printfile $F.dat.ps -noask
+
+if (! $debug) /bin/rm $$.*
+exit 0
+
+USAGE:
+echo "usage:	"$program "<FD file> <FDthresh>"
+echo "	e.g.,	"$program DOTDBS2_1841_xr3d.FD 1.6
+echo "	options"
+echo "	-y<flt>	specify ymax"
+exit 1

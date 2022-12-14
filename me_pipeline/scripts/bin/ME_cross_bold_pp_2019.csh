@@ -500,8 +500,8 @@ if ( $distort == 4 ) then
 	# warpkit must be installed check before running.
 	python3 -c "import warpkit" || exit 1
 	# run me_sdc
-	echo me_sdc $inpath fmap $patid $BOLDruns
-	me_sdc $inpath fmap $patid $BOLDruns || exit 1
+	echo me_sdc $inpath MESDC $patid $BOLDruns
+	me_sdc $inpath MESDC $patid $BOLDruns || exit 1
     exit 1
 else if ( $distort == 1 ) then		# spin echo distortion correction
 	if ( ! -e SEFM ) mkdir SEFM
@@ -979,13 +979,26 @@ while ( $i <= $#BOLDgrps )
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
 				@ n++
 			end
-		else if (1) then # works and executes in ~47% of time needed for redundant ME operations (8 cores)
-			echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-				-trailer xr3d_uwrp_on_${outspacestr}
-			one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+		else if (1) then
+			if ( $distort == 4 ) then  # MESDC can only be used with one_step_resampling_AV.csh
+				set resampling_AV = 1
+			endif
+			set resampling_AV = 1
+			if ( $?resampling_AV ) then  # for MESDC we run a custom one step resampling script 
+				echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+					-trailer xr3d_uwrp_on_${outspacestr}
+				one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+					-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+			else  # works and executes in ~47% of time needed for redundant ME operations (8 cores)
+				echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+					-trailer xr3d_uwrp_on_${outspacestr}
+				one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+					-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+			endif
 		endif
 		@ j++		# index of BOLD run within group
 		@ k++		# index of BOLD run within session
@@ -998,8 +1011,8 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 ###############################
 # model multi-echo BOLD signals
 ###############################
-set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
-#set C = MEfmri_4dfp_static
+# set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
+set C = MEfmri_4dfp
 if (! ${?ME_reg}) @ ME_reg = 1
 @ k = 1
 while ($k <= $runs)
@@ -1025,25 +1038,26 @@ while ($k <= $runs)
 	set file =			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt.4dfp.ifh	|| exit $status
 	@ nframe = `cat $file | gawk '/matrix size \[4\]/{print $NF}'`
 	set format = `echo $skip $nframe | gawk '{printf("%dx%d+", $1, $2-$1)}'`
-	actmapf_4dfp $format 		$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt -aavg	|| exit $status
-if ($norm2020) then
-	normalize_4dfp.csh  		$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg 		|| exit $status
-	set file =			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg_norm.4dfp.img.rec
-	set f = `head $file | awk '/original/{print 1000/$NF}'`							|| exit $status
-else 
-	set M = ../atlas/${patid1}_aparc+aseg_on_${outspacestr}							|| exit $status
-	img_hist_4dfp 			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg -m$M -xP	|| exit $status
-	set r = `cat *xtile | gawk '$1==2{low=$2;};$1==98{high=$2;};END{printf("%.0fto%.0f",low,high);}'`
-	img_hist_4dfp 			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg -m$M -r$r -Pph
-	set mode = `find_hist_mode	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg.dat`
-	echo "un-normalized mode="$mode
-	set f = `echo $mode | gawk '{print 1000/$1}'`
-endif
-	scale_4dfp			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt $f -anorm 	|| exit $status
+	echo actmapf_4dfp $format $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt -aavg || exit $status
+	actmapf_4dfp $format $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt -aavg || exit $status
+	if ($norm2020) then
+		normalize_4dfp.csh  		$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg 		|| exit $status
+		set file =			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg_norm.4dfp.img.rec
+		set f = `head $file | awk '/original/{print 1000/$NF}'`							|| exit $status
+	else 
+		set M = ../atlas/${patid1}_aparc+aseg_on_${outspacestr}							|| exit $status
+		img_hist_4dfp 			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg -m$M -xP	|| exit $status
+		set r = `cat *xtile | gawk '$1==2{low=$2;};$1==98{high=$2;};END{printf("%.0fto%.0f",low,high);}'`
+		img_hist_4dfp 			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg -m$M -r$r -Pph
+		set mode = `find_hist_mode	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_avg.dat`
+		echo "un-normalized mode="$mode
+		set f = `echo $mode | gawk '{print 1000/$1}'`
+	endif
+	scale_4dfp	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt $f -anorm 	|| exit $status
 
-####################
-# voxelwise SNR maps
-####################
+	####################
+	# voxelwise SNR maps
+	####################
 	compute_SNR_4dfp.csh 		$format	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm || exit $status
 	compute_SNR_4dfp.csh 	 	$format	$patid"_b"$runID[$k]			|| exit $status
 	@ e = 1
@@ -1051,18 +1065,18 @@ endif
 		compute_SNR_4dfp.csh	$format	$patid"_b"$runID[$k]_echo${e}		|| exit $status
 		@ e++
 	end
-if ( $runnordic ) then
-	compute_SNR_4dfp.csh 	 	$format	$patid"_b"$runID[$k]_preNORDIC		|| exit $status
-	@ e = 1
-	while ( $e <= $necho )
-		compute_SNR_4dfp.csh	$format	$patid"_b"$runID[$k]_preNORDIC_echo${e}	|| exit $status
-		foreach str ("" "_ph")
-			set F =			$patid"_b"$runID[$k]_preNORDIC_echo${e}${str}.nii
-			if (-e $F) gzip $F
+	if ( $runnordic ) then
+		compute_SNR_4dfp.csh 	 	$format	$patid"_b"$runID[$k]_preNORDIC		|| exit $status
+		@ e = 1
+		while ( $e <= $necho )
+			compute_SNR_4dfp.csh	$format	$patid"_b"$runID[$k]_preNORDIC_echo${e}	|| exit $status
+			foreach str ("" "_ph")
+				set F =			$patid"_b"$runID[$k]_preNORDIC_echo${e}${str}.nii
+				if (-e $F) gzip $F
+			end
+			@ e++
 		end
-		@ e++
-	end
-endif
+	endif
 	popd	# out of bold$runID[$k]
 	@ k++
 end
