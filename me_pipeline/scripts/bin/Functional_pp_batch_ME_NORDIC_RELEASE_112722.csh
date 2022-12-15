@@ -128,8 +128,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-ME_cross_bold_pp_2019.csh $1 $2 MODEL || exit $status
-# ME_cross_bold_pp_2019.csh $1 $2 > ${patid}_ME_cross_bold_pp_2019.log || exit $status
+ME_cross_bold_pp_2019.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -178,7 +177,7 @@ FCMRI_PP:
 ##################################
 echo "############## Run fcMRI processing ##############"
 if ( $#FCrunID ) then
-	ME_fcMRI_preproc_2019.csh $1 $2 > ${patid}_ME_fcMRI_preproc_2019.log || exit $status
+	ME_fcMRI_preproc_2019.csh $1 $2 || exit $status
 else
 endif
 if ( $doexit ) exit

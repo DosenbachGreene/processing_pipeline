@@ -307,58 +307,28 @@ else if ( $warpmode == 2 ) then
 endif
 
 # Use memori instead of GNU parallel to launch resampling jobs
-set memori = 1
-if ( $?memori ) then
-	# in memori, we form the the arguments to run for each frame and pass it into a single call to
-	# memori's parallel pool.
-	set arguments = ""
-	@ i = 0
-	while ($i < $dim4)
-		set padded = `printf "%04i" ${i}`	# $padded has frame number as split by fsl_split
-		@ j = $i + 1
-		set arguments = "${arguments}--arg${i} ${STRresample} ${padded} ${j} ${epi} "
-		@ k = 1
-		while ( $k <= $#epi )
-			echo $D/${epi[$k]:t}_on_${ref:t}${padded}_defined >> $D/$$framesout_${k}.lst
-			@ k++
-		end
-		@ i++
+# in memori, we form the the arguments to run for each frame and pass it into a single call to
+# memori's parallel pool.
+set arguments = ""
+@ i = 0
+# reset onestep_FAILED
+/bin/rm -f onestep_FAILED
+while ($i < $dim4)
+	set padded = `printf "%04i" ${i}`	# $padded has frame number as split by fsl_split
+	@ j = $i + 1
+	set arguments = "${arguments}--arg${i} ${STRresample} ${padded} ${j} ${epi} "
+	@ k = 1
+	while ( $k <= $#epi )
+		echo $D/${epi[$k]:t}_on_${ref:t}${padded}_defined >> $D/$$framesout_${k}.lst
+		@ k++
 	end
-	memori --verbose -p 8 Resampling_AV.csh $arguments
-	if ( -e onestep_FAILED ) then 
-		cat onestep_FAILED
-		goto FAILED
-	endif
-else
-	/bin/rm -f onestep_FAILED	# prevent previous failures from causing problems
-	@ i = 0; echo -n "Resampling frame:"
-	while ($i < $dim4)	# loop on frame
-
-		set padded = `printf "%04i" ${i}`	# $padded has frame number as split by fsl_split
-		@ j = $i + 1
-		echo -n " $j"
-		if ( $Ncores > 1 ) then
-			sem -P $Ncores Resampling_AV.csh $STRresample ${padded} $j $epi
-		else
-			Resampling_AV.csh $STRresample ${padded} $j $epi || goto FAILED
-		endif
-		@ k = 1
-		while ( $k <= $#epi )
-			echo $D/${epi[$k]:t}_on_${ref:t}${padded}_defined >> $D/$$framesout_${k}.lst
-			@ k++
-		end
-		@ i++		# next frame ($j increments in parallel)
-	end
-	if ( $Ncores > 1 ) then
-		sem --wait
-		if ( -e onestep_FAILED ) then 
-			cat onestep_FAILED
-			goto FAILED
-		endif  
-	endif
-	echo	# line feed
+	@ i++
+end
+memori --verbose -p $Ncores Resampling_AV.csh $arguments
+if ( -e onestep_FAILED ) then 
+	cat onestep_FAILED
+	goto FAILED
 endif
-
 
 #############################################################
 # merge the split volumes and then do intensity normalization

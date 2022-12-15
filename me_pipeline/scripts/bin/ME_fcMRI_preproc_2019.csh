@@ -21,14 +21,13 @@
 #Revision 1.1  2021/07/15 04:04:21  avi
 #Initial revision
 #
-##############################
-# fcMRI-specific preprocessing
-##############################
+echo "##############################"
+echo "# fcMRI-specific preprocessing"
+echo "##############################"
 set program = $0
 set program = $program:t
 set rcsid = '$Id: ME_fcMRI_preproc_2019.csh,v 1.6 2022/11/28 06:02:35 avi Exp $'
 echo $rcsid
-# set D = /data/petsun4/data1/solaris/csh_scripts	# debugging
 if (${#argv} < 1) then
 	echo "Usage:	$program <parameters file> [instructions]"
 	echo "e.g.,	$program TRD001_1.params ../ME_cross_bold_pp_2019.params"
@@ -105,20 +104,20 @@ set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
 if (! -e $FCdir) mkdir $FCdir
 if (! ${?conc}) then
-###################################
-# make conc file and move to $FCdir
-###################################
+echo "###################################"
+echo "# make conc file and move to $FCdir"
+echo "###################################"
 	set concroot	= ${patid}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
 	set conc	= $concroot.conc
-	touch $$.lst
+	touch s$$.lst
 	@ k = 1
 	while ($k <= $runs)
 		set file = bold$runID[$k]/$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
-		echo $file >> $$.lst
+		echo $file >> s$$.lst
 		@ k++
 	end
-	conc_4dfp $concroot -l$$.lst || exit $status
-	if (-e $$.lst) /bin/rm -f $$.lst
+	conc_4dfp $concroot -ls$$.lst || exit $status
+	if (-e s$$.lst) /bin/rm -f s$$.lst
 	/bin/mv $conc* $FCdir
 else
 	if (! -e $conc) then
@@ -130,9 +129,9 @@ else
 endif
 
 pushd $FCdir	# into $FCdir
-################
-# create WB mask
-################
+echo "################"
+echo "# create WB mask"
+echo "################"
 set F = $day1_path/${patid1}_aparc+aseg_on_${outspacestr}.4dfp.img
 maskimg_4dfp $F $F ${patid1}_FSWB_on_${outspacestr} -v1 || exit -1
 ifh2hdr -r1	   ${patid1}_FSWB_on_${outspacestr}
@@ -141,9 +140,9 @@ if (${?fmtfile}) then
 	set concroot = $conc:r
 	goto COMPUTE_DEFINED
 endif
-#########################
-# compute frame censoring
-#########################
+echo "#########################"
+echo "# compute frame censoring"
+echo "#########################"
 rm -f ${concroot}*format
 if (${?DVARthresh}) then
 	if (! ${?DVARsd})   set DVARsd = 3.5
@@ -214,49 +213,49 @@ if (! ${?min_frames}) @ min_frames = $str[2] / 2
 	exit -1	# require at least $min_frames to pass users criterion
 endif
 COMPUTE_DEFINED:
-################################
-# compute censored frame average
-################################
+echo "################################"
+echo "# compute censored frame average"
+echo "################################"
 echo	actmapf_4dfp $fmtfile $conc -aave
 	actmapf_4dfp $fmtfile $conc -aave || exit $status
 echo	ifh2hdr	-r2000	${concroot}_ave
 	ifh2hdr	-r2000	${concroot}_ave
 
-##########################
-# run compute_defined_4dfp
-##########################
+echo "##########################"
+echo "# run compute_defined_4dfp"
+echo "##########################"
 compute_defined_4dfp -F$fmtfile ${concroot}.conc -z || exit $status
 maskimg_4dfp ${concroot}_dfnd ${patid1}_FSWB_on_${outspacestr} ${concroot}_dfndm || exit $status
 
-#####################
-# compute initial sd1
-#####################
+echo "#####################"
+echo "# compute initial sd1"
+echo "#####################"
 var_4dfp -s -F$fmtfile	${concroot}.conc
 ifh2hdr -r20		${concroot}_sd1
 set sd1_WB0 = `qnt_4dfp ${concroot}_sd1 ${concroot}_dfndm | awk '$1~/Mean/{print $NF}'`
 
 UOUT:
-###########################
-# make timeseries zero mean
-###########################
+echo "###########################"
+echo "# make timeseries zero mean"
+echo "###########################"
 echo	var_4dfp -F$fmtfile -m $conc
 	var_4dfp -F$fmtfile -m $conc	|| exit $status
 
-############################################
-# make movement regressors for each BOLD run
-############################################
+echo "############################################"
+echo "# make movement regressors for each BOLD run"
+echo "############################################"
 MOVEMENT:
-touch $$.lst
+touch s$$.lst
 @ k = 1
 while ($k <= $runs)
 	set root = ../bold$runID[$k]/${patid}_b$runID[$k]_xr3d
 	mat2dat    $root -I
 	set file = ${root}_dat			
-	echo $file >> $$.lst
+	echo $file >> s$$.lst
 	@ k++
 end
-conc_4dfp ${patid}_xr3d_dat -l$$.lst -w || exit $status
-/bin/rm -f $$.lst
+conc_4dfp ${patid}_xr3d_dat -ls$$.lst -w || exit $status
+/bin/rm -f s$$.lst
 source ../bold$runID[1]/${patid}_b$runID[1].params	# define $TR_vol (same for all runs)
 bandpass_4dfp ${patid}_xr3d_dat.conc	$TR_vol $bpss_params -EM -F$fmtfile || exit $status	# movement regressors
 4dfptoascii   ${patid}_xr3d_dat.conc    ${patid}_mov_regressors.dat
@@ -267,9 +266,9 @@ set concb = $concrootb.conc
 var_4dfp -s -F$fmtfile $concb || exit $status
 
 GSR:
-#############################################################
-# make the whole brain regressor including the 1st derivative
-#############################################################
+echo "#############################################################"
+echo "# make the whole brain regressor including the 1st derivative"
+echo "#############################################################"
 echo computing movement regressors
 qnt_4dfp -s -d -F$fmtfile $concb ${patid1}_FSWB_on_${outspacestr} \
 	| awk '$1!~/#/{printf("%10.4f%10.4f\n", $2, $3)}' >! ${patid}_WB_regressor_dt.dat
@@ -283,9 +282,9 @@ CSF:
 set concrootb = ${concroot}_bpss	# debug
 set concb = $concrootb.conc		# debug
 @ nframe = `wc ${patid}_mov_regressors.dat | awk '{print $1}'`	# debug
-#################################
-# make extra-axial CSF regressors
-#################################
+echo "#################################"
+echo "# make extra-axial CSF regressors"
+echo "#################################"
 if (! ${?CSF_excl_lim}) set CSF_excl_lim = 0.2
 blur_n_thresh_4dfp	${patid1}_FSWB_on_${outspacestr} .6 $CSF_excl_lim temp$$0 || exit $status
 nifti_4dfp -n		temp$$0 temp$$0
@@ -318,9 +317,9 @@ VENT:
 set concrootb = ${concroot}_bpss	# debug
 set concb = $concrootb.conc		# debug
 @ nframe = `wc ${patid}_mov_regressors.dat | awk '{print $1}'`	# debug
-###########################
-# make ventricle regressors
-###########################
+echo "###########################"
+echo "# make ventricle regressors"
+echo "###########################"
 cluster_4dfp	../atlas/${patid1}_VENT_on_${outspacestr}_erode -n15
 set VENTmask =	../atlas/${patid1}_VENT_on_${outspacestr}_erode_clus
 set file =	../atlas/${VENTmask}.4dfp.img.rec
@@ -350,9 +349,9 @@ WM:
 set concrootb = ${concroot}_bpss	# debug
 set concb = $concrootb.conc		# debug
 @ nframe = `wc ${patid}_mov_regressors.dat | awk '{print $1}'`	# debug
-####################
-# make WM regressors
-####################
+echo "####################"
+echo "# make WM regressors"
+echo "####################"
 cluster_4dfp ../atlas/${patid1}_WM_on_${outspacestr}_erode -n100	|| exit $status
 set WMmask = ../atlas/${patid1}_WM_on_${outspacestr}_erode_clus
 maskimg_4dfp $WMmask ${concroot}_dfnd ${patid}_WM_mask ${patid}_WM_mask	|| exit $status
@@ -365,9 +364,9 @@ if ($n != $nframe) then
 endif
 
 TASK:
-#############################################
-# optional externally supplied task regressor
-#############################################
+echo "#############################################"
+echo "# optional externally supplied task regressor"
+echo "#############################################"
 if (! ${?task_regressor}) set task_regressor = ""
 if ($task_regressor != "") then
 	if (! -r $task_regressor) then
@@ -382,9 +381,9 @@ if ($task_regressor != "") then
 endif
 
 PASTE:
-####################################
-# paste nuisance regressors together
-####################################
+echo "####################################"
+echo "# paste nuisance regressors together"
+echo "####################################"
 set WB = ${patid}_WB_regressor_dt.dat
 if (${?noGSR}) then
 	if ($noGSR) set WB = ""
@@ -404,16 +403,16 @@ list_regressors.csh	${patid}_VENT_regressors.dat
 list_regressors.csh	$WM
 list_regressors.csh	$task_regressor
 paste ${patid}_mov_regressors.dat ${patid}_ExAxTissue_regressors.dat ${patid}_VENT_regressors.dat \
-      ${patid}_WM_regressors.dat $task_regressor >! $$.dat			|| exit $status
-covariance $fmtfile $$.dat -D200 > /dev/null	# output file will be $$_SVD<dim>.dat
+      ${patid}_WM_regressors.dat $task_regressor > s$$.dat || exit $status
+covariance $fmtfile s$$.dat -D200 > /dev/null	# output file will be s$$_SVD<dim>.dat
 if (! ${?nRegress}) @ nRegress = $nframe
 if ($nRegress < $nframe)  then 
-paste $WB $$_SVD*.dat | gawk '{if(nRegress > NF)nRegress=NF;for(i=1;i<=nRegress;i++){printf "%s\t", $i}; printf "\n";}' \
-	nRegress=$nRegress >!		${patid}_nuisance_regressors.dat	|| exit $status
+	paste $WB s$$_SVD*.dat | gawk '{if(nRegress > NF)nRegress=NF;for(i=1;i<=nRegress;i++){printf "%s\t", $i}; printf "\n";}' \
+		nRegress=$nRegress >!		${patid}_nuisance_regressors.dat	|| exit $status
 else
-	paste $WB $$_SVD*.dat >!	${patid}_nuisance_regressors.dat 	|| exit $status
+	paste $WB s$$_SVD*.dat >!	${patid}_nuisance_regressors.dat 	|| exit $status
 endif	
-/bin/rm -f $$_SVD*.dat $$.dat
+/bin/rm -f s$$_SVD*.dat s$$.dat
 list_regressors.csh			${patid}_nuisance_regressors.dat 	|| exit $status
 if ($WM == "") then
 	echo ${program}: no white matter regressor
@@ -435,9 +434,9 @@ GLM:
 set concrootb = ${concroot}_bpss	# debug
 set concb = $concrootb.conc		# debug
 @ nframe = `wc ${patid}_mov_regressors.dat | awk '{print $1}'`	# debug
-########################################################################
-# run glm_4dfp to remove nuisance regressors from volumetric time series
-########################################################################
+echo "########################################################################"
+echo "# run glm_4dfp to remove nuisance regressors from volumetric time series"
+echo "########################################################################"
 glm_4dfp $fmtfile ${patid}_nuisance_regressors.dat	${concrootb}.conc -rresid -o	|| exit $status
 ifh2hdr -r-20to20					${concrootb}_coeff
 var_4dfp -s -F$fmtfile					${concrootb}_resid.conc		|| exit $status
@@ -460,3 +459,4 @@ popd					# out of $FCdir
 echo $program exit status=$status
 exit $status
 
+noclobber

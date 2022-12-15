@@ -546,8 +546,11 @@ class Instructions:
     # if set script will invoke fnirt
     nlalign: int = 0
 
-    # use ME-SDC distortion correction
-    me_sdc: bool = False
+    # use MEDIC (Multi-Echo DIstortion Correction)
+    medic: bool = True
+
+    # number of threads/processes to use for medic
+    medic_cpus: int = 8
 
     # for GRE ($distort == 2); difference in echo time between the two magnitude images
     delta: float = 0.00246
@@ -621,7 +624,7 @@ class Instructions:
     noiseframes: int = 3
 
     # Number of parallel processors used during resampling step
-    OSResample_parallel: int = 10
+    OSResample_parallel: int = 8
 
     # cifti-creation parameters
     # If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
@@ -669,7 +672,8 @@ class Instructions:
             "target": self.target,
             "outspace_flag": self.outspace_flag,
             "nlalign": "1" if self.nlalign else "0",
-            "me_sdc": "1" if self.me_sdc else "0",
+            "medic": "1" if self.medic else "0",
+            "medic_cpus": str(self.medic_cpus),
             "delta": str(self.delta),
             "ME_reg": "1" if self.ME_reg else "0",
             "dbnd_flag": str(self.dbnd_flag),

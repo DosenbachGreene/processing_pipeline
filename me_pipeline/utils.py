@@ -1,10 +1,11 @@
 import logging
 import shutil
 from pathlib import Path
-from subprocess import run, CalledProcessError
 from typing import cast, Union
 from random import randint
 from me_pipeline.scripts import DATA_DIR
+from subprocess import CalledProcessError
+from memori.logging import run_process
 
 
 def flatten_dicom_dir(dicom_dir: Union[Path, str], base_dir: Union[Path, None] = None) -> None:
@@ -58,11 +59,9 @@ def dicom_sort(dicom_dir: Union[Path, str]) -> None:
     dicom_dir : Union[Path, str]
         DICOM directory to sort.
     """
-    try:
-        run(["dcm_sort", str(dicom_dir)])
-    except CalledProcessError as e:
-        logging.info("dcm_sort failed with error: %s", e)
-        raise e
+    return_code = run_process(["dcm_sort", str(dicom_dir)])
+    if return_code != 0:
+        raise CalledProcessError(return_code, "dcm_sort")
 
 
 def batch_wb_image_capture_volreg(
@@ -102,6 +101,7 @@ def batch_wb_image_capture_volreg(
     volreg_path = capture_folder_path / "Capture_volreg.scene"
 
     # Copy contents to capture folder
+    print(DATA_DIR)
     shutil.copytree(Path(DATA_DIR) / "image_capture_template", capture_folder_path)
     shutil.copy(volume, volume_path)
     shutil.copy(lpial, lpial_path)
@@ -113,8 +113,23 @@ def batch_wb_image_capture_volreg(
     height = "800"
     width = "2450"
     png_output_name = str(outname) + ".png"
-    run(["wb_command", "-volume-palette", str(volume_path), "MODE_AUTO_SCALE_PERCENTAGE", "-pos-percent", "57", "96"])
-    run(["wb_command", "-show-scene", str(volreg_path), "1", png_output_name, height, width])
+    if (
+        run_process(
+            [
+                "wb_command",
+                "-volume-palette",
+                str(volume_path),
+                "MODE_AUTO_SCALE_PERCENTAGE",
+                "-pos-percent",
+                "57",
+                "96",
+            ]
+        )
+        != 0
+    ):
+        raise RuntimeError("wb_command failed.")
+    if run_process(["wb_command", "-show-scene", str(volreg_path), "1", png_output_name, height, width]) != 0:
+        raise RuntimeError("wb_command failed.")
 
     # Recursively delete the temp capture folder
     shutil.rmtree(capture_folder_path)

@@ -159,9 +159,9 @@ else
 	set tres = 711-2B_111;
 	set outspacestr = ""
 endif
-if ( $me_sdc == 1 ) then  # Use multi-echo susceptibility distortion correction
+if ( $?medic == 1 ) then  # Use multi-echo susceptibility distortion correction
 	set distort = 4
-	set FMAP = SEFM/${patid}_mesdc_Grp
+	set FMAP = MEDIC/${patid}_medic_Grp
 else if ( $?sefm ) then				# spin echo distortion correction
 	set distort = 1
 	if ( ${#sefm} != ${#BOLDgrps} ) then
@@ -281,9 +281,9 @@ if ( $isday1 ) then # this session is day1
 	if (! -e atlas) mkdir atlas;
 	pushd atlas		# into atlas
 	if ( ! -e ${mpr}_on_${target:t}_111.4dfp.img ) then		# mpr atlas registration conditional
-#######################################################################
-# retrieve nu.mgz(mprage) and aparc+aseg.mgz from the freesurfer folder
-#######################################################################
+		#######################################################################
+		# retrieve nu.mgz(mprage) and aparc+aseg.mgz from the freesurfer folder
+		#######################################################################
 		mri_vol2vol --mov $FSdir/mri/nu.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
 			--o nu.mgz --no-save-reg || exit -1	# resample nu onto mpr
 		mri_convert -it mgz -ot nii nu.mgz nu.nii || exit -1
@@ -295,9 +295,9 @@ if ( $isday1 ) then # this session is day1
 		nifti_4dfp -4 aparc+aseg.nii ${patid}_aparc+aseg -N || exit $status
 		nifti_4dfp -n ${patid}_aparc+aseg ${patid}_aparc+aseg || exit $status
 		/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii	# ${mpr} now is nu (GF corrected mpr) resampled on mpr
-###################################
-# register nu to 711-2B atlas space
-###################################
+		###################################
+		# register nu to 711-2B atlas space
+		###################################
 		if (1) then	# use mpr2atl_4dfp
 			set log = ${mpr}_to_${target:t}.log
 			mpr2atl_4dfp ${mpr} -T$target  || exit -1
@@ -333,9 +333,9 @@ if ( $isday1 ) then # this session is day1
 		t4img_4dfp ${mpr}_to_${target:t}_t4 $mpr ${mpr}_on_${target:t}_111 -O111 || exit -1
 	endif	# mpr atlas registration conditional
 
-###################
-# create brain mask
-###################
+	###################
+	# create brain mask
+	###################
 	nifti_4dfp -n ${mpr} ${mpr}
 	blur_n_thresh_4dfp ${patid}_aparc+aseg .6 0.3 ${mpr}_1 || exit $status	# create initial brain mask
 	nifti_4dfp -n ${mpr}_1 ${mpr}_1
@@ -375,9 +375,9 @@ if ( $isday1 ) then # this session is day1
 			endif
 			nifti_4dfp -n $t2wimg $t2wimg || exit -1
 		endif	# ${t2wimg} creation conditional
-#########################
-# register t2w to MP-RAGE
-#########################
+		#########################
+		# register t2w to MP-RAGE
+		#########################
 		set modes = (4099 4099 1027 2051 2051 10243)
 		set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
 		set t4file = ${t2wimg}_to_${mpr}_t4
@@ -392,9 +392,9 @@ if ( $isday1 ) then # this session is day1
 			end
 		endif
 		t4_mul ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${target:t}_t4 ${t2wimg}_to_${target:t}_t4  || exit $status
-#########################################################################
-# compute brain mask from $t2wimg to be used for BOLD -> t2w registration
-#########################################################################
+		#########################################################################
+		# compute brain mask from $t2wimg to be used for BOLD -> t2w registration
+		#########################################################################
 		t4_inv ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${t2wimg}_t4 || exit $status
 		t4img_4dfp ${mpr}_to_${t2wimg}_t4  ${patid1}_aparc+aseg ${patid1}_aparc+aseg_on_${t2wimg} \
 				-O${t2wimg} -n || exit $status
@@ -422,9 +422,9 @@ if ( $isday1 ) then # this session is day1
 		/bin/rm ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
 	endif	# t2w existence conditional
 
-#############################
-# compute nonlinear alignment
-#############################
+	#############################
+	# compute nonlinear alignment
+	#############################
 	if ($nlalign || $distort == 3) then
 		if ( ! -d fnirt ) mkdir fnirt
 		pushd fnirt	# must have .mat file from target 111 711-2B to the reference
@@ -471,21 +471,21 @@ if ( $isday1 ) then # this session is day1
 		nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr} || exit $status
 		nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}  || exit $status
 	endif
-##################
-# gray matter mask
-##################
+	##################
+	# gray matter mask
+	##################
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} -f$REFDIR/FS_GM.lst ${patid1}_GM_on_${outspacestr}  || exit $status
 	scale_4dfp    ${patid1}_GM_on_${outspacestr} -1 -b1 -acomp  || exit $status
 	imgblur_4dfp  ${patid1}_GM_on_${outspacestr}_comp 6  || exit $status
-###################
-# white matter mask
-###################
+	###################
+	# white matter mask
+	###################
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 2,41,77 ${patid1}_WM_on_${outspacestr} || exit $status
 	maskimg_4dfp  ${patid1}_WM_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
 				  ${patid1}_WM_on_${outspacestr}_erode -t0.9  || exit $status
-################
-# ventricle mask
-################
+	################
+	# ventricle mask
+	################
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
 	maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
 				  ${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
@@ -497,12 +497,16 @@ endif	# $isday1 conditional
 # distortion correction
 #######################
 if ( $distort == 4 ) then
-	# warpkit must be installed check before running.
+	# warpkit must be installed, check before running.
 	python3 -c "import warpkit" || exit 1
-	# run me_sdc
-	echo me_sdc $inpath MESDC $patid $BOLDruns
-	me_sdc $inpath MESDC $patid $BOLDruns || exit 1
-    exit 1
+	# run medic
+	medic --save_space -n $medic_cpus $inpath MEDIC $patid $BOLDruns || exit 1
+	foreach run ( $BOLDruns )
+		nifti_4dfp -4 MEDIC/${patid}_b${run}_displacementmaps.nii MEDIC/${patid}_b${run}_displacementmaps -N || exit $status
+		nifti_4dfp -4 MEDIC/${patid}_b${run}_fieldmaps.nii MEDIC/${patid}_b${run}_fieldmaps -N || exit $status
+		nifti_4dfp -n MEDIC/${patid}_b${run}_displacementmaps MEDIC/${patid}_b${run}_displacementmaps.nii || exit $status
+		nifti_4dfp -n MEDIC/${patid}_b${run}_fieldmaps MEDIC/${patid}_b${run}_fieldmaps.nii || exit $status
+	end
 else if ( $distort == 1 ) then		# spin echo distortion correction
 	if ( ! -e SEFM ) mkdir SEFM
 	@ i = 1
@@ -512,15 +516,15 @@ else if ( $distort == 1 ) then		# spin echo distortion correction
 		set str = ()	# argument string for sefm_pp_AT.csh
 		while ( $j <= $#study ) 
 			dcm2niix -o SEFM -f ${patid}_sefm_Grp${i}_${j} -w 1 -z n $inpath/study$study[$j] || exit -1
-##############################################
-# pedindex is +/-{i j k} index of PE direction
-##############################################
+			##############################################
+			# pedindex is +/-{i j k} index of PE direction
+			##############################################
 			set file = SEFM/${patid}_sefm_Grp${i}_${j}.json
 			set pedindex = `cat $file | gawk '$1~/PhaseEncodingDir/&&$1!~/In/{sub(/,/,"",$NF);gsub(/\"/,"",$NF);print $NF}'` 
 			set readout_time_sec = `gawk '$1~/TotalReadoutTime/{sub(/,/,"",$NF);print $NF}' SEFM/${patid}_sefm_Grp${i}_${j}.json`
-####################################################
-# generate $str = argument string for sefm_pp_AT.csh
-####################################################
+			####################################################
+			# generate $str = argument string for sefm_pp_AT.csh
+			####################################################
 			set str = ( $str -i ${patid}_sefm_Grp${i}_${j} $pedindex $readout_time_sec )
 			@ j++
 		end
@@ -597,10 +601,10 @@ while ($k <= $runs)
 		@ nframe = $fullframe - ${noiseframes}
 		set TE = (`cat $patid"_b"${run}${nordstr}_echo?.json | grep EchoTime | gawk '{sub(/,/,"",$2);print $2}' | \
 			gawk '{printf("%.1f ",1000*$1)}'`)
-###############################################################################################
-# get fMRI properties; multiple single run BOLD params files will be consolidated later
-# MEBIDS2params.awk generates run-specific params file from json: MBfac, TR_vol, $seqstr, dwell
-###############################################################################################
+		###############################################################################################
+		# get fMRI properties; multiple single run BOLD params files will be consolidated later
+		# MEBIDS2params.awk generates run-specific params file from json: MBfac, TR_vol, $seqstr, dwell
+		###############################################################################################
 		echo "@ nframe = $nframe"			>! $patid"_b"${run}.params
 		echo "@ fullframe = $fullframe"			>> $patid"_b"${run}.params
 		echo "@ necho = $necho"				>> $patid"_b"${run}.params
@@ -716,8 +720,8 @@ while ($k <= $runs)
 	echo bold$runID[$k]/$patid"_b"$runID[$k] >> $$bold.lst
 	@ k++
 end
-echo	cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	# -R disables resampling
-	cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	|| exit $status
+echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	# -R disables resampling
+cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	|| exit $status
 /bin/rm $$bold.lst
 if (! -d movement) mkdir movement
 @ k = 1
@@ -764,8 +768,8 @@ while ($k <= $runs)
 		@ i++
 	end
 	
-	echo	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst
-		cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst  >> /dev/null || exit $status
+	echo cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst
+	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst  >> /dev/null || exit $status
 	@ k++
 end
 
@@ -776,9 +780,9 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 #########################################################
 if (! $?BiasField) @ BiasField = 1	# @ BiasField = 0 in params is required to disable bias field correction
 if ($BiasField) then
-#####################################
-# compute bias field using first echo
-#####################################
+	#####################################
+	# compute bias field using first echo
+	#####################################
 	@ k = 1
 	while ($k <= $runs)
 		pushd bold$runID[$k]	# for each run
@@ -787,9 +791,9 @@ if ($BiasField) then
 			actmapf_4dfp ${skip}x${j}+ $patid"_b"$runID[$k]_echo1_faln_xr3d -aavg || exit $status
 			set base = ${patid}"_b"$runID[$k]_echo1_faln_xr3d_avg
 			nifti_4dfp -n ${base} ${base} || exit $status
-#######################################
-# compute bias field and its reciprocal
-#######################################
+			#######################################
+			# compute bias field and its reciprocal
+			#######################################
 			fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -b -o ${base} ${base} || exit $status
 			niftigz_4dfp -4 ${base}_restore ${base}_restore		|| exit $status
 			niftigz_4dfp -4 ${base}_bias    ${base}_bias 		|| exit $status
@@ -801,9 +805,9 @@ if ($BiasField) then
 				${base}_bias || exit $status
 				@ i++
 			end
-########################################################################
-# $patid"_b"$runID[$k]_faln_xr3d_BC is the bias field corrected BOLD run
-########################################################################
+			########################################################################
+			# $patid"_b"$runID[$k]_faln_xr3d_BC is the bias field corrected BOLD run
+			########################################################################
 			@ k++
 		popd
 	end
@@ -826,23 +830,23 @@ while ( $i <= $#BOLDgrps )
 	set run = $runID[$k]	# first run of the group
 	set anat = ${patid}_anat_Grp$i	# first frame of first BOLD run in group
 	source  bold${run}/${patid}"_b"$runID[$k].params
-######################################
-# tmp affine xform ${patid}_anat_Grp$i
-######################################
+	######################################
+	# tmp affine xform ${patid}_anat_Grp$i
+	######################################
 	grep -x -A4 "t4 frame 1" bold${run}/$patid"_b"${run}_xr3d.mat | tail -4 >  $adir/bold${run}_frame.mat
-############################
-# tmp intensity scale factor
-############################
+	############################
+	# tmp intensity scale factor
+	############################
 	grep -x -A6 "t4 frame 1" bold${run}/$patid"_b"${run}_xr3d.mat | tail -1 >> $adir/bold${run}_frame.mat
-##################################################################
-# convert cross_realign3d_4dfp first frame affine xform to t4_file
-##################################################################
+	##################################################################
+	# convert cross_realign3d_4dfp first frame affine xform to t4_file
+	##################################################################
 	aff_conv x4 bold${run}/$patid"_b"${run} bold${run}/$patid"_b"${run} $adir/bold${run}_frame.mat \
 				bold${run}/$patid"_b"${run} bold${run}/$patid"_b"${run} \
 				$adir/${anat}_to_${anat}_xr3d_t4 || exit $status
-##############################################
-# xform reciprocal bias field onto first frame
-##############################################
+	##############################################
+	# xform reciprocal bias field onto first frame
+	##############################################
 	t4_inv $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${anat}_t4  || exit $status
 	if (1) then
 		set anatstr = ${run}
@@ -852,9 +856,9 @@ while ( $i <= $#BOLDgrps )
 	if ($BiasField) then
 		t4img_4dfp $adir/${anat}_xr3d_to_${anat}_t4 bold${run}/${patid}"_b"${run}_invBF \
 			   $adir/bold${run}_invBF_on_frame1 -Obold${run}/$patid"_b"${run} || exit $status
-####################################################
-# extract raw first frame and apply bias field to it
-####################################################
+		####################################################
+		# extract raw first frame and apply bias field to it
+		####################################################
 		extract_frame_4dfp bold${run}/$patid"_b"${anatstr} 1 -o$adir/$patid"_b"${anatstr}_frame1  || exit $status
 		imgopr_4dfp -p$adir/${anat} $adir/$patid"_b"${anatstr}_frame1 $adir/bold${run}_invBF_on_frame1 || exit $status
 	else
@@ -862,19 +866,56 @@ while ( $i <= $#BOLDgrps )
 	endif
 	nifti_4dfp -n $adir/$anat $adir/$anat || exit $status
 	bet $adir/${anat} $adir/${anat}_brain -m -f 0.3 || exit $status
-###############################
-# create first frame brain mask
-###############################
+	###############################
+	# create first frame brain mask
+	###############################
 	nifti_4dfp -4 $adir/${anat}_brain_mask $adir/${anat}_brain_mask || exit $status
 
-##############################
-# set up distortion correction
-##############################
+	##############################
+	# set up distortion correction
+	##############################
+
+	# In MEDIC, we already have the displacement field, but the existing code expects a field map
+	# so I guess we convert it back into one
+	if ( $distort == 4 ) then
+		# TODO: Doing distortion correction in this way doesn't really take advantage of framewise field maps...
+		# Apply MEDIC field maps to first frame of EPI
+		# Get the displacement maps for this BOLD run
+		set dmaps = MEDIC/${patid}_b${run}_displacementmaps.nii
+		# Extract the first frame of the displacement maps (in fsl format)
+		extract_field_from_maps $dmaps ${FMAP}${i}_displacementfield.nii -n 0 -p $ped
+		# Get the total readout time from the metadata
+		setenv total_readout_time `jq -r .TotalReadoutTime bold${run}/$patid"_b"${run}${nordstr}_echo1.json`
+		# Convert the displacement field back to a field map
+		# I'm lazy to make a proper script for this so I launch a python shell mid script
+		# and call my functions from warpkit
+python3 - <<EOF
+import nibabel as nib
+from warpkit.utilities import displacement_maps_to_field_maps, AXIS_MAP
+axis_code = AXIS_MAP["$ped"]
+displacement_field = nib.load("${FMAP}${i}_displacementfield.nii")
+displacement_map_data = displacement_field.get_fdata()[..., axis_code]
+displacement_map = nib.Nifti1Image(displacement_map_data, displacement_field.affine)
+total_readout_time = float($total_readout_time)
+field_map = displacement_maps_to_field_maps(displacement_map, total_readout_time, "$ped")
+print("Saving field map to ${FMAP}${i}_FMAP.nii")
+field_map.to_filename("${FMAP}${i}_FMAP.nii")
+EOF
+		# convert field map to radians (and invert it to match the sign convention of fsl)
+		fslmaths ${FMAP}${i}_FMAP.nii -mul -6.283185307 ${FMAP}${i}_FMAP.nii
+
+		# and use the same bold image as the magnitude image
+		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
+
+		# convert things back into 4dfp
+		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
+		nifti_4dfp -4 ${FMAP}${i}_mag.nii ${FMAP}${i}_mag || exit $status
+	endif
 	if ( $distort != 3 ) then # not computed (synthetic) distortion correction
-####################################################
-# pha2epi.csh registers and applies field map to EPI
-####################################################
-	echo	pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+		####################################################
+		# pha2epi.csh registers and applies field map to EPI
+		####################################################
+		echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
 		pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
@@ -920,22 +961,22 @@ while ( $i <= $#BOLDgrps )
 		echo	nifti_4dfp -n ${struct} ${struct}
 			nifti_4dfp -n ${struct} ${struct} || exit -1
 		endif
-###########################################################################
-# initialize target frame to structural xform prior to FNIRT (fsl "premat")
-###########################################################################
+		###########################################################################
+		# initialize target frame to structural xform prior to FNIRT (fsl "premat")
+		###########################################################################
 		t4_mul $adir/${anat}_xr3d_to_${anat}_t4 $adir/${anat}_uwrp_to_${struct:t}_t4 \
 		       $adir/${anat}_xr3d_to_${struct:t}_t4 || exit $status
 		aff_conv 4f $adir/${anat}_uwrp atlas/${struct:t} $adir/${anat}_xr3d_to_${struct:t}_t4 \
 			    $adir/${anat}_uwrp atlas/${struct:t} $adir/${anat}_xr3d_to_${struct:t}.mat
 		convertwarp --ref=$outspace --premat=$adir/${anat}_xr3d_to_${struct:t}.mat --warp1=$warp --postmat=$postmat \
 			--out=$adir/${anat}_xr3d_to_fn_MNI152_T1_2mm_to_${outspace:t}_fnirt_coeff
-############################################################
-# generate command for one_step_resampling_AT.csh = $strwarp
-############################################################
+		############################################################
+		# generate command for one_step_resampling_AT.csh = $strwarp
+		############################################################
 		set strwarp = "-postwarp $adir/${anat}_xr3d_to_fn_MNI152_T1_2mm_to_${outspace:t}_fnirt_coeff"
-############################
-# transform anat to outspace
-############################
+		############################
+		# transform anat to outspace
+		############################
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
 		t4_mul $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${struct:t}_t4 $adir/${anat}_to_${struct:t}_t4 || exit $status
 		aff_conv 4f $adir/${anat} ${struct} $adir/${anat}_to_${struct:t}_t4 \
@@ -955,9 +996,9 @@ while ( $i <= $#BOLDgrps )
 		convert_xfm -omat $adir/${anat}_xr3d_to_${outspace:t}.mat \
 			-concat $postmat $adir/${anat}_xr3d_to_${target:t}.mat || exit $status
 		set strwarp = "-postmat $adir/${anat}_xr3d_to_${outspace:t}.mat"
-############################
-# transform anat to outspace
-############################
+		############################
+		# transform anat to outspace
+		############################
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
 		aff_conv 4f $adir/${anat} $adir/${anat} $adir/${anat}_to_${anat}_xr3d_t4 \
 			    $adir/${anat} $adir/${anat} $adir/${anat}_to_${anat}_xr3d.mat || exit $status
@@ -980,25 +1021,20 @@ while ( $i <= $#BOLDgrps )
 				@ n++
 			end
 		else if (1) then
-			if ( $distort == 4 ) then  # MESDC can only be used with one_step_resampling_AV.csh
-				set resampling_AV = 1
-			endif
-			set resampling_AV = 1
-			if ( $?resampling_AV ) then  # for MESDC we run a custom one step resampling script 
-				echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-					-trailer xr3d_uwrp_on_${outspacestr}
-				one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-					-trailer xr3d_uwrp_on_${outspacestr} || exit $status
-			else  # works and executes in ~47% of time needed for redundant ME operations (8 cores)
-				echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-					-trailer xr3d_uwrp_on_${outspacestr}
-				one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-					$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-					-trailer xr3d_uwrp_on_${outspacestr} || exit $status
-			endif
+			# this script uses a custom processing pool instead of GNU parallel
+			echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr}
+			one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+			# # works and executes in ~47% of time needed for redundant ME operations (8 cores)
+			# echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+			# 	$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+			# 	-trailer xr3d_uwrp_on_${outspacestr}
+			# one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+			# 	$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+			# 	-trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		endif
 		@ j++		# index of BOLD run within group
 		@ k++		# index of BOLD run within session
@@ -1011,7 +1047,6 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 ###############################
 # model multi-echo BOLD signals
 ###############################
-# set C = /home/usr/shimonyj/me_fmri/MEfmri_4dfp
 set C = MEfmri_4dfp
 if (! ${?ME_reg}) @ ME_reg = 1
 @ k = 1

@@ -2,25 +2,25 @@ import argparse
 import logging
 import json
 from pathlib import Path
-from subprocess import run
 import nibabel as nib
-from memori.logging import setup_logging
+from memori.logging import setup_logging, run_process
 from me_pipeline.params import _test_image_type, _test_regex_list, REGEX_SEARCH_BOLD, FUNCTIONAL_IMAGE_TYPE_PATTERNS
 from pydicom import read_file
 from . import epilog
-from warpkit.distortion import me_sdc
+from warpkit.distortion import medic
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ME SDC distortion correction", epilog=f"{epilog} 12/09/2022")
+    parser = argparse.ArgumentParser(description="Multi-Echo DIstortion Correction", epilog=f"{epilog} 12/09/2022")
     parser.add_argument("in_path", help="Path to where study folders are located.")
-    parser.add_argument("fmap_path", help="Path to output field maps.")
+    parser.add_argument("fmap_path", help="Path to output field maps amd displacment maps.")
     parser.add_argument("patid", help="Subject ID label.")
     parser.add_argument(
         "--save_space",
         action="store_true",
         help="Save space by deleting mag/phase images after computing field map and displacement maps.",
     )
+    parser.add_argument("-n", "--n_cpus", type=int, default=4, help="Number of CPUs to use.")
     parser.add_argument("studies", nargs="+", type=int, help="Numbers of each study folder to process.")
 
     # parse arguments
@@ -30,7 +30,7 @@ def main():
     setup_logging()
 
     # log arguments
-    logging.info(f"me_sdc: {args}")
+    logging.info(f"medic: {args}")
 
     # create fmap_path if it doesn't exist
     Path(args.fmap_path).mkdir(parents=True, exist_ok=True)
@@ -59,13 +59,18 @@ def main():
 
     # now convert each of these folders to nifti with dcm2niix
     for idx, (mag, phase) in enumerate(zip(mag_folders, phase_folders)):
+        # parse the study number
+        study_num = int(mag.name.split("study")[1])
+
         # setup output filenames
-        mag_base = f"{args.patid}_run-{idx+1:02}_{mag.name}"
-        phase_base = f"{args.patid}_run-{idx+1:02}_{phase.name}"
+        mag_base = f"{args.patid}_{mag.name}"
+        phase_base = f"{args.patid}_{phase.name}"
 
         # convert to nifti
-        run(["dcm2niix", "-o", args.fmap_path, "-f", mag_base, "-w", "1", "-z", "n", mag])
-        run(["dcm2niix", "-o", args.fmap_path, "-f", phase_base, "-w", "1", "-z", "n", phase])
+        if run_process(["dcm2niix", "-o", args.fmap_path, "-f", mag_base, "-w", "1", "-z", "n", str(mag)]) != 0:
+            raise RuntimeError(f"Failed to convert {mag} to nifti.")
+        if run_process(["dcm2niix", "-o", args.fmap_path, "-f", phase_base, "-w", "1", "-z", "n", str(phase)]) != 0:
+            raise RuntimeError(f"Failed to convert {phase} to nifti.")
 
         # now grab the list of magnitude and phase nifti files
         # and also sort them
@@ -82,8 +87,8 @@ def main():
             with open(sidecar, "r") as f:
                 metadata.append(json.load(f))
 
-        # grab the effective echo spacing, echo times, and phase encoding direction from the metadata
-        effective_echo_spacing = metadata[0]["EffectiveEchoSpacing"]
+        # grab the total readout time, echo times, and phase encoding direction from the metadata
+        total_readout_time = metadata[0]["TotalReadoutTime"]
         echo_times = [meta["EchoTime"] * 1000 for meta in metadata]
         phase_encoding_direction = metadata[0]["PhaseEncodingDirection"]
 
@@ -91,12 +96,16 @@ def main():
         mag_data = [nib.load(mag_nifti) for mag_nifti in mag_niftis]
         phase_data = [nib.load(phase_nifti) for phase_nifti in phase_niftis]
 
-        # now run me_sdc
-        fmaps, dmaps = me_sdc(phase_data, mag_data, echo_times, effective_echo_spacing, phase_encoding_direction)
+        # now run medic
+        fmaps, dmaps = medic(
+            phase_data, mag_data, echo_times, total_readout_time, phase_encoding_direction, n_cpus=args.n_cpus
+        )
 
         # save the fmaps and dmaps to file
-        fmaps.to_filename(Path(args.fmap_path) / f"{mag_base}_fieldmap.nii.gz")
-        dmaps.to_filename(Path(args.fmap_path) / f"{mag_base}_displacementmap.nii.gz")
+        logging.info("Saving field maps and displacement maps to file...")
+        fmaps.to_filename(Path(args.fmap_path) / f"{args.patid}_b{study_num}_fieldmaps.nii")
+        dmaps.to_filename(Path(args.fmap_path) / f"{args.patid}_b{study_num}_displacementmaps.nii")
+        logging.info("Done.")
 
         # delete the magnitude and phase images if save_space is True
         if args.save_space:

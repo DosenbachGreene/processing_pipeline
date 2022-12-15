@@ -11,5 +11,6 @@ os.environ["PATH"] = os.path.join(os.path.dirname(__file__), "bin") + os.pathsep
 os.environ["DATA_DIR"] = os.path.join(os.path.dirname(__file__), "data")
 
 # Data and Bin directories
-BIN_DIR = os.path.join(os.path.dirname(__file__), "bin")
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+# Use realpath to resolve symlinks in editable installs
+BIN_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "bin")
+DATA_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")

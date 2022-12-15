@@ -1,7 +1,7 @@
 from os import chdir, getcwd
 import argparse
 from pathlib import Path
-from subprocess import run
+from memori.logging import setup_logging, run_process
 from . import epilog
 
 
@@ -63,6 +63,9 @@ def main():
     # parse arguments
     args = parser.parse_args()
 
+    # setup logging
+    setup_logging()
+
     if args.pipeline == "structural":
         # get instructions file from project directory
         instructions_file = (Path(args.project_dir) / "instructions.params").absolute()
@@ -87,15 +90,19 @@ def main():
         chdir("/")
 
         # run the structural pipeline
-        run(
-            [
-                "Structural_pp_090121.csh",
-                struct_params,
-                instructions_file,
-                args.module_start,
-                "1" if args.module_exit else "0",
-            ]
-        )
+        if (
+            run_process(
+                [
+                    "Structural_pp_090121.csh",
+                    str(struct_params),
+                    str(instructions_file),
+                    args.module_start,
+                    "1" if args.module_exit else "0",
+                ]
+            )
+            != 0
+        ):
+            raise RuntimeError("Structural pipeline failed.")
 
         # change back to original working directory
         chdir(cwd)
@@ -125,15 +132,19 @@ def main():
         chdir(session_dir)
 
         # run the functional pipeline
-        run(
-            [
-                "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
-                func_params,
-                instructions_file,
-                args.module_start,
-                "1" if args.module_exit else "0",
-            ]
-        )
+        if (
+            run_process(
+                [
+                    "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
+                    str(func_params),
+                    str(instructions_file),
+                    args.module_start,
+                    "1" if args.module_exit else "0",
+                ]
+            )
+            != 0
+        ):
+            raise RuntimeError("Functional pipeline failed.")
 
         # change back to original working directory
         chdir(cwd)
