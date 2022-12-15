@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
-import logging
-from subprocess import run, CalledProcessError
+from memori.logging import setup_logging, run_process
 from . import epilog
 
 
@@ -24,13 +23,14 @@ def main():
         choices=SCRIPTS,
     )
     parser.add_argument("script_args", nargs="*", help="Arguments to script.")
+    parser.add_argument("--log_file", help="Path to log file")
 
     # parse arguments
     args = parser.parse_args()
 
+    # setup logging
+    setup_logging(args.log_file)
+
     # run script
-    try:
-        run([args.script, *args.script_args])
-    except CalledProcessError as e:
-        logging.info(e)
-        raise e
+    if run_process([args.script, *args.script_args]) != 0:
+        raise RuntimeError(f"Script {args.script} failed.")

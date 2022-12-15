@@ -50,6 +50,7 @@ def main():
         "--module_start", default="T1_DCM", help="Module to start pipeline on.", choices=STRUCTURAL_MODULES
     )
     structural.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
+    structural.add_argument("--log_file", help="Path to log file")
 
     functional = subparser.add_parser("functional", help="Functional Pipeline")
     functional.add_argument("project_dir", help="Path to project directory.")
@@ -59,12 +60,13 @@ def main():
         "--module_start", default="FMRI_PP", help="Module to start pipeline on.", choices=FUNCTIONAL_MODULES
     )
     functional.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
+    functional.add_argument("--log_file", help="Path to log file")
 
     # parse arguments
     args = parser.parse_args()
 
     # setup logging
-    setup_logging()
+    setup_logging(args.log_file)
 
     if args.pipeline == "structural":
         # get instructions file from project directory
