@@ -1,25 +1,64 @@
-# Dosenbach Lab Processing Pipeline
+# Dosenbach Lab Preprocessing Pipeline
 
-This repo contains the Dosenbach Lab processing pipeline.
+This repo contains the Dosenbach Lab Preprocessing Pipeline.
+
 
 ## Dependencies
 
 This pipeline requires 4dfp, fsl, freesurfer, and connectome workbench.
 
-### Non-Docker Usage
+> **__NOTE:__** This repo contains some licenses and install scripts for these dependencies. Because of this,
+> we may need to redo them to comply with the license agreements. For now, we are using the install scripts
+> in a private repo so we should be fine for now.
 
-TODO: This install script probably breaks license agreements...
-To install the dependencies, you can use the `install_` scripts found in the `tools` folder of this repo.
+To install the dependencies, you can use the `install_` scripts found in the `tools` folder of this repo. If you
+already have these dependencies installed, you can skip this step.
+
+> **__NOTE:__** At minimum, you may want to run the `install_4dfp.sh` script to install 4dfp, as it has some
+> modifications to make it compatible with more modern linux systems.
 
 There are dependencies for each of these tools that may need to be installed separately, and you may need to refer to
 the `Dockerfile` and/or the appropriate software's documentation for more details on how to install them.
 
+After installing each dependency. source the `tools/setenv.sh` script to setup the appropriate environment variables
+for each package.
+
+### 4dfp
+
+The 4dfp install script is located in `tools/install_4dfp.sh`. This script will download and compile 4dfp under
+`tools/pkg` and place the compiled binaries and scripts under `tools/bin`.
+
+> **__NOTE:__** The installer contains fixes for GCC >10 compatibility, if you are using an older version of GCC
+> you may need to comment out some flags in the `sed` commands of the install script (e.g. -fallow-invalid-boz, 
+> -fallow-argument-mismatch) or 4dfp may fail to compile. TODO: Auto-detect GCC version to make this automatic.
+
+### FSL
+
+The fsl install script is located in `tools/install_fsl.sh`. This script will download and install fsl under
+`tools/pkg/fsl`.
+
+### FreeSurfer
+
+The freesurfer install script is located in `tools/install_freesurfer.sh`. This script will download and install
+freesurfer under `tools/pkg/freesurfer`.
+
+### Connectome Workbench
+
+The connectome workbench install script is located in `tools/install_workbench.sh`. This script will download and
+install connectome workbench under `tools/pkg/workbench`.
+
+### MATLAB Compiler Runtime
+
+The MATLAB compiler runtime install script is located in `tools/install_mcr.sh`. This script will download and
+install the MATLAB compiler runtime under `tools/pkg/mcr`.
+
 ### Docker Usage
 
-The docker image is available at TODO.
+TODO: This section is not yet complete.
 
 > **__NOTE:__** To reduce the docker image size, the fsl install on the docker image has been stripped of all
 > non-essential files and programs.
+
 
 ## Installation
 
@@ -37,16 +76,16 @@ This section is for developers. Skip this section if you aren't intending to pus
 
 The repo is organized as follows:
 
-    - `me_pipeline`: contains the main pipeline scripts, and associated pipeline wrappers. `me_pipeline/scripts` holds
-    python scripts that define a single function (.i.e. `main`) that is installed as a script during installation. The
-    if the file name is `script_to_call.py`, then after installation of this package, it can be simply called from
-    the command line as `script_to_call`. `me_pipeline/scripts/bin` and `me_pipeline/scripts/data` holds shell scripts
-    and reference data from the original pipeline that are called by the python scripts in `me_pipeline/scripts`.
+- `me_pipeline`: contains the main pipeline scripts, and associated pipeline wrappers. `me_pipeline/scripts` holds
+python scripts that define a single function (.i.e. `main`) that is installed as a script during installation. The
+if the file name is `script_to_call.py`, then after installation of this package, it can be simply called from
+the command line as `script_to_call`. `me_pipeline/scripts/bin` and `me_pipeline/scripts/data` holds shell scripts
+and reference data from the original pipeline that are called by the python scripts in `me_pipeline/scripts`.
 
-    - `extern`: for external git repos used in this pipeline. Currently the only one in use is for NORDIC.
+- `extern`: for external git repos used in this pipeline. Currently the only one in use is for NORDIC.
 
-    - `tools`: contains scripts for installing external dependencies. These include 4dfp, fsl, freesurfer, connectome
-    workbench, and the MATLAB compiler runtime. Any MATLAB code called by the pipeline also lives here.
+- `tools`: contains scripts for installing external dependencies. These include 4dfp, fsl, freesurfer, connectome
+workbench, and the MATLAB compiler runtime. Any MATLAB code called by the pipeline also lives here.
     
 
 ## Some Terminology Definitions
@@ -60,14 +99,17 @@ as a **Dataset** or **Study** (note that this can easily be confused with the (l
 confusion). In BIDS terminology the preferred term is **Dataset**.
 
 - **Subject**: A subject is a person who is being scanned. A subject may have multiple sessions. May also be referred
-to as a **Participant**. In BIDS terminology the preferred term is **Participant**.
+to as a **Participant**. In BIDS terminology the preferred term is **Participant** and is prefixed by `sub-`.
 
-- **Session**: A session is a collection of scans. A session may have multiple scans. May also be referred to as a
-**Visit** or **Experiment**. In BIDS terminology the preferred term is **Session**.
+- **Session**: A session refers to a subjects's scanning session or visit. A session will almost definitely have
+multiple scans. May also be referred to as a **Visit** or **Experiment**. In BIDS terminology the preferred term
+is **Session** and is prefixed by `ses-`.
 
 - **Scan**: A scan refers to a single acquisition, generally resulting in a single image (Note that images are either
 3D or 4D if also acquired temporally over time). May also be referred to as a **Run**. In this pipeline, you may also
-see it referenced to (albeit confusingly) as a **study**. In BIDS terminology the preferred term is a **Run**.
+see it referenced to (albeit confusingly) as a **study**. In BIDS terminology the preferred term is a **Run** and is
+prefixed by `run-`.
+
 
 ## Usage
 
@@ -96,7 +138,6 @@ To run any of the csh scripts, you can use the `run_script` command:
 ```bash
 run_script Structural_pp_090121.csh [struct.params] [instructions.params]
 ```
-
 To see the full list of scripts you can run, check `run_script --help`.
 
 
@@ -136,12 +177,12 @@ Project_Root
     ...
 ```
 
-See https://bids-specification.readthedocs.io/en/stable/05-derivatives/01-introduction.html for more details.
+See https://bids-specification.readthedocs.io/en/stable/ for more details.
 
 
 ### Downloading and Organizing Data
 
-To achieve the above layout, this repo provides a command line tool for auto-downloading data from an XNAT server and
+For convenience, this repo provides a command line tool for auto-downloading data from an XNAT server and
 organizing it in the above layout:
 
 ```bash
@@ -149,9 +190,9 @@ download_dataset [base_dir] [project_name] [subject_id] [experiement_id] --proje
     --session_label [session_label] --scan_label [scan_label]
 ```
 
-where project_name, subject_id, and experiment_id are the XNAT project, subject, and experiment IDs, respectively.
-This script will create the data at `base_dir/project_name/subject_id/experiment_id/SCANS` directory, and also 
-generate the necessary study folders and SCANS.studies.txt file needed for the pipeline.
+where `project_name`, `subject_id`, and `experiment_id` are the XNAT project, subject, and experiment IDs,
+respectively. This script will create the data at `base_dir/project_name/subject_id/experiment_id/SCANS` directory,
+and also generate the necessary study folders and SCANS.studies.txt file needed for the pipeline.
 
 ### Generating Param Files
 
@@ -159,13 +200,16 @@ To generate param files for each subject/session, use the `generate_params` comm
 
 ```bash
 # Instructions file should be at project directory level
-generate_params instructions [project_dir]
+generate_params instructions [path_to_project_dir]
 # Structural params file should be at subject directory level
-generate_params structural [subject_dir]
+generate_params structural [path_to_subject_dir]
 # Functional params file should be at session directory level
-# NOT YET IMPLEMENTED
-generate_params functional [session_dir]
+generate_params functional [path_to_session_dir]
 ```
+
+> **__NOTE:__** TODO: We use path inputs here to make this script for versatile, but probably better to change
+> this to just take in the subject/session labels and then find the appropriate directories given as project
+> directory. 
 
 ### Running the Pipeline
 
@@ -181,4 +225,18 @@ To run the structural pipeline, use the `run_pipeline` command:
 run_pipeline structural [project_dir] [subject_label]
 ```
 
-This will run the pipeline for the subject [subject-label] in the project [project_dir].
+This will run the structural pipeline for the subject `[subject-label]` in the project `[project_dir]`.
+
+### Functional Pipeline
+
+> **__NOTE:__** The functional pipeline requires outputs from the structural pipeline to completely run. Consider
+> running the structural pipeline first.
+
+To run the functional pipeline, use the `run_pipeline` command:
+
+```bash
+run_pipeline functional [project_dir] [subject_label] [session_label]
+```
+
+This will run the functional pipeline for the session `[session_label]` in the subject `[subject_label]` in the
+project `[project_dir]`.
