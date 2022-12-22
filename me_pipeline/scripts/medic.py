@@ -97,14 +97,14 @@ def main():
         phase_data = [nib.load(phase_nifti) for phase_nifti in phase_niftis]
 
         # now run medic
-        fmaps, dmaps = medic(
+        _, dmaps, fmaps = medic(
             phase_data, mag_data, echo_times, total_readout_time, phase_encoding_direction, n_cpus=args.n_cpus
         )
 
         # save the fmaps and dmaps to file
         logging.info("Saving field maps and displacement maps to file...")
-        fmaps.to_filename(Path(args.fmap_path) / f"{args.patid}_b{study_num}_fieldmaps.nii")
         dmaps.to_filename(Path(args.fmap_path) / f"{args.patid}_b{study_num}_displacementmaps.nii")
+        fmaps.to_filename(Path(args.fmap_path) / f"{args.patid}_b{study_num}_fieldmaps.nii")
         logging.info("Done.")
 
         # delete the magnitude and phase images if save_space is True

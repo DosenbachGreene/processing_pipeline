@@ -101,6 +101,7 @@ endif
 # parse options
 ###############
 set enter = "";
+set enter = "BOLD5"
 @ i = 3
 while ($i <= ${#argv})
 	switch ($argv[$i])
@@ -875,41 +876,62 @@ while ( $i <= $#BOLDgrps )
 	# set up distortion correction
 	##############################
 
-	# In MEDIC, we already have the displacement field, but the existing code expects a field map
-	# so I guess we convert it back into one
+	# Do some preprocessing for MEDIC field maps
+	# There are two ways to use MEDIC:
+	# 1. Compute an average field map: this generates a tmask off an FD threshold, than averages all field maps
+	# for frames below that threshold to and uses only a single average field map for all frames
+	# 2. Compute a framewise field map: this uses a field map for each frame, masking out areas outside the brain
+	# (these are generally areas of low SNR, where the field cannot be estimated accurately with only single frame
+	# information)
 	if ( $distort == 4 ) then
-		# TODO: Doing distortion correction in this way doesn't really take advantage of framewise field maps...
-		# Apply MEDIC field maps to first frame of EPI
-		# Get the displacement maps for this BOLD run
-		set dmaps = MEDIC/${patid}_b${run}_displacementmaps.nii
-		# Extract the first frame of the displacement maps (in fsl format)
-		extract_field_from_maps $dmaps ${FMAP}${i}_displacementfield.nii -n 0 -p $ped
-		# Get the total readout time from the metadata
-		setenv total_readout_time `jq -r .TotalReadoutTime bold${run}/$patid"_b"${run}${nordstr}_echo1.json`
-		# Convert the displacement field back to a field map
-		# I'm lazy to make a proper script for this so I launch a python shell mid script
-		# and call my functions from warpkit
+		# Get the field maps for this BOLD run
+		set fmaps = MEDIC/${patid}_b${run}_fieldmaps.nii
+
+		# For MEDIC averaging mode
+		if ( $medic_mode == 1 ) then
+			# first get the fd of the bold data
+			set bold_ddat = movement/${patid}_b${run}_xr3d.ddat
+
+			# get the FD for the run
+			gawk -f $RELEASE/FD.awk $bold_ddat > MEDIC/${patid}_b${run}_xr3d.FD
+
+# now compute a tmask based on an FD threshold
+# TODO: I use 0.5mm as the threshold, but this is completely arbitrary atm... ANV
+# and get field map frames that are below the threshold
+# and average to get an average field map
+# TODO: This is very sloppy code REFACTOR ANV
 python3 - <<EOF
 import nibabel as nib
-from warpkit.utilities import displacement_maps_to_field_maps, AXIS_MAP
-axis_code = AXIS_MAP["$ped"]
-displacement_field = nib.load("${FMAP}${i}_displacementfield.nii")
-displacement_map_data = displacement_field.get_fdata()[..., axis_code]
-displacement_map = nib.Nifti1Image(displacement_map_data, displacement_field.affine)
-total_readout_time = float($total_readout_time)
-field_map = displacement_maps_to_field_maps(displacement_map, total_readout_time, "$ped")
-print("Saving field map to ${FMAP}${i}_FMAP.nii")
-field_map.to_filename("${FMAP}${i}_FMAP.nii")
+import numpy as np
+# load fmaps for the BOLD run
+fmaps = nib.load('$fmaps')
+# load associated FDs
+fds = np.loadtxt('MEDIC/${patid}_b${run}_xr3d.FD')[:, 0]
+# threshold FDs
+tmask = fds < 0.5
+# get the field map data (without the last 3 noise frames)
+data = fmaps.get_fdata()[..., :-3]
+# mask field map data with mask and average; convert to radians
+data = data[..., tmask].mean(axis=-1) * np.pi * 2
+nib.Nifti1Image(data, fmaps.affine, fmaps.header).to_filename('${FMAP}${i}_FMAP.nii')
 EOF
-		# convert field map to radians (and invert it to match the sign convention of fsl)
-		fslmaths ${FMAP}${i}_FMAP.nii -mul -6.283185307 ${FMAP}${i}_FMAP.nii
+		# For MEDIC framewise mode
+		else if ( $medic_mode == 2) then
+			# just feed a first frame field map for the upcoming step, we will run a custom resampling script
+			# later; we need to do this since the first frame is used as the reference for anatomical correction
+			fslroi $fmaps ${FMAP}${i}_FMAP 0 1
 
-		# and use the same bold image as the magnitude image
+			# convert to radians
+			fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
+		endif
+
+		# use the same bold image as the magnitude image
 		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
 
 		# convert things back into 4dfp
 		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
 		nifti_4dfp -4 ${FMAP}${i}_mag.nii ${FMAP}${i}_mag || exit $status
+
 	endif
 	if ( $distort != 3 ) then # not computed (synthetic) distortion correction
 		####################################################
@@ -1020,7 +1042,11 @@ EOF
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
 				@ n++
 			end
-		else if (1) then
+		# this is for framewise distortion corrections
+		else if ( $medic_mode == 2 ) then
+			echo "============ HELLO =========="
+			exit 1
+		else
 			# this script uses a custom processing pool instead of GNU parallel
 			echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \

@@ -105,6 +105,8 @@ def main():
 
     # now sort the dicom  data
     dicom_sort("SCANS")
+
+    # change back to the original directory
     os.chdir(this_dir)
     logging.info("DICOM data flattened and sorted.")
 

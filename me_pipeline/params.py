@@ -549,6 +549,9 @@ class Instructions:
     # use MEDIC (Multi-Echo DIstortion Correction)
     medic: bool = True
 
+    # medic mode (1 = averaging mode; 2 = framewise mode)
+    medic_mode: int = 1
+
     # number of threads/processes to use for medic
     medic_cpus: int = 8
 
@@ -674,6 +677,7 @@ class Instructions:
             "nlalign": "1" if self.nlalign else "0",
             "medic": "1" if self.medic else "0",
             "medic_cpus": str(self.medic_cpus),
+            "medic_mode": str(self.medic_mode),
             "delta": str(self.delta),
             "ME_reg": "1" if self.ME_reg else "0",
             "dbnd_flag": str(self.dbnd_flag),

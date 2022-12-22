@@ -1,4 +1,4 @@
-import logging
+import os
 import shutil
 from pathlib import Path
 from typing import cast, Union
@@ -6,6 +6,7 @@ from random import randint
 from me_pipeline.scripts import DATA_DIR
 from subprocess import CalledProcessError
 from memori.logging import run_process
+from memori.helpers import create_symlink_to_path
 
 
 def flatten_dicom_dir(dicom_dir: Union[Path, str], base_dir: Union[Path, None] = None) -> None:
@@ -62,6 +63,37 @@ def dicom_sort(dicom_dir: Union[Path, str]) -> None:
     return_code = run_process(["dcm_sort", str(dicom_dir)])
     if return_code != 0:
         raise CalledProcessError(return_code, "dcm_sort")
+    # dcm_sort creates files in the cwd, so we convert the study folders
+    # to use relative paths
+    change_absolute_to_relative_paths(os.getcwd())
+
+
+def change_absolute_to_relative_paths(studies_path: Union[Path, str]) -> None:
+    """Converts a dcm_sort directory to use relative paths
+
+    The fact that dcm_sort uses absolute paths is really annoying. This
+    changes a studies directory to use relative paths.
+
+    Parameters
+    ----------
+    studies_path : Union[Path, str]
+        Path to studies directory.
+    """
+    # make sure studies_path is a Path
+    studies_path = Path(studies_path)
+
+    # iterate through each study folder
+    for study in studies_path.glob("study*"):
+        # skip if study is not a directory
+        if not study.is_dir():
+            continue
+        # iterate through each dicom in study folder
+        for dicom in study.iterdir():
+            # save the dicom's absolute path
+            dicom_path = dicom.readlink()
+            # now create a new symlink that use a relative path,
+            # this also overwrites the old symlink
+            create_symlink_to_path(str(dicom_path), str(study))
 
 
 def batch_wb_image_capture_volreg(
