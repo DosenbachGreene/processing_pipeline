@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import pydicom
 import re
 import logging
-from typing import List, Union
+from typing import cast, List, Union
 
 # Globals defining regex and match patterns
 # TODO: if this gets too long, move to a separate file.
@@ -448,11 +448,33 @@ def generate_functional_params(
     # set anatomical path to subject_dir / T1 / atlas
     anat_path = Path(subject_dir) / "T1" / "atlas"
 
-    # if mpr and t2wimg not defined, set them to the [subject_id]_[T1w/T2w]_debias_avg
+    # if mpr and t2wimg not defined, try to find them
     if mpr is None:
-        mpr = f"{subject_id}_T1w_debias_avg"
+        # search the subject dir for T1 dir
+        t1_dir = Path(subject_dir) / "T1"
+        if t1_dir.exists():
+            if (t1_dir / f"{subject_id}_T1w_debias_avg.4dfp.img").exists():
+                mpr = f"{subject_id}_T1w_debias_avg"
+            elif (t1_dir / f"{subject_id}_T1w_1_debias.4dfp.img").exists():
+                mpr = f"{subject_id}_T1w_1_debias"
+        else:
+            raise ValueError(
+                "Could not find T1 directory in subject directory. Please manually specify mpr. "
+                "Maybe you need to run the anatomical pipeline first?"
+            )
     if t2wimg is None:
-        t2wimg = f"{subject_id}_T2w_debias_avg"
+        # search the subject dir for T2 dir
+        t2_dir = Path(subject_dir) / "T2"
+        if t2_dir.exists():
+            if (t2_dir / f"{subject_id}_T2w_debias_avg.4dfp.img").exists():
+                t2wimg = f"{subject_id}_T2w_debias_avg"
+            elif (t2_dir / f"{subject_id}_T2w_1_debias.4dfp.img").exists():
+                t2wimg = f"{subject_id}_T2w_1_debias"
+        else:
+            raise ValueError(
+                "Could not find T2 directory in subject directory. Please manually specify t2wimg. "
+                "Maybe you need to run the anatomical pipeline first?"
+            )
 
     # make fs_dir and post_fs_dir absolute paths
     fs_dir = (project_dir / fs_dir).absolute()
@@ -494,8 +516,8 @@ def generate_functional_params(
         day1_patid=subject_id,
         day1_path=anat_path,
         patid=subject_id,
-        mpr=mpr,
-        t2wimg=t2wimg,
+        mpr=cast(str, mpr),
+        t2wimg=cast(str, t2wimg),
         BOLDgrps=study_numbers,
         runID=study_numbers,
         FCrunID=study_numbers,

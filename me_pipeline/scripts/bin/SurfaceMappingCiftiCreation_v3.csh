@@ -116,9 +116,10 @@ foreach run ( ${runID} )
 	pushd bold${run}
 	source ${patid}_b${run}.params
 	set funcvol = ${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm${FCprocaddstring}
-echo ${funcvol}
-    	set goodvoxels = ./goodvoxels/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_goodvoxels
-echo niftigz_4dfp -n -f ${funcvol} ${funcvol}
+	echo ${funcvol}
+    set goodvoxels = ./goodvoxels/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_goodvoxels
+	rm -f ${funcvol}.nii*
+	echo niftigz_4dfp -n -f ${funcvol} ${funcvol}
 	niftigz_4dfp -n -f ${funcvol} ${funcvol}
 
 	foreach hem (L R) 

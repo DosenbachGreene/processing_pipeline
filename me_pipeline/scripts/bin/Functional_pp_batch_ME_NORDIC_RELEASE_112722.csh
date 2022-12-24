@@ -138,8 +138,11 @@ NIFTI:
 echo "############## 4dfp to NIFTI conversion ##############"
 foreach run ( $runID )
 	pushd bold$run
+	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg
+	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1 $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1
+	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR
 	popd 
 end

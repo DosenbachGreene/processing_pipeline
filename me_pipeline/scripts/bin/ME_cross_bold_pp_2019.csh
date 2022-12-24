@@ -34,7 +34,6 @@
 #Revision 1.1  2021/08/26 21:39:03  avi
 #Initial revision
 #
-
 set idstr = '$Id: ME_cross_bold_pp_2019.csh,v 1.9 2022/11/30 21:41:43 avi Exp $'
 echo $idstr
 set program = $0; set program = $program:t
@@ -87,12 +86,12 @@ if ( ! $?REFDIR ) then
 	exit 1
 endif
 
-if ( ! $?FREESURFER_HOME) then 
+if ( ! $?FREESURFER_HOME ) then 
 	echo "FREESURFER_HOME must be defined"
 	exit 1
 endif
 
-if (! $?SUBJECTS_DIR) then
+if ( ! $?SUBJECTS_DIR ) then
 	echo "SUBJECTS_DIR must be defined" # required by mri_vol2vol; any non-blank string will do
 	exit 1
 endif
@@ -101,7 +100,7 @@ endif
 # parse options
 ###############
 set enter = "";
-set enter = "BOLD5"
+
 @ i = 3
 while ($i <= ${#argv})
 	switch ($argv[$i])
@@ -349,7 +348,7 @@ if ( $isday1 ) then # this session is day1
 		if ( ! $useold || ! -e ${t2wimg}.4dfp.img ) then	# ${t2wimg} creation conditional
 			@ i = 1
 			while ( $i <= $#t2w )
-				dcm2niix -o . -f study${t2w[$i]} -z n $inpath/study${t2w[$i]} || exit $status
+				dcm2niix -o . -f study${t2w[$i]} -z n -w 1 $inpath/study${t2w[$i]} || exit $status
 				nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
 				/bin/rm  study${t2w[$i]}.nii
 				nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
@@ -592,10 +591,10 @@ while ($k <= $runs)
 	set run = $runID[$k]
 	if (! -d bold$run) mkdir bold$run
 	pushd bold$run
-		dcm2niix -o .		-f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study${std}	|| exit $status
+		dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study${std}	|| exit $status
 		if ( $runnordic && $isnordic ) then 
 			@ run_ph = $BOLDruns[$k] + 1
-			dcm2niix -o .	-f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study$run_ph	|| exit $status
+			dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study$run_ph	|| exit $status
 		endif
 		@ necho = `ls $patid"_b"${run}${nordstr}_echo?.nii | wc -l`
 		@ fullframe = `fslinfo $patid"_b"${run}${nordstr}_echo1.nii | gawk '/^dim4/ {print $NF}'`
@@ -648,24 +647,24 @@ while ($k <= ${#runID})
 		set echo_mag = $patid"_b"${run}${nordstr}_echo${e}.nii
 		set echo_ph =  $patid"_b"${run}${nordstr}_echo${e}_ph.nii
 		set outname =  $patid"_b"${run}_echo${e}
-		echo "try"								>! runnordic.m
-		echo "	addpath('${NORDIClib}');"					>> runnordic.m
-		echo "	ARG.noise_volume_last=${noiseframes};"				>> runnordic.m
+		echo "try"																>! runnordic.m
+		echo "    addpath('${NORDIClib}');"								   	    >> runnordic.m
+		echo "    ARG.noise_volume_last=${noiseframes};"					 	>> runnordic.m
 		if (! $isnordic) then
-			echo "	ARG.magnitude_only = 1"					>> runnordic.m
+			echo "    ARG.magnitude_only = 1"									>> runnordic.m
 		endif
-		echo "	NIFTI_NORDIC('${echo_mag}','${echo_ph}','${outname}',ARG);"	>> runnordic.m
-		echo "catch"								>> runnordic.m
-		echo "	quit(-1)"							>> runnordic.m
-		echo "end"								>> runnordic.m
-		echo "exit"								>> runnordic.m
-		cat runnordic.m					>> $log
-		date						>> $log
-		echo	$matlab -nosplash -nodesktop -r 'runnordic'	>> $log
-		$matlab -nosplash -nodesktop -r 'runnordic'	>> $log
+		echo "    NIFTI_NORDIC('${echo_mag}','${echo_ph}','${outname}',ARG);"   >> runnordic.m
+		echo "catch"														    >> runnordic.m
+		echo "    quit(-1)"														>> runnordic.m
+		echo "end"																>> runnordic.m
+		echo "exit"																>> runnordic.m
+		cat runnordic.m
+		date
+		echo $matlab -nosplash -nodesktop -r 'runnordic'
+		$matlab -nosplash -nodesktop -r 'runnordic'
 		if ($status) exit -1
-		echo "status="$status				>> $log
-		date						>> $log
+		echo "status="$status
+		date
 		echo after running nordic
 		@ e++
 	end
@@ -889,13 +888,13 @@ while ( $i <= $#BOLDgrps )
 
 		# For MEDIC averaging mode
 		if ( $medic_mode == 1 ) then
-			# first get the fd of the bold data
-			set bold_ddat = movement/${patid}_b${run}_xr3d.ddat
+			# get movement info from the data
+			set bold_dat = movement/${patid}_b${run}_xr3d.dat
 
-			# get the FD for the run
-			gawk -f $RELEASE/FD.awk $bold_ddat > MEDIC/${patid}_b${run}_xr3d.FD
+			# get the L1/L2 displacements of the frames
+			gawk -f $RELEASE/FD.awk $bold_dat > MEDIC/${patid}_b${run}_xr3d.DD
 
-# now compute a tmask based on an FD threshold
+# now compute a tmask based on threshold of the L2 norm of the displacement to the first frame
 # TODO: I use 0.5mm as the threshold, but this is completely arbitrary atm... ANV
 # and get field map frames that are below the threshold
 # and average to get an average field map
@@ -906,15 +905,20 @@ import numpy as np
 # load fmaps for the BOLD run
 fmaps = nib.load('$fmaps')
 # load associated FDs
-fds = np.loadtxt('MEDIC/${patid}_b${run}_xr3d.FD')[:, 0]
+fds = np.loadtxt('MEDIC/${patid}_b${run}_xr3d.DD')[:, 1]
 # threshold FDs
 tmask = fds < 0.5
+# always include first frame
+tmask[0] = True
+# print tmask
+print(np.where(tmask)[0])
 # get the field map data (without the last 3 noise frames)
 data = fmaps.get_fdata()[..., :-3]
 # mask field map data with mask and average; convert to radians
 data = data[..., tmask].mean(axis=-1) * np.pi * 2
 nib.Nifti1Image(data, fmaps.affine, fmaps.header).to_filename('${FMAP}${i}_FMAP.nii')
 EOF
+
 		# For MEDIC framewise mode
 		else if ( $medic_mode == 2) then
 			# just feed a first frame field map for the upcoming step, we will run a custom resampling script
@@ -931,7 +935,6 @@ EOF
 		# convert things back into 4dfp
 		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
 		nifti_4dfp -4 ${FMAP}${i}_mag.nii ${FMAP}${i}_mag || exit $status
-
 	endif
 	if ( $distort != 3 ) then # not computed (synthetic) distortion correction
 		####################################################
@@ -1042,30 +1045,29 @@ EOF
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
 				@ n++
 			end
-		# this is for framewise distortion corrections
-		else if ( $medic_mode == 2 ) then
-			echo "============ HELLO =========="
-			exit 1
+		# this is for MEDIC framewise distortion corrections
+		else if ( $medic_mode == 2 && $distort == 4 ) then
+			echo one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr}
+			one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
+				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		else
 			# this script uses a custom processing pool instead of GNU parallel
+			echo $runID[$k]
+			echo $patid
 			echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
 				-trailer xr3d_uwrp_on_${outspacestr}
 			one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
 				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
-			# # works and executes in ~47% of time needed for redundant ME operations (8 cores)
-			# echo one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-			# 	$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-			# 	-trailer xr3d_uwrp_on_${outspacestr}
-			# one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-			# 	$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-			# 	-trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		endif
-		@ j++		# index of BOLD run within group
-		@ k++		# index of BOLD run within session
+		@ j++ # index of BOLD run within group
+		@ k++ # index of BOLD run within session
 	end
-	@ i++			# index of group
+	@ i++ # index of group
 end
 
 MODEL:
@@ -1079,7 +1081,7 @@ if (! ${?ME_reg}) @ ME_reg = 1
 while ($k <= $runs)
 	pushd bold$runID[$k]
 	source  ${patid}"_b"$runID[$k].params
-	echo	$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
+	echo    $C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30
 			$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30	|| exit $status
@@ -1093,7 +1095,7 @@ NORM:
 ###########################################
 if (! ${?norm2020}) @ norm2020 = 0
 @ k = 1
-while ($k <= $runs)
+while ( $k <= $runs )
 	pushd bold$runID[$k]
 	source $patid"_b"$runID[$k].params	# define $necho $nframe $fullframe
 	set file =			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt.4dfp.ifh	|| exit $status
@@ -1114,31 +1116,48 @@ while ($k <= $runs)
 		echo "un-normalized mode="$mode
 		set f = `echo $mode | gawk '{print 1000/$1}'`
 	endif
-	scale_4dfp	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt $f -anorm 	|| exit $status
+	scale_4dfp $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt $f -anorm || exit $status
 
 	####################
 	# voxelwise SNR maps
 	####################
-	compute_SNR_4dfp.csh 		$format	$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm || exit $status
-	compute_SNR_4dfp.csh 	 	$format	$patid"_b"$runID[$k]			|| exit $status
+	rm -f $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg.nii*
+	rm -f $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1.nii*
+	rm -f $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR.nii*
+	compute_SNR_4dfp.csh $format $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm || exit $status
+	rm -f $patid"_b"$runID[$k]_avg.nii*
+	rm -f $patid"_b"$runID[$k]_sd1.nii*
+	rm -f $patid"_b"$runID[$k]_SNR.nii*
+	compute_SNR_4dfp.csh $format $patid"_b"$runID[$k] || exit $status
 	@ e = 1
 	while ( $e <= $necho )
-		compute_SNR_4dfp.csh	$format	$patid"_b"$runID[$k]_echo${e}		|| exit $status
+		rm -f $patid"_b"$runID[$k]_echo${e}_avg.nii*
+		rm -f $patid"_b"$runID[$k]_echo${e}_sd1.nii*
+		rm -f $patid"_b"$runID[$k]_echo${e}_SNR.nii*
+		compute_SNR_4dfp.csh $format $patid"_b"$runID[$k]_echo${e} || exit $status
 		@ e++
 	end
 	if ( $runnordic ) then
-		compute_SNR_4dfp.csh 	 	$format	$patid"_b"$runID[$k]_preNORDIC		|| exit $status
+		rm -f $patid"_b"$runID[$k]_preNORDIC_avg.nii*
+		rm -f $patid"_b"$runID[$k]_preNORDIC_sd1.nii*
+		rm -f $patid"_b"$runID[$k]_preNORDIC_SNR.nii*
+		compute_SNR_4dfp.csh $format $patid"_b"$runID[$k]_preNORDIC || exit $status
 		@ e = 1
 		while ( $e <= $necho )
-			compute_SNR_4dfp.csh	$format	$patid"_b"$runID[$k]_preNORDIC_echo${e}	|| exit $status
+			rm -f $patid"_b"$runID[$k]_preNORDIC_echo${e}_avg.nii*
+			rm -f $patid"_b"$runID[$k]_preNORDIC_echo${e}_sd1.nii*
+			rm -f $patid"_b"$runID[$k]_preNORDIC_echo${e}_SNR.nii*
+			compute_SNR_4dfp.csh $format $patid"_b"$runID[$k]_preNORDIC_echo${e} || exit $status
 			foreach str ("" "_ph")
-				set F =			$patid"_b"$runID[$k]_preNORDIC_echo${e}${str}.nii
-				if (-e $F) gzip $F
+				set F =	$patid"_b"$runID[$k]_preNORDIC_echo${e}${str}.nii
+				if (-e $F) then
+					gzip $F
+				endif
 			end
 			@ e++
 		end
 	endif
-	popd	# out of bold$runID[$k]
+	popd # out of bold$runID[$k]
 	@ k++
 end
 
@@ -1150,22 +1169,25 @@ if (! $?cleanup ) @ cleanup = 1	# @ cleanup = 0 in params is required to disable
 if ( $cleanup ) then
 	set echo
 	@ k = 1
-	while ($k <=     $#runID)
+	while ( $k <= $#runID )
 		pushd bold$runID[$k]
 		gzip -f $patid"_b"$runID[$k]_echo?.nii
-		/bin/rm	$patid"_b"$runID[$k]_faln.4dfp.*	$patid"_b"$runID[$k]_echo?_faln.4dfp.*
-		/bin/rm	$patid"_b"$runID[$k]_faln_xr3d.4dfp.*	$patid"_b"$runID[$k]_echo?_faln_xr3d.4dfp.*
-		/bin/rm	$patid"_b"$runID[$k]_echo?_faln_xr3d_BC.4dfp.*
-	if ( $runnordic ) then
-		gzip -f $patid"_b"$runID[$k]_preNORDIC_echo?.nii
-		/bin/rm	$patid"_b"$runID[$k]_preNORDIC.4dfp.*
-		/bin/rm	$patid"_b"$runID[$k]_preNORDIC_echo?.4dfp.*
-	endif
-		/bin/rm	$patid"_b"$runID[$k]_echo?.4dfp.*
+		/bin/rm -f $patid"_b"$runID[$k]_faln.4dfp.* $patid"_b"$runID[$k]_echo?_faln.4dfp.*
+		/bin/rm -f $patid"_b"$runID[$k]_faln_xr3d.4dfp.* $patid"_b"$runID[$k]_echo?_faln_xr3d.4dfp.*
+		/bin/rm -f $patid"_b"$runID[$k]_echo?_faln_xr3d_BC.4dfp.*
+		if ( $runnordic ) then
+			gzip -f $patid"_b"$runID[$k]_preNORDIC_echo?.nii
+			/bin/rm -f $patid"_b"$runID[$k]_preNORDIC.4dfp.*
+			/bin/rm -f $patid"_b"$runID[$k]_preNORDIC_echo?.4dfp.*
+		endif
+		/bin/rm -f $patid"_b"$runID[$k]_echo?.4dfp.*
 		foreach out (Sfit S0 R2s Res)
 			set F = $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_$out
-			if (-e $F.4dfp.img) niftigz_4dfp -n $F $F
-			/bin/rm $F.4dfp.*
+			if ( -e $F.4dfp.img ) then
+				rm -f $F.nii*
+				niftigz_4dfp -n $F $F
+			endif
+			/bin/rm -f $F.4dfp.*
 		end
 		popd
 		@ k++
