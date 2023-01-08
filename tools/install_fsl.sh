@@ -11,4 +11,8 @@ wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
 # install fsl to pkg dir
 python fslinstaller.py -d ${tools_dir}/pkg/fsl
 
+# add msm symlink to share path
+# not sure why the installer doesn't do this automatically
+ln -s ${tools_dir}/pkg/fsl/bin/msm ${tools_dir}/pkg/fsl/share/fsl/bin/msm
+
 popd

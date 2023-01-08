@@ -5,6 +5,12 @@
 #
 #Aug2021, TOL 
 
+# add checks for commands; quit if not found
+echo "Looking for wb_command; If we exit here it means we couldn't find it."
+command -v wb_command || exit 1
+echo "Looking for msm; If we exit here it means we couldn't find it."
+command -v msm || exit 1
+
 #Script and Program Locations:	
 SurfaceAtlasDir="${DATA_DIR}/standard_mesh_atlases"
 PipelineScripts=$(dirname $(command -v FreeSurfer2CaretConvertAndRegisterNonlinear_MSM.sh))
