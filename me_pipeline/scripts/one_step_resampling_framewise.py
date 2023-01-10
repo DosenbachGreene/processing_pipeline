@@ -65,7 +65,7 @@ def bias_field_run(i, tmp_dir, ped, dwell, ref_tmp, bias_nii, phase_base, phase_
     mask_data = mask.get_fdata().astype(bool)
 
     # compute the local variance
-    local_variance = generic_filter(phase_data, np.var, size=3)
+    local_variance = generic_filter(phase_data, np.var, size=5)
 
     # compute threshold
     threshold = threshold_otsu(local_variance)

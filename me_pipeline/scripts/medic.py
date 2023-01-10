@@ -13,7 +13,7 @@ from warpkit.distortion import medic
 def main():
     parser = argparse.ArgumentParser(description="Multi-Echo DIstortion Correction", epilog=f"{epilog} 12/09/2022")
     parser.add_argument("in_path", help="Path to where study folders are located.")
-    parser.add_argument("fmap_path", help="Path to output field maps amd displacment maps.")
+    parser.add_argument("fmap_path", help="Path to output field maps and displacment maps.")
     parser.add_argument("patid", help="Subject ID label.")
     parser.add_argument(
         "--save_space",

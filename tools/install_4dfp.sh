@@ -4,6 +4,14 @@
 tools_dir=$(realpath $(dirname $(command -v $0)))
 pushd $tools_dir > /dev/null
 
+# if arg1 is 1, dont't use gcc > 7 flags
+OLD_GCC=0
+if [[ $# -gt 0 ]]; then
+    if [[ $1 -eq 1 ]]; then
+        OLD_GCC=1
+    fi
+fi
+
 # check if files are already downloaded
 # we do these checks so we don't have to download the files every time
 # we run this script (because the 4dfp ftp server is slow...)
@@ -50,8 +58,14 @@ export REFDIR=${tools_dir}/pkg/refdir
 pushd ${NILSRC} > /dev/null
 
 # insert extra compile flags (These seem to be needed for gcc >10)
+if [[ $OLD_GCC -eq 1 ]]; then
+    EXTRA_FLAGS="-fallow-invalid-boz "
+else
+    EXTRA_FLAGS=""
+fi
+
 # set global flag for -fallow-invalid-boz -fallow-argument-mismatch and ignore warnings
-sed -i "18 i set FC = \"\$FC -fPIC -fallow-invalid-boz -fallow-argument-mismatch -w\"" make_nil-tools.csh
+sed -i "18 i set FC = \"\$FC -fPIC ${EXTRA_FLAGS}-fallow-argument-mismatch -w\"" make_nil-tools.csh
 
 # librms fixes
 sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -fPIC -ffixed-line-length-132 -fcray-pointer -fallow-invalid-boz/g" librms/librms.mak

@@ -895,10 +895,10 @@ while ( $i <= $#BOLDgrps )
 			gawk -f $RELEASE/FD.awk $bold_dat > MEDIC/${patid}_b${run}_xr3d.DD
 
 # now compute a tmask based on threshold of the L2 norm of the displacement to the first frame
-# TODO: I use 0.5mm as the threshold, but this is completely arbitrary atm... ANV
+# TODO: I use 0.5mm as the threshold, but this is completely arbitrary atm... - AV
 # and get field map frames that are below the threshold
 # and average to get an average field map
-# TODO: This is very sloppy code REFACTOR ANV
+# TODO: This is very sloppy code REFACTOR -AV
 python3 - <<EOF
 import nibabel as nib
 import numpy as np

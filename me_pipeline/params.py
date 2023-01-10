@@ -548,7 +548,7 @@ class Instructions:
     project_dir: Path
 
     # Delete intermediary files for significant data storage improvement
-    cleanup: bool = True
+    cleanup: bool = False
 
     # controls saving of intermediary files
     economy: int = 0
