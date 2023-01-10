@@ -58,17 +58,17 @@ export REFDIR=${tools_dir}/pkg/refdir
 pushd ${NILSRC} > /dev/null
 
 # insert extra compile flags (These seem to be needed for gcc >10)
-if [[ $OLD_GCC -eq 1 ]]; then
-    EXTRA_FLAGS="-fallow-invalid-boz "
+if [[ $OLD_GCC -eq 0 ]]; then
+    EXTRA_FLAGS="-fallow-invalid-boz -fallow-argument-mismatch "
 else
     EXTRA_FLAGS=""
 fi
 
 # set global flag for -fallow-invalid-boz -fallow-argument-mismatch and ignore warnings
-sed -i "18 i set FC = \"\$FC -fPIC ${EXTRA_FLAGS}-fallow-argument-mismatch -w\"" make_nil-tools.csh
+sed -i "18 i set FC = \"\$FC -fPIC ${EXTRA_FLAGS} -w\"" make_nil-tools.csh
 
 # librms fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -fPIC -ffixed-line-length-132 -fcray-pointer -fallow-invalid-boz/g" librms/librms.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fcray-pointer/gcc -O -w -fPIC -ffixed-line-length-132 -fcray-pointer ${EXTRA_FLAGS}/g" librms/librms.mak
 sed -i "s/not('40000'x)/not(int('40000'x))/g" TRX/fomega.f
 
 # Globals in knee.h are not defined correctly...
@@ -85,11 +85,11 @@ sed -i "s/CDEFF   cdeff/static CDEFF   cdeff/g" diff4dfp/knee.h
 sed -i "s/FITLINE fitline/static FITLINE fitline/g" diff4dfp/knee.h
 
 # imgreg fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" imgreg_4dfp/imgreg_4dfp.mak
-sed -i "s/f77 -O -I4 -e/gcc -O2 -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fcray-pointer -fallow-invalid-boz/g" imgreg_4dfp/basis_opt_AT.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore ${EXTRA_FLAGS}/g" imgreg_4dfp/imgreg_4dfp.mak
+sed -i "s/f77 -O -I4 -e/gcc -O2 -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fcray-pointer ${EXTRA_FLAGS}/g" imgreg_4dfp/basis_opt_AT.mak
 
 # t4img fixes
-sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fallow-invalid-boz/g" t4imgs_4dfp/t4imgs_4dfp.mak
+sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore ${EXTRA_FLAGS}/g" t4imgs_4dfp/t4imgs_4dfp.mak
 
 # run build script
 export OSTYPE=linux
