@@ -3,7 +3,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
-from grayplots.grayplot_helpers import *
+import seaborn as sns
+from .grayplot_helpers import *
+
+sns.set_theme(font_scale=0.5)
 
 
 class GrayplotGenerator:
@@ -178,6 +181,7 @@ class GrayplotGenerator:
         )
         timecourse_plot.set_yticks([])
         timecourse_plot.set_ylabel(y_label)
+        timecourse_plot.grid(False)
 
     def plot_movement_frequency(self, fig, grid, title, column, data):
         """
@@ -196,11 +200,12 @@ class GrayplotGenerator:
         f, P1 = data
 
         movement_freq_plot = fig.add_subplot(grid[0, column])
-        movement_freq_plot.plot(f.T, P1, linewidth=1)
+        with np.errstate(divide='ignore'):
+            movement_freq_plot.plot(f.T, np.log(P1), linewidth=1)
         movement_freq_plot.set_title(title)
-        movement_freq_plot.set_ylabel("Amp")
-        movement_freq_plot.margins(0.05)
-        movement_freq_plot.legend(("X", "Y", "Z", "xrot", "yrot", "zrot"), prop={"size": 5})
+        movement_freq_plot.set_ylabel("Log Amplitude")
+        movement_freq_plot.legend(("X", "Y", "Z", "X-Rot", "Y-Rot", "Z-Rot"), prop={"size": 5})
+        movement_freq_plot.tick_params(axis='x', which='major', pad=0)
 
     def plot_fd(self, fig, grid, fd, fd_filt, signal_length):
         """
@@ -214,12 +219,14 @@ class GrayplotGenerator:
         Returns: none
         """
 
-        fd_plot = fig.add_subplot(grid[1, :])
-        fd_plot.plot(np.array([np.arange(0, signal_length)]).T, fd, label="FD")
-        fd_plot.plot(np.array([np.arange(0, signal_length)]).T, fd_filt.T, label="FD Filtered")
+        fd_plot = fig.add_subplot(grid[2, :])
+        fd_plot.plot(np.array([np.arange(0, signal_length)]).T, fd, label="FD", linewidth=1, color="C6")
+        fd_plot.plot(np.array([np.arange(0, signal_length)]).T, fd_filt.T, label="FD Filtered", linewidth=1, color="C7")
         fd_plot.set_ylabel("FD (mm)")
         fd_plot.hlines(y=0.2, xmin=0, xmax=signal_length, color="c")
         fd_plot.hlines(y=0.08, xmin=0, xmax=signal_length, color="y")
+        fd_plot.legend(("FD", "FD Filtered"), prop={"size": 5})
+        fd_plot.tick_params(axis='x', which='major', pad=0)
 
     def plot_movement_params(self, fig, grid, mvm, signal_length):
         """
@@ -233,6 +240,7 @@ class GrayplotGenerator:
         Returns: none
         """
 
-        movement_params_plot = fig.add_subplot(grid[2, :])
-        movement_params_plot.plot(np.array([np.arange(0, signal_length)]).T, mvm)
+        movement_params_plot = fig.add_subplot(grid[1, :])
+        movement_params_plot.plot(np.array([np.arange(0, signal_length)]).T, mvm, linewidth=1)
         movement_params_plot.set_ylabel("motion (mm)")
+        movement_params_plot.tick_params(axis='x', which='major', pad=0)

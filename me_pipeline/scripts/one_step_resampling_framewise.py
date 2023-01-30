@@ -392,6 +392,13 @@ def main():
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
         # there's stuff to add to the rec file here but don't think it's necessary
         # for now.
+        # echo "rec ${out[$k]:t}.4dfp.img `date` `whoami`@`uname -n -r -i`"	>  ${out[$k]}.4dfp.img.rec
+        # echo $program								>> ${out[$k]}.4dfp.img.rec
+        # echo "	-i	$epi[$k]"						>> ${out[$k]}.4dfp.img.rec
+        # cat  $D/$$rec								>> ${out[$k]}.4dfp.img.rec
+        # echo $rcsid									>> ${out[$k]}.4dfp.img.rec
+        # if ( -e ${epi[$k]}.4dfp.img.rec ) cat ${epi[$k]}.4dfp.img.rec		>> ${out[$k]}.4dfp.img.rec
+        # echo "endrec `date` `whoami`"
 
     # close the temporary directory
     tmp_dir.cleanup()

@@ -13,7 +13,17 @@ classifiers = ["License :: OSI Approved :: MIT License", "Programming Language :
 urls = { github = "https://github.com/DosenbachGreene/processing_pipeline" }
 version = "0.0.1"
 dynamic = ["entry-points"]
-dependencies = ["memori >= 0.3.5", "nibabel >= 4.0.2", "xnat >= 0.4.3", "pydicom >= 2.3.1"]
+dependencies = [
+  "memori >= 0.3.5",
+  "nibabel >= 4.0.2",
+  "indexed-gzip >= 1.7.0",
+  "xnat >= 0.4.3",
+  "pydicom >= 2.3.1",
+  "matplotlib >= 3.5.1",
+  "numpy >= 1.23.5",
+  "scipy >= 1.10.0",
+  "pandas >= 1.4.2",
+]
 
 [project.optional-dependencies]
 dev = ["pytest >= 7.2.0", "pytest-pycodestyle >= 2.2.0", "black >= 22.10.0"]

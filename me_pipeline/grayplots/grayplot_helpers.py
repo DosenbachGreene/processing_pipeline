@@ -102,7 +102,7 @@ def read_header_4dfp(ifh_path):
 
 
 def demean(functional_image):
-    """Given a functional image numpy array, compute the mean of each row, then subtract the mean from the original image
+    """Given a functional image numpy array, compute mean of each row, then subtract the mean from the original image
 
     Returns: functional_image_demean, a numpy array the same size as the input image
     """
@@ -127,7 +127,7 @@ def get_timecourse(functional_image_demean, image):
     """
     Given a functional image demean numpy array and an image numpy array, return the timecourse for that image
 
-    Returns: timecourse, a numpy array that contains the functional_image_demean rows where the image numpy array was nonzero
+    Returns: timecourse, a numpy array containing the functional_image_demean rows where the image array was nonzero
     """
 
     timecourse = np.take(functional_image_demean, np.nonzero(image)[0], axis=0)
@@ -156,8 +156,7 @@ def dat_calculations(dat_file, radius=50):
     mvm[:, :3] = np.round(dat_array[:, 1:4], 4)
 
     # Convert rows 4 through 6 of the dat file from rotational to mm
-    deg_to_mm = lambda x: x * (2 * radius * np.pi / 360)
-    deg_to_mm_converter = np.vectorize(deg_to_mm)
+    deg_to_mm_converter = np.vectorize(lambda x: x * (2 * radius * np.pi / 360))
     mvm[:, 3:6] = np.round(deg_to_mm_converter(dat_array[:, 4:7]), 4)
 
     return mvm

@@ -84,6 +84,9 @@ sed -i "s/CONT    cont/static CONT    cont/g" diff4dfp/knee.h
 sed -i "s/CDEFF   cdeff/static CDEFF   cdeff/g" diff4dfp/knee.h
 sed -i "s/FITLINE fitline/static FITLINE fitline/g" diff4dfp/knee.h
 
+# ROI2mask fix
+sed -i '109 i \\tmemset(str, \x27\\0\x27, sizeof(str)); // explicitly initialize str to null' maskimg_4dfp/ROI2mask_4dfp.c                                                                               ─╯
+
 # imgreg fixes
 sed -i "s/gcc -O -ffixed-line-length-132 -fno-second-underscore/gcc -O -w -fPIC -ffixed-line-length-132 -fno-second-underscore ${EXTRA_FLAGS}/g" imgreg_4dfp/imgreg_4dfp.mak
 sed -i "s/f77 -O -I4 -e/gcc -O2 -w -fPIC -ffixed-line-length-132 -fno-second-underscore -fcray-pointer ${EXTRA_FLAGS}/g" imgreg_4dfp/basis_opt_AT.mak

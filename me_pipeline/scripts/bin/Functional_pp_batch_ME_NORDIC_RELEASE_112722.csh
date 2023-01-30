@@ -218,32 +218,11 @@ foreach run ( $FCrunID )
 	pushd ./bold${run}
 	source ${patid}_b${run}.params
 	popd
-	
-	set rdatfile = "${movedir}/${patid}_b${run}_xr3d.rdat"
-	set ddatfile = "${movedir}/${patid}_b${run}_xr3d.ddat"
-	set WBname = "${FCmapsdir}/${day1_patid}_FSWB_on_${outspacestr}.4dfp.img"
-	set GMname = "${atlasdir}/${day1_patid}_GM_on_${outspacestr}.4dfp.img"
-	set WMname = "${atlasdir}/${day1_patid}_WM_on_${outspacestr}.4dfp.img"
-	set CSFname = "${atlasdir}/${day1_patid}_VENT_on_${outspacestr}.4dfp.img"
-	set EXname = "${FCmapsdir}/${day1_patid}_ExAxTissue_mask.4dfp.img"
-	
-# 	pushd /data/nil-bluearc/GMT/Laumann/NEW_PROC_TEST/
 
-# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm.4dfp.img"
-# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm"	
-# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-
-# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss.4dfp.img"
-# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss"	
-# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-
-# 	set FUNCname = "${basedir}/bold${run}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid.4dfp.img"
-# 	set OUTname = "${FCmapsdir}/${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_bpss_resid"	
-# echo    ${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-# 	${matlab} -batch "make_grayplots_TL('${rdatfile}','${ddatfile}','${WBname}','${GMname}','${WMname}','${CSFname}','${EXname}','${FUNCname}',${TR_vol},-150,150,'${OUTname}')"
-# 	popd
+	echo generate_grayplots ${basedir} ${movedir} ${atlasdir} ${FCmapsdir} \
+		${patid} ${day1_patid} ${run} ${outspacestr} ${TR_vol}
+	generate_grayplots ${basedir} ${movedir} ${atlasdir} ${FCmapsdir} \
+		${patid} ${day1_patid} ${run} ${outspacestr} ${TR_vol}
 end
 
 if ( $doexit ) exit

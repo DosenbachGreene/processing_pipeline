@@ -660,8 +660,11 @@ while ($k <= ${#runID})
 		echo "exit"																>> runnordic.m
 		cat runnordic.m
 		date
-		echo $matlab -nosplash -nodesktop -r 'runnordic'
-		$matlab -nosplash -nodesktop -r 'runnordic'
+		# echo $matlab -nosplash -nodesktop -r 'runnordic'
+		# $matlab -nosplash -nodesktop -r 'runnordic'
+		# use MCR version of nordic
+		echo run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} 3
+		run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} 3
 		if ($status) exit -1
 		echo "status="$status
 		date
