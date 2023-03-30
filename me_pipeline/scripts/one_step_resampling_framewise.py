@@ -2,9 +2,11 @@
 
 TODO: REFACTOR and/or REPLACE with something better!
 """
+import os
 import sys
 import argparse
 import shutil
+from datetime import datetime
 from tempfile import TemporaryDirectory
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from subprocess import run as subprocess_run
@@ -37,50 +39,10 @@ def check_consistency(data: List) -> None:
                 raise ValueError(f"Input data is not consistent: {first} != {d}")
 
 
-def bias_field_run(i, tmp_dir, ped, dwell, ref_tmp, bias_nii, phase_base, phase_rads, strwarp, epi):
-    # extract a frame from the epi
-    epi_frame = PathMan(tmp_dir) / f"epi_frame_{i:04d}.nii"
-    epi_nii = PathMan(epi).get_path_and_prefix().append_suffix(".nii")
-    subprocess_run(["fslroi", epi_nii, f"{epi_frame}", str(i), "1"], check=True)
-
-    # now run a brain extraction on the frame
-    subprocess_run(
-        ["bet", f"{epi_frame}", f"{epi_frame.get_path_and_prefix()}_brain.nii", "-m", "-f", "0.1"], check=True
-    )
-    mask = f"{epi_frame.get_path_and_prefix()}_brain_mask.nii"
-
+def bias_field_run(i, tmp_dir, ped, dwell, ref_tmp, bias_nii, phase_base, phase_rads, strwarp):
     bias_field_warp = PathMan(tmp_dir) / f"bias_field_warp_{i:04d}.nii"
     bias_field = PathMan(bias_nii).repath(tmp_dir).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
     subprocess_run(["fslroi", phase_rads, f"{phase_base}_{i:04d}.nii", str(i), "1"], check=True)
-
-    # for the phase image, we need to mask out areas of high variance, we do this with a 5x5x5 kernel computing the
-    # local spatial variance across the image, then threshold the variance using otsu's method
-
-    # load the phase image
-    phase = nib.load(f"{phase_base}_{i:04d}.nii")
-    phase_data = phase.get_fdata()
-
-    # load the brain mask
-    mask = nib.load(mask)
-    mask_data = mask.get_fdata().astype(bool)
-
-    # compute the local variance
-    local_variance = generic_filter(phase_data, np.var, size=5)
-
-    # compute threshold
-    threshold = threshold_otsu(local_variance)
-
-    # create variance mask
-    variance_mask = local_variance > threshold
-
-    # we want to only consider voxels inside the brain mask, but remove those in the local variance mask
-    new_mask_data = mask_data & ~variance_mask
-
-    # now mask the phase data
-    new_phase_data = phase_data * new_mask_data
-
-    # override the phase with the new phase data
-    nib.Nifti1Image(new_phase_data, phase.affine, phase.header).to_filename(f"{phase_base}_{i:04d}.nii")
 
     subprocess_run(
         [
@@ -158,7 +120,7 @@ def main():
     pixdims = []
 
     # make a temporary directory
-    tmp_dir = TemporaryDirectory()
+    tmp_dir = TemporaryDirectory(dir=os.environ["TMPDIR"])
 
     # loop over epis
     for i, epi in enumerate(epis):
@@ -220,6 +182,7 @@ def main():
 
     # get the number of frames
     n_frames = dims[0][3]
+    # n_frames = 10
 
     # add to transform string
     strwarp = ""
@@ -257,6 +220,7 @@ def main():
     subprocess_run(["nifti_4dfp", "-n", str(args.bias), bias_nii], check=True)
     phase_base = PathMan(phase_rads).get_path_and_prefix().repath(tmp_dir.name)
     framesout_bias = PathMan(tmp_dir.name) / f"framesout_bias.lst"
+    print("Undistorting bias field...")
     with ProcessPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
@@ -278,7 +242,6 @@ def main():
                     phase_base,
                     phase_rads,
                     strwarp,
-                    epis[0],
                 )
             ] = i
 
@@ -305,6 +268,7 @@ def main():
     # for each frame
     frameout_list = []
     PathMan("onestep_FAILED").unlink(missing_ok=True)  # reset the failed flag file
+    print("Undistorting EPIs...")
     with ProcessPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
@@ -390,15 +354,15 @@ def main():
             check=True,
         )
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
-        # there's stuff to add to the rec file here but don't think it's necessary
-        # for now.
-        # echo "rec ${out[$k]:t}.4dfp.img `date` `whoami`@`uname -n -r -i`"	>  ${out[$k]}.4dfp.img.rec
-        # echo $program								>> ${out[$k]}.4dfp.img.rec
-        # echo "	-i	$epi[$k]"						>> ${out[$k]}.4dfp.img.rec
-        # cat  $D/$$rec								>> ${out[$k]}.4dfp.img.rec
-        # echo $rcsid									>> ${out[$k]}.4dfp.img.rec
-        # if ( -e ${epi[$k]}.4dfp.img.rec ) cat ${epi[$k]}.4dfp.img.rec		>> ${out[$k]}.4dfp.img.rec
-        # echo "endrec `date` `whoami`"
+        with open(f"{os.path.splitext(out[k])[0]}.4dfp.img.rec", "w") as f:
+            f.write(
+                f"rec {os.path.splitext(out[k])[0]}.4dfp.img {datetime.now().strftime('%c')} "
+                f"{os.getlogin()}@{os.uname().nodename}\n"
+            )
+            if os.path.isfile(f"{epis[k]}.4dfp.img.rec"):
+                with open(f"{epis[k]}.4dfp.img.rec") as epi_rec_file:
+                    f.write(epi_rec_file.read())
+            f.write(f"endrec {datetime.now().strftime('%c')} {os.getlogin()}\n")
 
     # close the temporary directory
     tmp_dir.cleanup()

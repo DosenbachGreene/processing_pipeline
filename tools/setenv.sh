@@ -17,17 +17,6 @@ fi
 
 ### only set env variables if a pkg exists for it ###
 
-# 4dfp
-if [[ -d ${basepath}/pkg/nil-tools ]]; then
-    export NILSRC=${basepath}/pkg/nil-tools
-    export RELEASE=${basepath}/bin
-    export REFDIR=${basepath}/pkg/refdir
-    export PATH=${RELEASE}:${PATH}
-    echo NILSRC=${NILSRC}
-    echo RELEASE=${RELEASE}
-    echo REFDIR=${REFDIR}
-fi
-
 # fsl
 if [[ -d ${basepath}/pkg/fsl ]]; then
     export FSLDIR=${basepath}/pkg/fsl
@@ -36,11 +25,11 @@ fi
 
 # freesurfer
 if [[ -d ${basepath}/pkg/freesurfer ]]; then
-    echo SUBJECTS_DIR=${basepath}/pkg/freesurfer/user_subjects
-    export SUBJECTS_DIR=${basepath}/pkg/freesurfer/user_subjects
-    mkdir -p ${SUBJECTS_DIR}
-    echo FREESURFER_HOME=${basepath}/pkg/freesurfer
     export FREESURFER_HOME=${basepath}/pkg/freesurfer
+    export FSFAST_HOME=${FREESURFER_HOME}/fsfast
+    export SUBJECTS_DIR=${basepath}/pkg/freesurfer/user_subjects
+    export MNI_DIR=${FREESURFER_HOME}/mni
+    mkdir -p ${SUBJECTS_DIR}
     source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
 fi
 
@@ -62,4 +51,16 @@ if [[ -d ${basepath}/pkg/nordic ]]; then
     echo NORDIC=${basepath}/pkg/nordic
     export NORDIC=${basepath}/pkg/nordic
     export PATH=${NORDIC}:${PATH}
+fi
+
+# set 4dfp last since it conflicts with some freesurfer commands
+# 4dfp
+if [[ -d ${basepath}/pkg/nil-tools ]]; then
+    export NILSRC=${basepath}/pkg/nil-tools
+    export RELEASE=${basepath}/bin
+    export REFDIR=${basepath}/pkg/refdir
+    export PATH=${RELEASE}:${PATH}
+    echo NILSRC=${NILSRC}
+    echo RELEASE=${RELEASE}
+    echo REFDIR=${REFDIR}
 fi

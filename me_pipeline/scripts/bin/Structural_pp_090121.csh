@@ -144,13 +144,27 @@ echo "############## T1, DCM to NII conversion and Debias ##############"
 mkdir -p  $T1dir
 pushd $T1dir
 
+# if we are in bids mode, grab the grab the T1w files from the bids directory
+# this will override the mprdirs variable set in the struct params file
+if ( $bids ) then
+	set mprdirs = (`parse_bids --bids_dir $bidsdir --modality T1w`)
+endif
+
 @ i = 1
 foreach mprdir ( $mprdirs )
+	if ( $?bids ) then
+		# Simply copy over the nifti file from the bids directory
+		set mpr = ${structid}_T1w_${i}
+		echo "Copying ${mprdir} to ${mpr}.nii.gz"
+		cp ${mprdir} ${mpr}.nii.gz
+		# gunzip the file
+		gunzip ${mpr}.nii.gz
+	else
+		# Convert dcm to nii
+		set mpr = ${structid}_T1w_${i}
+		dcm2niix -o . -f $mpr -z n ${basedir}/${mprdir} || exit $status
+	endif
 	
-	set mpr = ${structid}_T1w_${i}
-	
-	# Convert dcm to nii
-	dcm2niix -o . -f $mpr -z n ${basedir}/${mprdir} || exit $status
 	nifti_4dfp -4 $mpr $mpr -N
 	rm ${mpr}.nii
 	nifti_4dfp -n $mpr $mpr
@@ -200,13 +214,26 @@ echo "############## T2, DCM to NII conversion and Debias ##############"
 mkdir -p $T2dir
 pushd $T2dir
 
+# if we are in bids mode, grab the grab the T2w files from the bids directory
+# this will override the mprdirs variable set in the struct params file
+if ( $bids ) then
+	set t2wdirs = (`parse_bids --bids_dir $bidsdir --modality T2w`)
+endif
+
 @ i = 1
 foreach t2wdir ( $t2wdirs )
-	
-	set t2w = ${structid}_T2w_${i}
-	
-	# Convert dcm to nii
-	dcm2niix -o . -f $t2w -z n ${basedir}/${t2wdir} || exit $status
+	if ( $?bids ) then
+		# Simply copy over the nifti file from the bids directory
+		set t2w = ${structid}_T2w_${i}
+		echo "Copying ${t2wdir} to ${t2w}.nii.gz"
+		cp ${t2wdir} ${t2w}.nii.gz
+		# gunzip the file
+		gunzip ${t2w}.nii.gz
+	else
+		# Convert dcm to nii
+		set t2w = ${structid}_T2w_${i}
+		dcm2niix -o . -f $t2w -z n ${basedir}/${t2wdir} || exit $status
+	endif
 	
 	# Bias field correction of t2w
 	bet $t2w ${t2w}_brain -R || exit $status

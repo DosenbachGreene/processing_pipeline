@@ -247,13 +247,9 @@ if (! $?runnordic)	@ runnordic = 0
 set nordstr = ""
 if ($runnordic) then
 	set nordstr = _preNORDIC
-	if ( ! $?matlab ) then 
-		echo $program": matlab must be defined"
-		exit -1
-	endif
-	if ( ! $?NORDIClib ) then
-		echo $program": NORDIClib must be defined"
-		exit -1
+	if (! $?MCRROOT ) then
+		echo $program": MCRROOT must be defined and pointed to a MATLAB Compiler Runtime."
+		exit 1
 	endif
 endif
 
@@ -301,7 +297,7 @@ if ( $isday1 ) then # this session is day1
 		if (1) then	# use mpr2atl_4dfp
 			set log = ${mpr}_to_${target:t}.log
 			mpr2atl_4dfp ${mpr} -T$target  || exit -1
-			/bin/rm ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
+			/bin/rm -f ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
 			scale_4dfp   ${mpr} 0 -b10 -aten
 			maskimg_4dfp ${mpr}_ten ${patid}_aparc+aseg ${patid}_FSWB
 			imgblur_4dfp   ${patid}_FSWB 3
@@ -341,7 +337,7 @@ if ( $isday1 ) then # this session is day1
 	nifti_4dfp -n ${mpr}_1 ${mpr}_1
 	fslmaths ${mpr}_1 -fillh ${mpr}_brain_mask || exit $status
 	nifti_4dfp -4 ${mpr}_brain_mask ${mpr}_brain_mask || exit $status	# will be used in t2w->mpr registration
-	/bin/rm ${mpr}_1.*
+	/bin/rm -f ${mpr}_1.*
 	if ( $#t2w ) then
 		set nt2w = $#t2w
 		set t2wlst = ()
@@ -350,7 +346,7 @@ if ( $isday1 ) then # this session is day1
 			while ( $i <= $#t2w )
 				dcm2niix -o . -f study${t2w[$i]} -z n -w 1 $inpath/study${t2w[$i]} || exit $status
 				nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
-				/bin/rm  study${t2w[$i]}.nii
+				/bin/rm -f study${t2w[$i]}.nii
 				nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
 				if ( $BiasFieldT2 ) then
 					bet ${patid}_t2w${i} ${patid}_t2w${i}_brain -R || exit $status
@@ -359,7 +355,7 @@ if ( $isday1 ) then # this session is day1
 					nifti_4dfp -4 ${patid}_t2w${i}_brain_restore ${patid}_t2w${i}_brain_restore || exit $status
 					extend_fast_4dfp ${patid}_t2w${i} ${patid}_t2w${i}_brain_restore \
 									 ${patid}_t2w${i}_BC || exit $status
-					/bin/rm ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
+					/bin/rm -f ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
 					set t2wlst = ($t2wlst ${patid}_t2w${i}_BC)
 				else
 					set t2wlst = ($t2wlst ${patid}_t2w${i})
@@ -382,8 +378,8 @@ if ( $isday1 ) then # this session is day1
 		set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
 		set t4file = ${t2wimg}_to_${mpr}_t4
 		if ( ! -e $t4file || ! $useold ) then
-			if (-e $t4file) /bin/rm $t4file
-			set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm $log
+			if (-e $t4file) /bin/rm -f $t4file
+			set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm -f $log
 			@ i = 1
 			while ( $i <= $#modes )
 			echo	imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $modes[$i] >> $log 
@@ -419,7 +415,7 @@ if ( $isday1 ) then # this session is day1
 		cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
 		zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
 		blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
-		/bin/rm ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
+		/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
 	endif	# t2w existence conditional
 
 	#############################
@@ -489,25 +485,14 @@ if ( $isday1 ) then # this session is day1
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
 	maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
 				  ${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
-	/bin/rm ${patid1}_GM_on_${outspacestr}_comp*
+	/bin/rm -f ${patid1}_GM_on_${outspacestr}_comp*
 popd	# out of atlas
 endif	# $isday1 conditional
 
 #######################
 # distortion correction
 #######################
-if ( $distort == 4 ) then
-	# warpkit must be installed, check before running.
-	python3 -c "import warpkit" || exit 1
-	# run medic
-	medic --save_space -n $medic_cpus $inpath MEDIC $patid $BOLDruns || exit 1
-	foreach run ( $BOLDruns )
-		nifti_4dfp -4 MEDIC/${patid}_b${run}_displacementmaps.nii MEDIC/${patid}_b${run}_displacementmaps -N || exit $status
-		nifti_4dfp -4 MEDIC/${patid}_b${run}_fieldmaps.nii MEDIC/${patid}_b${run}_fieldmaps -N || exit $status
-		nifti_4dfp -n MEDIC/${patid}_b${run}_displacementmaps MEDIC/${patid}_b${run}_displacementmaps.nii || exit $status
-		nifti_4dfp -n MEDIC/${patid}_b${run}_fieldmaps MEDIC/${patid}_b${run}_fieldmaps.nii || exit $status
-	end
-else if ( $distort == 1 ) then		# spin echo distortion correction
+if ( $distort == 1 ) then		# spin echo distortion correction
 	if ( ! -e SEFM ) mkdir SEFM
 	@ i = 1
 	while ( $i <= $#sefm )
@@ -520,8 +505,12 @@ else if ( $distort == 1 ) then		# spin echo distortion correction
 			# pedindex is +/-{i j k} index of PE direction
 			##############################################
 			set file = SEFM/${patid}_sefm_Grp${i}_${j}.json
-			set pedindex = `cat $file | gawk '$1~/PhaseEncodingDir/&&$1!~/In/{sub(/,/,"",$NF);gsub(/\"/,"",$NF);print $NF}'` 
-			set readout_time_sec = `gawk '$1~/TotalReadoutTime/{sub(/,/,"",$NF);print $NF}' SEFM/${patid}_sefm_Grp${i}_${j}.json`
+			# these next lines are a horrible way to parse json files...
+			# set pedindex = `cat $file | gawk '$1~/PhaseEncodingDir/&&$1!~/In/{sub(/,/,"",$NF);gsub(/\"/,"",$NF);print $NF}'``
+			# set readout_time_sec = `gawk '$1~/TotalReadoutTime/{sub(/,/,"",$NF);print $NF}' SEFM/${patid}_sefm_Grp${i}_${j}.json`
+			# replacing with jq instead... -ANV
+			set pedindex = `cat $file | jq -r '.PhaseEncodingDirection'`
+			set readout_time_sec = `cat $file | jq -r '.TotalReadoutTime'`
 			####################################################
 			# generate $str = argument string for sefm_pp_AT.csh
 			####################################################
@@ -554,7 +543,7 @@ else if ( $distort == 2 ) then # GRE measured field map
 			endif
 			nifti_4dfp -4 $f GRE/${patid}_GRE_Grp${k}_mag -N || exit -1	# "GRE_" in filename only for mag image
 			mv $f.json GRE/${patid}_GRE_Grp${k}_mag.json	# rename json
-			/bin/rm $$tmp*
+			/bin/rm -f $$tmp*
 
 			dcm2niix -o . -f pha  -w 1 -z n $inpath/study$study[2] || exit -1
 			if ( -e pha_e2_ph.nii ) then
@@ -595,6 +584,39 @@ while ($k <= $runs)
 		if ( $runnordic && $isnordic ) then 
 			@ run_ph = $BOLDruns[$k] + 1
 			dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study$run_ph	|| exit $status
+		endif
+		# if medic is used, generate field maps off phase information
+		if ( $distort == 4 ) then
+			# warpkit must be installed, check before running.
+			python3 -c "import warpkit" || exit 1
+			# get all magnitude echoes
+			set mag_echoes = `ls $patid"_b"${run}${nordstr}_echo?.nii`
+			# get all phase echoes
+			set phase_echoes = `ls $patid"_b"${run}${nordstr}_echo?_ph.nii`
+			# get all echoes metadata
+			set echoes_metadata = `ls $patid"_b"${run}${nordstr}_echo?.json`
+			# create medic output directory
+			mkdir -p MEDIC
+			# run medic
+			medic \
+				--magnitude $mag_echoes \
+				--phase $phase_echoes \
+				--metadata $echoes_metadata \
+				--out_prefix MEDIC/$patid"_b"${run} \
+				--noiseframes ${noiseframes} \
+				--n_cpus ${num_cpus} || exit 1
+			nifti_4dfp -4 MEDIC/$patid"_b"${run}_fieldmaps_native.nii \
+				MEDIC/$patid"_b"${run}_fieldmaps_native -N || exit $status
+			nifti_4dfp -4 MEDIC/$patid"_b"${run}_displacementmaps.nii \
+				MEDIC/$patid"_b"${run}_displacementmaps -N || exit $status
+			nifti_4dfp -4 MEDIC/$patid"_b"${run}_fieldmaps.nii \
+				MEDIC/$patid"_b"${run}_fieldmaps -N || exit $status
+			nifti_4dfp -n MEDIC/$patid"_b"${run}_fieldmaps_native \
+				MEDIC/$patid"_b"${run}_fieldmaps_native.nii || exit $status
+			nifti_4dfp -n MEDIC/$patid"_b"${run}_displacementmaps \
+				MEDIC/$patid"_b"${run}_displacementmaps.nii || exit $status
+			nifti_4dfp -n MEDIC/$patid"_b"${run}_fieldmaps \
+				MEDIC/$patid"_b"${run}_fieldmaps.nii || exit $status
 		endif
 		@ necho = `ls $patid"_b"${run}${nordstr}_echo?.nii | wc -l`
 		@ fullframe = `fslinfo $patid"_b"${run}${nordstr}_echo1.nii | gawk '/^dim4/ {print $NF}'`
@@ -647,24 +669,10 @@ while ($k <= ${#runID})
 		set echo_mag = $patid"_b"${run}${nordstr}_echo${e}.nii
 		set echo_ph =  $patid"_b"${run}${nordstr}_echo${e}_ph.nii
 		set outname =  $patid"_b"${run}_echo${e}
-		echo "try"																>! runnordic.m
-		echo "    addpath('${NORDIClib}');"								   	    >> runnordic.m
-		echo "    ARG.noise_volume_last=${noiseframes};"					 	>> runnordic.m
-		if (! $isnordic) then
-			echo "    ARG.magnitude_only = 1"									>> runnordic.m
-		endif
-		echo "    NIFTI_NORDIC('${echo_mag}','${echo_ph}','${outname}',ARG);"   >> runnordic.m
-		echo "catch"														    >> runnordic.m
-		echo "    quit(-1)"														>> runnordic.m
-		echo "end"																>> runnordic.m
-		echo "exit"																>> runnordic.m
-		cat runnordic.m
 		date
-		# echo $matlab -nosplash -nodesktop -r 'runnordic'
-		# $matlab -nosplash -nodesktop -r 'runnordic'
 		# use MCR version of nordic
-		echo run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} 3
-		run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} 3
+		echo run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} ${noiseframes} ${num_cpus}
+		run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} ${noiseframes} ${num_cpus}
 		if ($status) exit -1
 		echo "status="$status
 		date
@@ -745,11 +753,11 @@ while ($k <= $runs)
 	set falnSTR = "-seqstr $seqstr"
 		@ i = 1
 		while ($i <= $necho)
-		echo	frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
+			echo frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
 			frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 			@ i++
 		end
-			frame_align_4dfp $patid"_b"$runID[$k]        $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+		frame_align_4dfp $patid"_b"$runID[$k] $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 	popd
 	@ k++
 end
@@ -877,60 +885,24 @@ while ( $i <= $#BOLDgrps )
 	##############################
 	# set up distortion correction
 	##############################
-
-	# Do some preprocessing for MEDIC field maps
-	# There are two ways to use MEDIC:
-	# 1. Compute an average field map: this generates a tmask off an FD threshold, than averages all field maps
-	# for frames below that threshold to and uses only a single average field map for all frames
-	# 2. Compute a framewise field map: this uses a field map for each frame, masking out areas outside the brain
-	# (these are generally areas of low SNR, where the field cannot be estimated accurately with only single frame
-	# information)
 	if ( $distort == 4 ) then
+		#############################################
+		# create a first frame field map for MEDIC
+		#############################################
+		# TODO: Is this the best way to handle this?
+
 		# Get the field maps for this BOLD run
-		set fmaps = MEDIC/${patid}_b${run}_fieldmaps.nii
+		set fmaps =  bold${run}/MEDIC/${patid}_b${run}_fieldmaps
 
-		# For MEDIC averaging mode
-		if ( $medic_mode == 1 ) then
-			# get movement info from the data
-			set bold_dat = movement/${patid}_b${run}_xr3d.dat
+		# make the MEDIC directory
+		mkdir -p MEDIC
 
-			# get the L1/L2 displacements of the frames
-			gawk -f $RELEASE/FD.awk $bold_dat > MEDIC/${patid}_b${run}_xr3d.DD
+		# just feed a first frame field map for the upcoming step, we will run a custom resampling script
+		# later; we need to do this since the first frame is used as the reference for anatomical correction
+		fslroi $fmaps ${FMAP}${i}_FMAP 0 1
 
-# now compute a tmask based on threshold of the L2 norm of the displacement to the first frame
-# TODO: I use 0.5mm as the threshold, but this is completely arbitrary atm... - AV
-# and get field map frames that are below the threshold
-# and average to get an average field map
-# TODO: This is very sloppy code REFACTOR -AV
-python3 - <<EOF
-import nibabel as nib
-import numpy as np
-# load fmaps for the BOLD run
-fmaps = nib.load('$fmaps')
-# load associated FDs
-fds = np.loadtxt('MEDIC/${patid}_b${run}_xr3d.DD')[:, 1]
-# threshold FDs
-tmask = fds < 0.5
-# always include first frame
-tmask[0] = True
-# print tmask
-print(np.where(tmask)[0])
-# get the field map data (without the last 3 noise frames)
-data = fmaps.get_fdata()[..., :-3]
-# mask field map data with mask and average; convert to radians
-data = data[..., tmask].mean(axis=-1) * np.pi * 2
-nib.Nifti1Image(data, fmaps.affine, fmaps.header).to_filename('${FMAP}${i}_FMAP.nii')
-EOF
-
-		# For MEDIC framewise mode
-		else if ( $medic_mode == 2) then
-			# just feed a first frame field map for the upcoming step, we will run a custom resampling script
-			# later; we need to do this since the first frame is used as the reference for anatomical correction
-			fslroi $fmaps ${FMAP}${i}_FMAP 0 1
-
-			# convert to radians
-			fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
-		endif
+		# convert to radians
+		fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
 
 		# use the same bold image as the magnitude image
 		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
@@ -1040,16 +1012,8 @@ EOF
 	while ( $j <= $#groupruns )
 		set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
 		if ($BiasField) set strwarp = "$strwarp -bias bold$runID[$k]/${patid}_b$runID[$k]_invBF"
-		if (0) then	# one_step_resampling_AT.csh alternatives
-			@ n = 1 # works but does not save time eliminating redundant ME operations
-			while ($n <= $necho)
-				one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo${n}_faln_xr3d_uwrp_on_${outspacestr} || exit $status
-				@ n++
-			end
-		# this is for MEDIC framewise distortion corrections
-		else if ( $medic_mode == 2 && $distort == 4 ) then
+		if ( $distort == 4 ) then
+			# this is for MEDIC framewise distortion corrections
 			echo one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
 				-trailer xr3d_uwrp_on_${outspacestr}
@@ -1057,9 +1021,6 @@ EOF
 				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
 				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		else
-			# this script uses a custom processing pool instead of GNU parallel
-			echo $runID[$k]
-			echo $patid
 			echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
 				-trailer xr3d_uwrp_on_${outspacestr}

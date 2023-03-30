@@ -21,6 +21,7 @@ REGEX_SEARCH_T2W: List[str] = [
 
 REGEX_SEARCH_BOLD: List[str] = [
     r"BOLD_NORDIC.*(?<!SBRef)(?<!PhysioLog)$",
+    r"rest_ep2d_bold_ME.*(?<!SBRef)(?<!PhysioLog)$",
 ]
 
 REGEX_SEARCH_FMAP: List[str] = [
@@ -171,21 +172,8 @@ def _generate_paths(search_directory: Path, regex_list: List[str], image_type_pa
                         # and grab its ImageType tag
                         image_type = pydicom.read_file(str(dcm_path)).ImageType
 
-                        # TODO: absolute paths seem to work better over relative paths for now
-                        # if relative is used, the script is assumed to run from the session
-                        # level directory, but with absolute paths the script can run anywhere
-                        # but at the cost of not being able to move the data on the disk and
-                        # the pipeline still working. But it's likely that the data will not be
-                        # moved after it has been processed or that the pipeline will not be run
-                        # on it again anyway. If it does need to be moved, and the pipeline needs
-                        # to be rerun, the params file must be regenerated to update the paths,
-                        # before running the pipeline again.
-
-                        # # now make the study path relative to the search directory
-                        # study_path = study_path.relative_to(search_directory)
-
-                        # make the study path absolute
-                        study_path = study_path.absolute()
+                        # now make the study path relative to the search directory
+                        study_path = study_path.relative_to(search_directory)
 
                         # and append the study path and its image type to the session_dirs list
                         session_dirs.append((study_path, image_type))
@@ -235,10 +223,12 @@ class StructuralParams:
     patid: str
     structid: str
     studydir: Path
-    mprdir: List[Path]
-    t2wdir: List[Path]
+    mprdirs: List[Path]
+    t2wdirs: List[Path]
     fsdir: Path
     postfsdir: Path
+    bidsdir: Path
+    bids: bool = False
 
     def save_params(self, path: Union[Path, str, None] = None) -> None:
         """Saves the parameters to a params file.
@@ -252,10 +242,10 @@ class StructuralParams:
             path = self.write_dir / "struct.params"
         path = Path(path)
 
-        # turn mprdir and t2wdir into strings
-        mpr_dir_str = " ".join([str(mpr) for mpr in self.mprdir])
+        # turn mprdirs and t2wdirs into strings
+        mpr_dir_str = " ".join([str(mpr) for mpr in self.mprdirs])
         mpr_dir_str = f"( {mpr_dir_str} )"
-        t2w_dir_str = " ".join([str(t2w) for t2w in self.t2wdir])
+        t2w_dir_str = " ".join([str(t2w) for t2w in self.t2wdirs])
         t2w_dir_str = f"( {t2w_dir_str} )"
 
         with open(path, "w") as params_file:
@@ -266,6 +256,8 @@ class StructuralParams:
             params_file.write("set t2wdirs = %s\n" % (t2w_dir_str))
             params_file.write("set FSdir = %s\n" % (str(self.fsdir)))
             params_file.write("set PostFSdir = %s\n" % (str(self.postfsdir)))
+            params_file.write("set bids = %s\n" % (str(1 if self.bids else 0)))
+            params_file.write("set bidsdir = %s\n" % (str(self.bidsdir)))
 
 
 def generate_structural_params(
@@ -327,8 +319,8 @@ def generate_structural_params(
         patid=patient_id,
         structid=patient_id,
         studydir=project_dir,
-        mprdir=mpr_dirs,
-        t2wdir=t2w_dirs,
+        mprdirs=mpr_dirs,
+        t2wdirs=t2w_dirs,
         fsdir=fs_dir,
         postfsdir=post_fs_dir,
     )
@@ -571,11 +563,9 @@ class Instructions:
     # use MEDIC (Multi-Echo DIstortion Correction)
     medic: bool = True
 
-    # medic mode (1 = averaging mode; 2 = framewise mode)
-    medic_mode: int = 1
-
-    # number of threads/processes to use for medic
-    medic_cpus: int = 8
+    # number of threads/processes to use
+    # this setting should be preferred over all other multi-threading settings
+    num_cpus: int = 8
 
     # for GRE ($distort == 2); difference in echo time between the two magnitude images
     delta: float = 0.00246
@@ -591,14 +581,8 @@ class Instructions:
     # if running NORDIC
     runnordic: bool = True
 
-    # the term used to invoke matlab on your system, e.g., matlab, matlab19, matlab20
-    matlab: str = "matlab"
-
-    # path to NORDIC code
-    # TODO: This should not be hard-coded
-    NORDIClib: str = "/home/vanandrew/Projects/processing_pipeline/extern/NORDIC_Raw"
-
     # synthetic field map variables - affect processing only if $distor == 3
+    # TODO: These aren't valid paths; FIX
     bases: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_basis.4dfp.img"
     mean: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_mean.4dfp.img"
     # number of bases to use
@@ -698,15 +682,12 @@ class Instructions:
             "outspace_flag": self.outspace_flag,
             "nlalign": "1" if self.nlalign else "0",
             "medic": "1" if self.medic else "0",
-            "medic_cpus": str(self.medic_cpus),
-            "medic_mode": str(self.medic_mode),
+            "num_cpus": str(self.num_cpus),
             "delta": str(self.delta),
             "ME_reg": "1" if self.ME_reg else "0",
             "dbnd_flag": str(self.dbnd_flag),
             "isnordic": "1" if self.isnordic else "0",
             "runnordic": "1" if self.runnordic else "0",
-            "matlab": self.matlab,
-            "NORDIClib": self.NORDIClib,
             "bases": self.bases,
             "mean": self.mean,
             "nbases": str(self.nbases),

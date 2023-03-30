@@ -112,6 +112,12 @@ if (${#argv} > 3) then
 	set doexit = $4
 endif
 
+set fmri_pp_module = "";
+if ($enter == FMRI_PP && ${#argv} > 4) then
+	set fmri_pp_module = $5
+	echo $fmri_pp_module
+endif
+
 echo $enter
 if ($enter == FMRI_PP)			goto FMRI_PP;
 if ($enter == NIFTI)			goto NIFTI;
@@ -128,7 +134,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-ME_cross_bold_pp_2019.csh $1 $2 || exit $status
+ME_cross_bold_pp_2019.csh $1 $2 $fmri_pp_module || exit $status
 if ( $doexit ) exit
 
 NIFTI:
