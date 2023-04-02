@@ -35,7 +35,6 @@ if (${#argv} > 1) then
 	source $instructions
 endif
 
-
 set wrkdir = $cwd
 
 if ( ! $?nlalign ) set nlalign = 0

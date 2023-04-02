@@ -159,7 +159,8 @@ else
 	set tres = 711-2B_111;
 	set outspacestr = ""
 endif
-if ( $?medic == 1 ) then  # Use multi-echo susceptibility distortion correction
+
+if ( $medic == 1 ) then  # Use multi-echo susceptibility distortion correction
 	set distort = 4
 	set FMAP = MEDIC/${patid}_medic_Grp
 else if ( $?sefm ) then				# spin echo distortion correction
@@ -235,12 +236,6 @@ endif
 if (! ${?E4dfp}) @ E4dfp = 0
 if (! $?refframe) @ refframe = $skip + 1
 if (! $?useold) set useold = 0	# when set extant transforms are not re-computed
-if ( ! $?OSResample_parallel ) set OSResample_parallel = 1
-set parallelstr = ""
-if ( $OSResample_parallel != 1 ) then
-	set parallelstr = "-parallel $OSResample_parallel"
-endif
-echo "parallelstr="$parallelstr
 if (! $?isnordic)	@ isnordic = 0;
 if (! $?noiseframes)	@ noiseframes = 0;
 if (! $?runnordic)	@ runnordic = 0
@@ -500,7 +495,18 @@ if ( $distort == 1 ) then		# spin echo distortion correction
 		set j = 1
 		set str = ()	# argument string for sefm_pp_AT.csh
 		while ( $j <= $#study ) 
-			dcm2niix -o SEFM -f ${patid}_sefm_Grp${i}_${j} -w 1 -z n $inpath/study$study[$j] || exit -1
+			if ($bids == 1) then  # in bids mode we already have converted from dicom to nifti
+				# copy over the field map
+				echo "Copying from BIDS Dataset..."
+				cp -fv $study[$j] SEFM/${patid}_sefm_Grp${i}_${j}.nii.gz || exit 1
+				# copy over the json sidecar
+				cp -fv `pathman $study[$j] get_path_and_prefix`.json SEFM/${patid}_sefm_Grp${i}_${j}.json || exit 1
+				# gunzip the field map
+				echo "gunziping the file..."
+				gunzip -f SEFM/${patid}_sefm_Grp${i}_${j}.nii.gz || exit 1
+			else
+				dcm2niix -o SEFM -f ${patid}_sefm_Grp${i}_${j} -w 1 -z n $inpath/study$study[$j] || exit -1
+			endif
 			##############################################
 			# pedindex is +/-{i j k} index of PE direction
 			##############################################
@@ -580,13 +586,61 @@ while ($k <= $runs)
 	set run = $runID[$k]
 	if (! -d bold$run) mkdir bold$run
 	pushd bold$run
-		dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study${std}	|| exit $status
-		if ( $runnordic && $isnordic ) then 
-			@ run_ph = $BOLDruns[$k] + 1
-			dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study$run_ph	|| exit $status
+		if ($bids == 1) then
+			# read from the runs from the run.json (up one directory)
+			# first read in the number of echoes for this run
+			@ num_echoes = `jq .mag\[\"$run\"\] ../runs.json | jq '. | length'`
+			# now loop over the echoes
+			@ e = 0
+			while ($e < $num_echoes)
+				# get the echo file
+				set echo_file = `jq .mag\[\"$run\"\]\[$e\] ../runs.json | sed 's/"//g'`
+				# and copy it to the current directory
+				@ echo_num = $e + 1
+				echo "Copying from BIDS Dataset..."
+				cp -fv $echo_file $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
+				# get the sidecar as well
+				set sidecar = `echo $echo_file | sed 's/.nii.gz/.json/g'`
+				cp -fv $sidecar $patid"_b"${run}${nordstr}_echo${echo_num}.json
+				# and gunzip it
+				echo "gunziping the file..."
+				gunzip -f $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
+				# and increment the echo counter
+				@ e++
+			end
+			# if nordic is used, get the phase images
+			if ( $runnordic && $isnordic ) then
+				# first read in the number of echoes for this run
+				@ num_echoes = `jq .phase\[\"$run\"\] ../runs.json | jq '. | length'`
+				# now loop over the echoes
+				@ e = 0
+				while ($e < $num_echoes)
+					# get the echo file
+					set echo_file = `jq .phase\[\"$run\"\]\[$e\] ../runs.json | sed 's/"//g'`
+					# and copy it to the current directory
+					@ echo_num = $e + 1
+					echo "Copying from BIDS Dataset..."
+					cp -fv $echo_file $patid"_b"${run}${nordstr}_echo${echo_num}_ph.nii.gz
+					# get the sidecar as well
+					set sidecar = `echo $echo_file | sed 's/.nii.gz/.json/g'`
+					cp -fv $sidecar $patid"_b"${run}${nordstr}_echo${echo_num}_ph.json
+					# and gunzip it
+					echo "gunziping the file..."
+					gunzip -f $patid"_b"${run}${nordstr}_echo${echo_num}_ph.nii.gz
+					# and increment the echo counter
+					@ e++
+				end
+			endif
+		else
+			dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study${std}	|| exit $status
+			if ( $runnordic && $isnordic ) then 
+				@ run_ph = $BOLDruns[$k] + 1
+				dcm2niix -o . -f $patid"_b"${run}${nordstr}_echo%e -z n -w 1 $inpath/study$run_ph	|| exit $status
+			endif
 		endif
 		# if medic is used, generate field maps off phase information
 		if ( $distort == 4 ) then
+			echo "Setting up MEDIC..."
 			# warpkit must be installed, check before running.
 			python3 -c "import warpkit" || exit 1
 			# get all magnitude echoes
@@ -605,6 +659,7 @@ while ($k <= $runs)
 				--out_prefix MEDIC/$patid"_b"${run} \
 				--noiseframes ${noiseframes} \
 				--n_cpus ${num_cpus} || exit 1
+			# do a conversion to 4dfp and back to nifti to ensure the images have the expected orientation
 			nifti_4dfp -4 MEDIC/$patid"_b"${run}_fieldmaps_native.nii \
 				MEDIC/$patid"_b"${run}_fieldmaps_native -N || exit $status
 			nifti_4dfp -4 MEDIC/$patid"_b"${run}_displacementmaps.nii \
@@ -640,13 +695,13 @@ while ($k <= $runs)
 				nifti_4dfp -4 $F:r $F:r -N	|| exit $status
 				echo	      $F:r >! $$.lst
 				paste_4dfp -p$nframe  $$.lst $$	|| exit $status
-				/bin/rm		      $$.lst
+				/bin/rm -f $$.lst
 				foreach e (img img.rec ifh hdr)
 					/bin/mv $$.4dfp.$e $F:r.4dfp.$e
 				end
 			end
 			ls $patid"_b"${run}_echo?.4dfp.img >! $$.lst
-			paste_4dfp -p$nframe $$.lst $patid"_b"${run}	|| exit $status; rm $$.lst
+			paste_4dfp -p$nframe $$.lst $patid"_b"${run} || exit $status; rm -f $$.lst
 		endif
 	popd
 	@ k++
@@ -663,7 +718,7 @@ while ($k <= ${#runID})
 	set run = $runID[$k]
 	pushd bold$run
 	set log = $patid"_b"${run}${nordstr}_NORDIC.log;
-	if (-e $log) /bin/rm $log; touch $log;
+	if (-e $log) /bin/rm -f $log; touch $log;
 	@ e = 1
 	while ( $e <= $necho )
 		set echo_mag = $patid"_b"${run}${nordstr}_echo${e}.nii
@@ -688,9 +743,9 @@ while ($k <= ${#runID})
 		end
 	end
 	ls $patid"_b"${run}_echo?.4dfp.img >! $$.lst
-	paste_4dfp -p$nframe $$.lst $patid"_b"${run}		|| exit $status; rm $$.lst
+	paste_4dfp -p$nframe $$.lst $patid"_b"${run}		|| exit $status; rm -f $$.lst
 	ls $patid"_b"${run}${nordstr}_echo?.4dfp.img >! $$.lst
-	paste_4dfp -p$nframe $$.lst $patid"_b"${run}${nordstr}	|| exit $status; rm $$.lst
+	paste_4dfp -p$nframe $$.lst $patid"_b"${run}${nordstr}	|| exit $status; rm -f $$.lst
 	popd
 	@ k++
 end
@@ -705,7 +760,7 @@ while ($k <= $runs)
 	fslinfo bold$runID[$k]/$patid"_b"$runID[$k]_echo1.nii | sed '/dim4/d' >! $$fslinfo_run$k
 	@ k++
 end
-if (-e ConsistencyCheck.txt) /bin/rm ConsistencyCheck.txt; touch ConsistencyCheck.txt
+if (-e ConsistencyCheck.txt) /bin/rm -f ConsistencyCheck.txt; touch ConsistencyCheck.txt
 @ k = 2
 while ($k <= $runs)
 	diff bold$runID[1]/$patid"_b"$runID[1].params bold$runID[$k]/$patid"_b"$runID[$k].params >> ConsistencyCheck.txt
@@ -715,7 +770,7 @@ while ($k <= $runs)
 	endif
 	@ k++
 end
-rm $$fslinfo_run?
+rm -f $$fslinfo_run?
 if (! -z ConsistencyCheck.txt) then
 	echo $program Warning: non-empty ConsistencyCheck.txt
 	cat ConsistencyCheck.txt
@@ -724,7 +779,7 @@ endif
 #############################
 # compute movement parameters
 #############################
-if ( -e $$bold.lst ) /bin/rm $$bold.lst
+if ( -e $$bold.lst ) /bin/rm -f $$bold.lst
 touch $$bold.lst
 @ k = 1
 while ($k <= $runs)
@@ -733,7 +788,7 @@ while ($k <= $runs)
 end
 echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	# -R disables resampling
 cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	|| exit $status
-/bin/rm $$bold.lst
+/bin/rm -f $$bold.lst
 if (! -d movement) mkdir movement
 @ k = 1
 while ($k <= $runs)
@@ -769,7 +824,7 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 #########################
 @ k = 1
 while ($k <= $runs)
-	if (-e $patid"_b"$runID[$k]"_xr3d".lst) /bin/rm $patid"_b"$runID[$k]"_xr3d".lst; touch $patid"_b"$runID[$k]"_xr3d".lst
+	if (-e $patid"_b"$runID[$k]"_xr3d".lst) /bin/rm -f $patid"_b"$runID[$k]"_xr3d".lst; touch $patid"_b"$runID[$k]"_xr3d".lst
 	echo bold$runID[$k]/$patid"_b"$runID[$k]_faln mat=bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat \
 		>> $patid"_b"$runID[$k]"_xr3d".lst
 	@ i = 1
@@ -926,8 +981,8 @@ while ( $i <= $#BOLDgrps )
 		endif
 		set warp = atlas/fnirt/${struct:t}_to_MNI152_T1_2mm_fnirt_coeff	# structural to MNI152 warp
 		set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
-		if ( -e $adir/${anat}_uwrp_to_${struct:t}_t4  )  /bin/rm $adir/${anat}_uwrp_to_${struct:t}_t4
-		if ( -e $adir/${anat}_uwrp_to_${struct:t}.log )  /bin/rm $adir/${anat}_uwrp_to_${struct:t}.log
+		if ( -e $adir/${anat}_uwrp_to_${struct:t}_t4  )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_t4
+		if ( -e $adir/${anat}_uwrp_to_${struct:t}.log )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}.log
 		@ j = 1
 		while ( $j <= $#mode )	# imgreg_4dfp loop; register ${anat}_uwrp to ${struct:t}_t4
 			imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
@@ -1015,18 +1070,18 @@ while ( $i <= $#BOLDgrps )
 		if ( $distort == 4 ) then
 			# this is for MEDIC framewise distortion corrections
 			echo one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp -parallel ${num_cpus} \
 				-trailer xr3d_uwrp_on_${outspacestr}
 			one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
+				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp -parallel ${num_cpus} \
 				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		else
 			echo one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-				-trailer xr3d_uwrp_on_${outspacestr}
+				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp \
+				-parallel ${num_cpus} -trailer xr3d_uwrp_on_${outspacestr}
 			one_step_resampling_AV.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
-				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp $parallelstr \
-				-trailer xr3d_uwrp_on_${outspacestr} || exit $status
+				$xr3dmat -phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell -ref $outspace $strwarp \
+				-parallel ${num_cpus} -trailer xr3d_uwrp_on_${outspacestr} || exit $status
 		endif
 		@ j++ # index of BOLD run within group
 		@ k++ # index of BOLD run within session
@@ -1115,7 +1170,7 @@ while ( $k <= $runs )
 			foreach str ("" "_ph")
 				set F =	$patid"_b"$runID[$k]_preNORDIC_echo${e}${str}.nii
 				if (-e $F) then
-					gzip $F
+					gzip -f $F
 				endif
 			end
 			@ e++

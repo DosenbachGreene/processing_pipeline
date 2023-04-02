@@ -20,6 +20,7 @@ fi
 # fsl
 if [[ -d ${basepath}/pkg/fsl ]]; then
     export FSLDIR=${basepath}/pkg/fsl
+    export FSL_DIR=${FSLDIR}
     source ${FSLDIR}/etc/fslconf/fsl.sh > /dev/null
 fi
 

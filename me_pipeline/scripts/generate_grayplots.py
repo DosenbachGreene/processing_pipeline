@@ -60,5 +60,5 @@ def main():
         white_matter_name=wm_name,
         csf_name=csf_name,
         extra_axial_name=ex_name,
-        tr=tr
+        tr=tr,
     )

@@ -23,10 +23,13 @@ dependencies = [
   "numpy >= 1.23.5",
   "scipy >= 1.10.0",
   "pandas >= 1.4.2",
+  "heudiconv >= 0.12.2",
+  "toml >= 0.10.2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest >= 7.2.0", "pytest-pycodestyle >= 2.2.0", "black >= 22.10.0"]
+medic = ["warpkit >= 0.0.1"]
+dev = ["pytest >= 7.2.0", "pytest-pycodestyle >= 2.3.1", "black >= 22.10.0"]
 
 [build-system]
 requires = ["setuptools", "wheel"]

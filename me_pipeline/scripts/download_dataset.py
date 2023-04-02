@@ -50,6 +50,7 @@ def main():
     parser.add_argument("--project_label", help="Alternate Project label to use.")
     parser.add_argument("--subject_label", help="Alternate Subject label to use.")
     parser.add_argument("--session_label", help="Alternate Session label to use.")
+    parser.add_argument("--skip_dcm_sort", action="store_true", help="Skip DICOM sorting.")
 
     # parse the arguments
     args = parser.parse_args()
@@ -87,28 +88,31 @@ def main():
     logging.info("Flattening and sorting DICOM data...")
     flatten_dicom_dir(data_path)
 
-    # check labels
-    project_label = args.project_label if args.project_label else args.project_id
-    subject_label = args.subject_label if args.subject_label else args.subject_id
-    session_label = args.session_label if args.session_label else args.session_id
+    if not args.skip_dcm_sort:
+        # check labels
+        project_label = args.project_label if args.project_label else args.project_id
+        subject_label = args.subject_label if args.subject_label else args.subject_id
+        session_label = args.session_label if args.session_label else args.session_id
 
-    # make directories
-    label_path = Path(args.base_dir) / project_label / subject_label / session_label
-    label_path.mkdir(parents=True, exist_ok=True)
+        # make directories
+        label_path = Path(args.base_dir) / project_label / subject_label / session_label
+        label_path.mkdir(parents=True, exist_ok=True)
 
-    # now move into the new path
-    data_path.rename(label_path)
+        # now move into the new path
+        data_path.rename(label_path)
 
-    # change to the label path
-    this_dir = os.getcwd()
-    os.chdir(label_path)
+        # change to the label path
+        this_dir = os.getcwd()
+        os.chdir(label_path)
 
-    # now sort the dicom  data
-    dicom_sort("SCANS")
+        # now sort the dicom  data
+        dicom_sort("SCANS")
 
-    # change back to the original directory
-    os.chdir(this_dir)
-    logging.info("DICOM data flattened and sorted.")
+        # change back to the original directory
+        os.chdir(this_dir)
+        logging.info("DICOM data flattened and sorted.")
+    else:  # skip sorting
+        logging.info("DICOM data flattened.")
 
     # cleanup __pycache__ directories if they exist
     shutil.rmtree(Path(args.base_dir) / "__pycache__", ignore_errors=True)

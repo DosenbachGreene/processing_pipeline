@@ -1,0 +1,91 @@
+# use bids mode (unless you know what you're doing, this should always be true)
+bids = true
+
+# Delete intermediary files for significant data storage improvement
+cleanup = false
+
+# controls saving of intermediary files
+economy = 0
+
+# atlas-representation target in 711-2B space
+target = "$REFDIR/TRIO_Y_NDC"
+
+# final fMRI data resolution and space
+outspace_flag = "mni2mm"
+
+# if set script will invoke fnirt
+nlalign = 0
+
+# use MEDIC (Multi-Echo DIstortion Correction)
+medic = true
+
+# number of threads/processes to use
+num_cpus = 8
+
+# compute fitted signal and optimally combined signal from multi-echo data
+ME_reg = 1
+
+# ???
+dbnd_flag = 1
+
+# if NORDIC collected
+isnordic = true
+# if running NORDIC
+runnordic = true
+# if using NORDIC, set number of noise frames used
+noiseframes = 3
+
+# number of pre-steady-state frames
+skip = 0
+# when set causes frame-to-frame intensity stabilization (never use with resting state data)
+normode = false
+# when set enables intensity biasfield correction
+BiasField = true
+# when set prevents re-computation of extant t4 files
+useold = true
+
+# number of contiguous frames for fd threshold (for fc processing)
+ncontig = 3
+
+# when set causes FD frame censoring at specified threshold in mm
+FDthresh = 0.08
+
+# DVARS frame censoring threshold; 0 -> compute threshold using DVARS autocrit
+# disables DVARS censoring if not set
+DVARthresh = false
+# standard deviation from the mode used in computing the DVARS autocrit
+DVARsd = 3.5
+# spatial smoothing in mm interal compute_dvars_4dfp
+DVARblur = 10.0
+
+# bandpass_4dfp parameters
+bpss_params = ["-bl0.005", "-ol2", "-bh0.1", "-oh2"]
+
+# gauss_4dfp lowpass spatial frequency in 1/cm
+blur = 1.4701
+
+# low pass filter movement parameters: 0 = all parameters (x,y,z,xrot,yrot,zrot);
+# 1 = x; 2 = y; 3 = z; 4 = xrot; 5 = yrot; 6 = zrot.
+lomotil = 0
+
+# cifti-creation parameters
+# If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
+# otherwise will use subcortical voxels based on individual-subject segmentation.
+# Must have performed FNIRT.
+Atlas_ROIs = false
+surfsmooth = 1.7
+subcortsmooth = 1.7
+
+# image-derived nuisance regressors
+CSF_excl_lim = 0.15
+CSF_lcube = 4
+CSF_svdt = 0.15
+WM_lcube = 3
+WM_svdt = 0.15
+# limit on number of nuisance regressors
+nRegress = 20
+min_frames = 50
+
+# seed correl
+ROIdir = "$REFDIR/CanonicalROIsNP705"
+ROIimg = "CanonicalROIsNP705_on_MNI152_2mm.4dfp.img"

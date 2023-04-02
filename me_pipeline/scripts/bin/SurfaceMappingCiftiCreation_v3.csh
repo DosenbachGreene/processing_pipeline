@@ -125,30 +125,29 @@ foreach run ( ${runID} )
 	foreach hem (L R) 
         
 		set midsurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.midthickness.native.surf.gii
-	        set midsurf_LR32k = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.midthickness.32k_fs_LR.surf.gii 
+		set midsurf_LR32k = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.midthickness.32k_fs_LR.surf.gii 
 		set whitesurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.white.native.surf.gii 
-	        set pialsurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.pial.native.surf.gii
-	        set nativedefsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.sphere.reg.reg_LR.native.surf.gii
-	        set outsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.sphere.32k_fs_LR.surf.gii
+		set pialsurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.pial.native.surf.gii
+		set nativedefsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.sphere.reg.reg_LR.native.surf.gii
+		set outsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.sphere.32k_fs_LR.surf.gii
 
 		set surfname = ${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_${hem}
-        	echo "########### Mapping volume to surface, hem ${hem} #####################"
-        	${workbenchdir}/wb_command -volume-to-surface-mapping ${funcvol}.nii.gz ${midsurf} ../${vol2surfdir}/${surfname}.func.gii -ribbon-constrained ${whitesurf} ${pialsurf} -volume-roi ${goodvoxels}.nii.gz
-        	echo "########### Dilating mapped data on surface, hem ${hem} ###############"
-       		${workbenchdir}/wb_command -metric-dilate ../${vol2surfdir}/${surfname}.func.gii ${midsurf} 10 ../${vol2surfdir}/${surfname}_dil10.func.gii
+		echo "########### Mapping volume to surface, hem ${hem} #####################"
+		${workbenchdir}/wb_command -volume-to-surface-mapping ${funcvol}.nii.gz ${midsurf} ../${vol2surfdir}/${surfname}.func.gii -ribbon-constrained ${whitesurf} ${pialsurf} -volume-roi ${goodvoxels}.nii.gz
+		echo "########### Dilating mapped data on surface, hem ${hem} ###############"
+		${workbenchdir}/wb_command -metric-dilate ../${vol2surfdir}/${surfname}.func.gii ${midsurf} 10 ../${vol2surfdir}/${surfname}_dil10.func.gii
 		
 		echo "########### Deform timecourse to 32k fs LR, hem ${hem} ################"
 		${workbenchdir}/wb_command -metric-resample ../${vol2surfdir}/${surfname}_dil10.func.gii ${nativedefsphere} ${outsphere} ADAP_BARY_AREA ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR.func.gii -area-surfs ${midsurf} ${midsurf_LR32k}
 
 		if ( $dosurfsmooth ) then
-		echo "########### Smooth timecourse on surface, hem ${hem} ##################"
-        		${workbenchdir}/wb_command -metric-smoothing ${midsurf_LR32k} ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR.func.gii ${surfsmooth} ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR${surfsmoothstr}.func.gii
-        		rm ../${vol2surfdir}/${surfname}.func.gii ../${vol2surfdir}/${surfname}_dil10.func.gii ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR.func.gii
+			echo "########### Smooth timecourse on surface, hem ${hem} ##################"
+				${workbenchdir}/wb_command -metric-smoothing ${midsurf_LR32k} ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR.func.gii ${surfsmooth} ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR${surfsmoothstr}.func.gii
+			rm -f ../${vol2surfdir}/${surfname}.func.gii ../${vol2surfdir}/${surfname}_dil10.func.gii ../${vol2surfdir}/${surfname}_dil10_32k_fs_LR.func.gii
 		else 
-			rm ../${vol2surfdir}/${surfname}.func.gii ../${vol2surfdir}/${surfname}_dil10.func.gii
+			rm -f ../${vol2surfdir}/${surfname}.func.gii ../${vol2surfdir}/${surfname}_dil10.func.gii
 		endif
-
-    	end
+	end
 
 	if ( $dosubcortsmooth ) then
 		echo "########### Smooth volume within subcortical ROI ######################"
@@ -161,13 +160,13 @@ foreach run ( ${runID} )
 	else
 		set subfuncvol = ${funcvol}
 	endif
-    
-		echo "########### Create Cifti Timeseries ###################################"	
-    	set timename_L = ${vol2surfdir}/${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_L_dil10_32k_fs_LR${surfsmoothstr}
-        set timename_R = ${vol2surfdir}/${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_R_dil10_32k_fs_LR${surfsmoothstr}
-    	set outname = ${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_LR_surf_subcort_32k_fsLR_brainstem${smoothstr}
+
+	echo "########### Create Cifti Timeseries ###################################"	
+	set timename_L = ${vol2surfdir}/${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_L_dil10_32k_fs_LR${surfsmoothstr}
+	set timename_R = ${vol2surfdir}/${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_R_dil10_32k_fs_LR${surfsmoothstr}
+	set outname = ${patid}_b${run}_${outspacestr}_Swgt_norm${FCprocaddstring}_LR_surf_subcort_32k_fsLR_brainstem${smoothstr}
    	${workbenchdir}/wb_command -cifti-create-dense-timeseries ../${ciftidir}/${outname}.dtseries.nii -volume ${subfuncvol}.nii.gz ${subcortical_mask} -left-metric ../${timename_L}.func.gii -roi-left ${left_mask} -right-metric ../${timename_R}.func.gii -roi-right ${right_mask} -timestep ${TR_vol} -timestart 0
-	rm ${funcvol}.nii.gz
+	rm -f ${funcvol}.nii.gz
 	popd
 end
 	

@@ -1,9 +1,25 @@
 import os
 import argparse
+import shutil
+import json
+import logging
 from pathlib import Path
+from memori.pathman import PathManager as PathMan
 from memori.logging import setup_logging, run_process
 from memori.helpers import working_directory
-from me_pipeline.params import generate_instructions, StructuralParams, FunctionalParams
+from me_pipeline.bids import (
+    parse_bids_dataset,
+    get_dataset_description,
+    get_anatomicals,
+    get_functionals,
+    get_fieldmaps,
+)
+from me_pipeline.params import (
+    Instructions,
+    StructuralParams,
+    FunctionalParams,
+    PARAMS_FILE,
+)
 from . import epilog
 
 
@@ -61,129 +77,273 @@ def main():
     subparser = parser.add_subparsers(title="pipeline", dest="pipeline", required=True, help="pipeline to run")
 
     structural = subparser.add_parser("structural", help="Structural Pipeline")
-    structural.add_argument("project_dir", help="Path to project directory.")
-    structural.add_argument("subject_label", help="Subject label to run pipeline on.")
+    structural.add_argument("bids_dir", help="Path to bids_directory.")
+    structural.add_argument("--output_dir", help="Path to output directory. Default: $bids_dir/derivatives/me_pipeline")
+    structural.add_argument(
+        "--participant_label", nargs="+", help="Participant label(s) to run pipeline on. Default: all"
+    )
     structural.add_argument(
         "--module_start", default="T1_DCM", help="Module to start pipeline on.", choices=STRUCTURAL_MODULES
     )
+    structural.add_argument("--config", help="Path to configuration (params) file.")
     structural.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
     structural.add_argument("--log_file", help="Path to log file")
-    structural.add_argument("--bids", action="store_true", help="Run pipeline on BIDS data.")
+    structural.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
 
     functional = subparser.add_parser("functional", help="Functional Pipeline")
-    functional.add_argument("project_dir", help="Path to project directory.")
-    functional.add_argument("subject_label", help="Subject label to run pipeline on.")
-    functional.add_argument("session_label", help="Session label to run pipeline on.")
+    functional.add_argument("bids_dir", help="Path to bids_directory.")
+    functional.add_argument("--output_dir", help="Path to output directory. Default: $bids_dir/derivatives/me_pipeline")
+    functional.add_argument(
+        "--participant_label", nargs="+", help="Participant label(s) to run pipeline on. Default: all"
+    )
     functional.add_argument(
         "--module_start", default="FMRI_PP", help="Module to start pipeline on.", choices=FUNCTIONAL_MODULES
     )
-    functional.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
     functional.add_argument(
         "--fmri_pp_module", default="", help="Module to start fmri_pp module on.", choices=FMRI_PP_MODULES
     )
+    functional.add_argument("--config", help="Path to configuration (params) file.")
+    functional.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
     functional.add_argument("--log_file", help="Path to log file")
-    functional.add_argument("--bids", action="store_true", help="Run pipeline on BIDS data.")
+    functional.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
+
+    params = subparser.add_parser("params", help="Generate params file")
+    params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
     # parse arguments
     args = parser.parse_args()
 
+    # generate parameters and quit
+    if args.pipeline == "params":
+        out_params = Path(args.params_file).absolute().resolve()
+        # add .toml suffix if not present
+        if ".toml" not in out_params.suffixes:
+            out_params = out_params.with_suffix(".toml")
+        # generate instructions file
+        shutil.copyfile(PARAMS_FILE, out_params)
+        # return
+        return
+
     # setup logging
     setup_logging(args.log_file)
 
+    # make bids path absolute
+    bids_path = Path(args.bids_dir).absolute().resolve()
+    if not bids_path.exists():
+        raise FileNotFoundError(f"bids_dir {bids_path} does not exist.")
+
+    # if output_dir is None, set it to bids_dir/derivatives/me_pipeline
+    if args.output_dir is None:
+        args.output_dir = str(bids_path / "derivatives" / "me_pipeline")
+    output_path = Path(args.output_dir).absolute().resolve()
+    output_path.mkdir(exist_ok=True, parents=True)
+
     # setup TMPDIR
-    # TODO: allow user to change this
-    if args.bids:
-        tmpdir = (Path(args.project_dir) / "derivatives" / "tmp").absolute()
-    else:
-        tmpdir = (Path(args.project_dir) / "tmp").absolute()
+    tmpdir = (output_path / "tmp").absolute()
     tmpdir.mkdir(exist_ok=True, parents=True)
     os.environ["TMPDIR"] = str(tmpdir)
 
     if args.pipeline == "structural":
-        # get instructions file from project directory
-        if args.bids:  # if we are in bids mode, auto generate the instructions params file
-            (Path(args.project_dir) / "derivatives").mkdir(exist_ok=True, parents=True)
-            generate_instructions(Path(args.project_dir) / "derivatives").save_params()
-            instructions_file = (Path(args.project_dir) / "derivatives" / "instructions.params").absolute()
+        # generate instructions file
+        if args.config is not None:
+            Instructions.load(args.config).save_params(output_path / "instructions.params")
         else:
-            instructions_file = (Path(args.project_dir) / "instructions.params").absolute()
+            # check if instructions file exists
+            instructions_file = output_path / "instructions.params"
+            if not instructions_file.exists():
+                Instructions().save_params(output_path / "instructions.params")
+        instructions_file = output_path / "instructions.params"
 
-        if not instructions_file.exists():
-            raise FileNotFoundError(f"Instructions file not found at {instructions_file}.")
+        # generate dataset description file for derivatives
+        dataset_description = parse_bids_dataset(bids_path, get_dataset_description)
+        dataset_description["GeneratedBy"] = [{"Name": "me_pipeline"}]
+        with open(output_path / "dataset_description.json", "w") as f:
+            json.dump(dataset_description, f, indent=4)
 
-        # make sure struct params exists
-        if args.bids:  # in bids mode, we auto generate the struct params file based on the bids directory
-            subject_dir = Path(args.project_dir) / "derivatives" / args.subject_label
-            subject_dir.mkdir(exist_ok=True, parents=True)
+        # parse the bids directory and grab anatomicals
+        anatomicals = parse_bids_dataset(bids_path, get_anatomicals, args.reset_database)
+
+        # loop over subjects
+        for subject_id, sessions in anatomicals["T1w"].items():
+            # only process subjects in participant_label (if not None)
+            if args.participant_label is not None and subject_id not in args.participant_label:
+                continue
+
+            # combine files from all sessions
+            # TODO: Add a way for user to filter sessions
+            mpr_files = []
+            t2w_files = []
+            for session_id in sessions.keys():
+                # check if session has both T1w and T2w
+                if session_id not in anatomicals["T2w"][subject_id]:
+                    continue
+                mpr_files.extend([f.path for f in anatomicals["T1w"][subject_id][session_id]])
+                t2w_files.extend([f.path for f in anatomicals["T2w"][subject_id][session_id]])
+
+            # set output directory
+            output_dir = output_path / f"sub-{subject_id}"
+            output_dir.mkdir(exist_ok=True, parents=True)
+
+            # construct structural params
             StructuralParams(
-                write_dir=subject_dir,
-                patid=args.subject_label,
-                structid=args.subject_label,
-                studydir=(Path(args.project_dir) / "derivatives").absolute(),
-                mprdirs=[],
-                t2wdirs=[],
-                fsdir=(Path(args.project_dir) / "derivatives" / "fs").absolute(),
-                postfsdir=(Path(args.project_dir) / "derivatives" / "FREESURFER_fs_LR").absolute(),
-                bids=True,
-                bidsdir=Path(args.project_dir).absolute(),
-            ).save_params()
-            struct_params = (subject_dir / "struct.params").absolute()
-        else:
-            # get the subject directory
-            subject_dir = Path(args.project_dir) / args.subject_label
-            struct_params = (subject_dir / "struct.params").absolute()
-        if not struct_params.exists():
-            raise FileNotFoundError(f"Structural params not found at {struct_params}.")
+                patid=f"sub-{subject_id}",
+                structid=f"sub-{subject_id}",
+                studydir=output_path,
+                mprdirs=mpr_files,
+                t2wdirs=t2w_files,
+                FSdir=output_path / "fs",
+                PostFSdir=output_path / "FREESURFER_fs_LR",
+            ).save_params(output_dir / "struct.params")
+            struct_params = output_dir / "struct.params"
 
-        # change to subject directory
-        with working_directory(str(subject_dir)):
-            # run the structural pipeline
-            if (
-                run_process(
-                    [
-                        "Structural_pp_090121.csh",
-                        str(struct_params),
-                        str(instructions_file),
-                        args.module_start,
-                        "1" if args.module_exit else "0",
-                    ]
-                )
-                != 0
-            ):
-                raise RuntimeError("Structural pipeline failed.")
+            # change to subject directory
+            with working_directory(str(output_dir)):
+                # run the structural pipeline
+                if (
+                    run_process(
+                        [
+                            "Structural_pp_090121.csh",
+                            str(struct_params),
+                            str(instructions_file),
+                            args.module_start,
+                            "1" if args.module_exit else "0",
+                        ]
+                    )
+                    != 0
+                ):
+                    raise RuntimeError("Structural pipeline failed.")
 
     elif args.pipeline == "functional":
-        # get instructions file from project directory
-        instructions_file = (Path(args.project_dir) / "instructions.params").absolute()
+        # generate instructions file
+        if args.config is not None:
+            Instructions.load(args.config).save_params(output_path / "instructions.params")
+        else:
+            # check if instructions file exists
+            instructions_file = output_path / "instructions.params"
+            if not instructions_file.exists():
+                Instructions().save_params(output_path / "instructions.params")
+        instructions_file = output_path / "instructions.params"
 
-        if not instructions_file.exists():
-            raise FileNotFoundError(f"Instructions file not found at {instructions_file}.")
+        # parse the bids directory and grab functionals
+        functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
 
-        # get the subject directory
-        subject_dir = Path(args.project_dir).absolute() / args.subject_label
+        # get fieldmaps
+        fieldmaps = parse_bids_dataset(bids_path, get_fieldmaps)
 
-        # get the session directory
-        session_dir = subject_dir / args.session_label
+        # loop over subjects
+        for subject_id, func_sessions in functionals.items():
+            # only process subjects in participant_label (if not None)
+            if args.participant_label is not None and subject_id not in args.participant_label:
+                continue
 
-        # make sure func params exists
-        func_params = session_dir / "func.params"
-        if not func_params.exists():
-            raise FileNotFoundError(f"Functional params not found at {func_params}.")
+            # check if T1 directory for this subject exists
+            t1_dir = output_path / f"sub-{subject_id}" / "T1"
+            if not t1_dir.exists():
+                # this subject has not been processed by the structural pipeline
+                logging.info(f"Subject {subject_id} missing T1 directory.")
+                logging.info(f"Skipping subject {subject_id}.")
+                continue
 
-        # change to session directory
-        with working_directory(str(session_dir)):
-            # run the functional pipeline
-            if (
-                run_process(
-                    [
-                        "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
-                        str(func_params),
-                        str(instructions_file),
-                        args.module_start,
-                        "1" if args.module_exit else "0",
-                        args.fmri_pp_module,
-                    ]
-                )
-                != 0
-            ):
-                raise RuntimeError("Functional pipeline failed.")
+            # search for T1 file for this subject
+            if (t1_dir / f"sub-{subject_id}_T1w_debias_avg.4dfp.img").exists():
+                mpr = PathMan(t1_dir / f"sub-{subject_id}_T1w_debias_avg.4dfp.img")
+            elif (t1_dir / f"sub-{subject_id}_T1w_1_debias.4dfp.img").exists():
+                mpr = PathMan(t1_dir / f"sub-{subject_id}_T1w_1_debias.4dfp.img")
+            else:
+                logging.info(f"Could not find T1 for subject {subject_id}.")
+                logging.info(f"Skipping subject {subject_id}.")
+                continue
+
+            # check if T2 directory for this subject exists
+            t2_dir = output_path / f"sub-{subject_id}" / "T2"
+            if not t2_dir.exists():
+                # this subject has not been processed by the structural pipeline
+                logging.info(f"Subject {subject_id} missing T2 directory.")
+                logging.info(f"Skipping subject {subject_id}.")
+                continue
+
+            # search for T2 file for this subject
+            if (t2_dir / f"sub-{subject_id}_T2w_debias_avg.4dfp.img").exists():
+                t2wimg = PathMan(t2_dir / f"sub-{subject_id}_T2w_debias_avg.4dfp.img")
+            elif (t2_dir / f"sub-{subject_id}_T2w_1_debias.4dfp.img").exists():
+                t2wimg = PathMan(t2_dir / f"sub-{subject_id}_T2w_1_debias.4dfp.img")
+            else:
+                logging.info(f"Could not find T2 for subject {subject_id}.")
+                logging.info(f"Skipping subject {subject_id}.")
+                continue
+
+            for session_id, func_tasks in func_sessions.items():
+                # set output directory
+                func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}"
+                func_out.mkdir(exist_ok=True, parents=True)
+
+                # TODO: add ability to filter tasks
+                # for now just use all of them
+                func_runs = []
+                runs_dict = {}
+                for _, runs in func_tasks.items():
+                    func_runs.extend(runs.keys())
+                    runs_dict = {**runs_dict, **runs}
+
+                # for each run, identify the fieldmap used
+                BOLDgrps = {}
+                for idx, run in enumerate(func_runs):
+                    # get the field maps for this run
+                    run_fmaps = fieldmaps[subject_id][session_id][run]
+                    # create a string name
+                    fmap_key = tuple([str(p) for p in run_fmaps])
+                    # check if this key exists
+                    if fmap_key not in BOLDgrps:
+                        BOLDgrps[fmap_key] = [idx + 1]
+                    else:
+                        BOLDgrps[fmap_key].append(idx + 1)
+
+                # for each run, map create a json that maps the runIDs to the data
+                # separate by magnitude and phase
+                runs_json = {
+                    "mag": {
+                        idx + 1: [r.path for r in runs_dict[run] if "mag" in r.filename]
+                        for idx, run in enumerate(func_runs)
+                    },
+                    "phase": {
+                        idx + 1: [r.path for r in runs_dict[run] if "phase" in r.filename]
+                        for idx, run in enumerate(func_runs)
+                    },
+                }
+                with open(func_out / "runs.json", "w") as f:
+                    json.dump(runs_json, f, indent=4)
+
+                # construct functional params
+                func_params = func_out / "func.params"
+                FunctionalParams(
+                    day1_patid=f"sub-{subject_id}",
+                    day1_path=t1_dir / "atlas",
+                    patid=f"sub-{subject_id}",
+                    mpr=mpr.get_prefix().path,
+                    t2wimg=t2wimg.get_prefix().path,
+                    BOLDgrps=[g for g in BOLDgrps.values()],
+                    runID=[idx + 1 for idx, _ in enumerate(func_runs)],
+                    FCrunID=[idx + 1 for idx, _ in enumerate(func_runs)],
+                    sefm=[list(g) for g in BOLDgrps.keys()],
+                    FSdir=output_path / "fs",
+                    PostFSdir=output_path / "FREESURFER_fs_LR",
+                    maskdir=output_path / f"sub-{subject_id}" / "subcortical_mask",
+                ).save_params(func_params)
+
+                # change to session directory
+                with working_directory(str(func_out)):
+                    # run the functional pipeline
+                    if (
+                        run_process(
+                            [
+                                "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
+                                str(func_params),
+                                str(instructions_file),
+                                args.module_start,
+                                "1" if args.module_exit else "0",
+                                args.fmri_pp_module,
+                            ]
+                        )
+                        != 0
+                    ):
+                        raise RuntimeError("Functional pipeline failed.")

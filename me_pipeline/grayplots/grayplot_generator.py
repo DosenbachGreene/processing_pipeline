@@ -43,7 +43,6 @@ class GrayplotGenerator:
 
         # Create multipage pdf document
         with PdfPages("grayplots.pdf") as pdf:
-
             # Create page one of pdf, which contains all grayplots
             grayplot_figure = self.create_grayplot_figure()
             pdf.savefig(grayplot_figure)
@@ -200,12 +199,12 @@ class GrayplotGenerator:
         f, P1 = data
 
         movement_freq_plot = fig.add_subplot(grid[0, column])
-        with np.errstate(divide='ignore'):
+        with np.errstate(divide="ignore"):
             movement_freq_plot.plot(f.T, np.log(P1), linewidth=1)
         movement_freq_plot.set_title(title)
         movement_freq_plot.set_ylabel("Log Amplitude")
         movement_freq_plot.legend(("X", "Y", "Z", "X-Rot", "Y-Rot", "Z-Rot"), prop={"size": 5})
-        movement_freq_plot.tick_params(axis='x', which='major', pad=0)
+        movement_freq_plot.tick_params(axis="x", which="major", pad=0)
 
     def plot_fd(self, fig, grid, fd, fd_filt, signal_length):
         """
@@ -226,7 +225,7 @@ class GrayplotGenerator:
         fd_plot.hlines(y=0.2, xmin=0, xmax=signal_length, color="c")
         fd_plot.hlines(y=0.08, xmin=0, xmax=signal_length, color="y")
         fd_plot.legend(("FD", "FD Filtered"), prop={"size": 5})
-        fd_plot.tick_params(axis='x', which='major', pad=0)
+        fd_plot.tick_params(axis="x", which="major", pad=0)
 
     def plot_movement_params(self, fig, grid, mvm, signal_length):
         """
@@ -243,4 +242,4 @@ class GrayplotGenerator:
         movement_params_plot = fig.add_subplot(grid[1, :])
         movement_params_plot.plot(np.array([np.arange(0, signal_length)]).T, mvm, linewidth=1)
         movement_params_plot.set_ylabel("motion (mm)")
-        movement_params_plot.tick_params(axis='x', which='major', pad=0)
+        movement_params_plot.tick_params(axis="x", which="major", pad=0)

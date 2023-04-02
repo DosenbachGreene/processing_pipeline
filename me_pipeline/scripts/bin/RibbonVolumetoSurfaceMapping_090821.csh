@@ -68,8 +68,8 @@ foreach study ( $runID )
 	pushd ${outputdir}
 	niftigz_4dfp -n -f ${preproc_runfunc}_avg ${preproc_runfunc}_avg
 	niftigz_4dfp -n -f ${preproc_runfunc}_sd1 ${preproc_runfunc}_sd1
-	rm ${preproc_runfunc}_avg.4dfp.*
-	rm ${preproc_runfunc}_sd1.4dfp.*
+	rm -f ${preproc_runfunc}_avg.4dfp.*
+	rm -f ${preproc_runfunc}_sd1.4dfp.*
 	
 	fslmaths ${preproc_runfunc}_sd1 -div ${preproc_runfunc}_avg ${preproc_runfunc}_cov
 	

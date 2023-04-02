@@ -144,21 +144,16 @@ echo "############## T1, DCM to NII conversion and Debias ##############"
 mkdir -p  $T1dir
 pushd $T1dir
 
-# if we are in bids mode, grab the grab the T1w files from the bids directory
-# this will override the mprdirs variable set in the struct params file
-if ( $bids ) then
-	set mprdirs = (`parse_bids --bids_dir $bidsdir --modality T1w`)
-endif
-
 @ i = 1
 foreach mprdir ( $mprdirs )
-	if ( $?bids ) then
+	if ( $bids == 1 ) then
 		# Simply copy over the nifti file from the bids directory
 		set mpr = ${structid}_T1w_${i}
-		echo "Copying ${mprdir} to ${mpr}.nii.gz"
-		cp ${mprdir} ${mpr}.nii.gz
+		echo "Copying from BIDS Dataset..."
+		cp -fv ${mprdir} ${mpr}.nii.gz
+		echo "gunziping the file..."
 		# gunzip the file
-		gunzip ${mpr}.nii.gz
+		gunzip -f ${mpr}.nii.gz
 	else
 		# Convert dcm to nii
 		set mpr = ${structid}_T1w_${i}
@@ -166,14 +161,14 @@ foreach mprdir ( $mprdirs )
 	endif
 	
 	nifti_4dfp -4 $mpr $mpr -N
-	rm ${mpr}.nii
+	rm -f ${mpr}.nii
 	nifti_4dfp -n $mpr $mpr
-	rm ${mpr}.4dfp.*
+	rm -f ${mpr}.4dfp.*
 	
 	# Bias field correction of mpr
 	fast -t 1 -n 3 -H 0.1 -I 4 -l 20.0 -v --nopve -B -o ${mpr} ${mpr}
 	mv ${mpr}_restore.nii.gz ${mpr}_debias.nii.gz
-	rm ${mpr}_seg.nii.gz 
+	rm -f ${mpr}_seg.nii.gz 
 	
 	# Convert nii to 4dfp
 	niftigz_4dfp -4 ${mpr}_debias ${mpr}_debias -N
@@ -214,21 +209,16 @@ echo "############## T2, DCM to NII conversion and Debias ##############"
 mkdir -p $T2dir
 pushd $T2dir
 
-# if we are in bids mode, grab the grab the T2w files from the bids directory
-# this will override the mprdirs variable set in the struct params file
-if ( $bids ) then
-	set t2wdirs = (`parse_bids --bids_dir $bidsdir --modality T2w`)
-endif
-
 @ i = 1
 foreach t2wdir ( $t2wdirs )
-	if ( $?bids ) then
+	if ( $bids == 1 ) then
 		# Simply copy over the nifti file from the bids directory
 		set t2w = ${structid}_T2w_${i}
-		echo "Copying ${t2wdir} to ${t2w}.nii.gz"
-		cp ${t2wdir} ${t2w}.nii.gz
+		echo "Copying from BIDS Dataset..."
+		cp -fv ${t2wdir} ${t2w}.nii.gz
 		# gunzip the file
-		gunzip ${t2w}.nii.gz
+		echo "gunziping the file..."
+		gunzip -f ${t2w}.nii.gz
 	else
 		# Convert dcm to nii
 		set t2w = ${structid}_T2w_${i}
@@ -238,7 +228,7 @@ foreach t2wdir ( $t2wdirs )
 	# Bias field correction of t2w
 	bet $t2w ${t2w}_brain -R || exit $status
 	fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 -v --nopve -B -o ${t2w}_brain ${t2w}_brain || exit $status
-	rm ${t2w}_brain_seg.nii.gz 	
+	rm -f ${t2w}_brain_seg.nii.gz 	
 	# Convert nii to 4dfp
 	niftigz_4dfp -4 ${t2w}_brain_restore ${t2w}_brain_restore -N
 	nifti_4dfp -4 ${t2w} ${t2w} -N
@@ -297,11 +287,11 @@ set modes = (0 0 0 0 0)
 @ modes[1] = 1024 + 256 + 3; @ modes[2]	= $modes[1]; @ modes[3] = 3072 + 256 + 7;
 @ modes[4] = 2048 + 256 + 7; @ modes[5] = $modes[4];
 set t4file = ${mpr}_to_${target:t}_t4 
-if ( -e $t4file ) /bin/rm/$t4file
+if ( -e $t4file ) /bin/rm -f $t4file
 set ref = $target
 set refmask = $REFDIR/711-2B_mask_g5_111z
 set log = ${mpr}_to_${target:t}.log
-if ( -e $log ) /bin/rm/$log
+if ( -e $log ) /bin/rm -f $log
 @ k = 1
 while ( $k <= $#modes )
 	echo "imgreg_4dfp $ref $refmask $mpr none $t4file $modes[$k]"
@@ -319,7 +309,7 @@ if ( $nlalign ) then
 	pushd fnirt
 	# must have .mat file from target 111 711-2B to the reference
 	if ( ! -e ${fnwarp}.nii || ! $useold ) then	
-		gunzip ../${mpr}.nii.gz
+		gunzip -f ../${mpr}.nii.gz
 		t4_mul ../${mpr}_to_${target:t}_t4 $REFDIR/MNI152/711-2B_to_MNI152lin_T1_t4 ${mpr}_to_MNI152_T1_t4 || exit 1 
 		aff_conv 4f ../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1_t4 ../${mpr} \
 			$REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1.mat || exit $status
@@ -327,7 +317,7 @@ if ( $nlalign ) then
 			--aff=${mpr}_to_MNI152_T1.mat \
 			--cout=$fnwarp \
 			--iout=${mpr}_on_fn_MNI152_T1_2mm || exit $status
-		gzip ../${mpr}.nii
+		gzip -f ../${mpr}.nii
 	endif
 	popd	# out of fnirt
 	
@@ -337,12 +327,12 @@ if ( $nlalign ) then
 endif
 
 if (! $nlalign ) then
-	gunzip ${mpr}.nii.gz
+	gunzip -f ${mpr}.nii.gz
 	aff_conv 4f ${mpr} $REFDIR/711-2B_111 ${mpr}_to_${target:t}_t4 ${mpr} $REFDIR/711-2B_111 ${mpr}_to_${target:t}_111.mat || exit $status
 	convert_xfm -omat ${mpr}_to_${outspace:t}.mat -concat $postmat ${mpr}_to_${target:t}_111.mat
 	flirt -ref $outspace -in ${mpr} -applyxfm -init ${mpr}_to_${outspace:t}.mat -out ${mpr}_on_${outspacestr} || exit $status
 	niftigz_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}  || exit $status
-	gzip ${mpr}.nii
+	gzip -f ${mpr}.nii
 endif
 popd
 popd
@@ -375,9 +365,9 @@ echo $mode
 set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
 set t4file = ${t2wimg}_to_${mpr}_t4
 if ( ! -e $t4file || ! $useold ) then
-	if (-e $t4file) /bin/rm $t4file
+	if (-e $t4file) /bin/rm -f $t4file
 	set log = ${t2wimg}_to_${mpr}.log
-	if ( -e $log ) /bin/rm $log
+	if ( -e $log ) /bin/rm -f $log
 	@ i = 1
 	while ( $i <= $#mode )
 		echo imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $mode[$i] >> $log
@@ -394,7 +384,7 @@ niftigz_4dfp -n ${t2wimg}_on_${mpr} ${t2wimg}_on_${mpr}
 #############################
 if ( $nlalign ) then
 	nifti_4dfp -n ${t2wimg} ${t2wimg}
-	gunzip ${mpr}.nii.gz
+	gunzip -f ${mpr}.nii.gz
 	aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}.mat || exit $status
 	convertwarp --ref=fnirt/${mpr}_on_fn_MNI152_T1_2mm --premat=${t2wimg}_to_${mpr}.mat \
 		--warp1=$fnwarp --out=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff  || exit $status
@@ -404,19 +394,19 @@ if ( $nlalign ) then
 	applywarp --in=${t2wimg}.nii --ref=$outspace \
 		--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii --postmat=$postmat \
 		-o fnirt/${t2wimg}_on_${outspacestr}  || exit $status
-	gzip ${mpr}.nii
-	gzip ${t2wimg}.nii
+	gzip -f ${mpr}.nii
+	gzip -f ${t2wimg}.nii
 endif
 
 if (! $nlalign ) then
-	gunzip ${mpr}.nii.gz
-	gunzip ${t2wimg}.nii.gz
+	gunzip -f ${mpr}.nii.gz
+	gunzip -f ${t2wimg}.nii.gz
 	aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}.mat || exit $status
 	convert_xfm -omat ${t2wimg}_to_${outspace:t}.mat -concat ${mpr}_to_${outspace:t}.mat ${t2wimg}_to_${mpr}.mat
 	flirt -ref $outspace -in  ${t2wimg} -applyxfm -init ${t2wimg}_to_${outspace:t}.mat -out ${t2wimg}_on_${outspacestr} || exit $status
 	niftigz_4dfp -4 ${t2wimg}_on_${outspacestr} ${t2wimg}_on_${outspacestr}  || exit $status
-	gzip ${mpr}.nii
-	gzip ${t2wimg}.nii
+	gzip -f ${mpr}.nii
+	gzip -f ${t2wimg}.nii
 endif
 popd
 if ( $doexit ) exit
@@ -487,7 +477,7 @@ maskimg_4dfp  ${structid}_WM_on_${outspacestr} ${structid}_GM_on_${outspacestr}_
 ################
 ROI2mask_4dfp ${structid}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${structid}_VENT_on_${outspacestr}  || exit $status
 maskimg_4dfp  ${structid}_VENT_on_${outspacestr} ${structid}_GM_on_${outspacestr}_comp_b60 ${structid}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
-/bin/rm ${structid}_GM_on_${outspacestr}_comp*
+/bin/rm -f ${structid}_GM_on_${outspacestr}_comp*
 if ( $nlalign ) popd # out of fnirt, if in fnirt
 
 #########################################################################
@@ -510,7 +500,7 @@ maskimg_4dfp ${t2wimg} ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_tmp_maske
 cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
 zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
 blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
-/bin/rm ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${structid}_aparc+aseg_on_${t2wimg}*		
+/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${structid}_aparc+aseg_on_${t2wimg}*		
 
 popd	# out of atlas
 if ( $doexit ) exit
