@@ -89,6 +89,7 @@ def main():
     structural.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
     structural.add_argument("--log_file", help="Path to log file")
     structural.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
+    structural.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
 
     functional = subparser.add_parser("functional", help="Functional Pipeline")
     functional.add_argument("bids_dir", help="Path to bids_directory.")
@@ -106,6 +107,7 @@ def main():
     functional.add_argument("--module_exit", action="store_true", help="Exit after module is run.")
     functional.add_argument("--log_file", help="Path to log file")
     functional.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
+    functional.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -196,22 +198,24 @@ def main():
             ).save_params(output_dir / "struct.params")
             struct_params = output_dir / "struct.params"
 
-            # change to subject directory
-            with working_directory(str(output_dir)):
-                # run the structural pipeline
-                if (
-                    run_process(
-                        [
-                            "Structural_pp_090121.csh",
-                            str(struct_params),
-                            str(instructions_file),
-                            args.module_start,
-                            "1" if args.module_exit else "0",
-                        ]
-                    )
-                    != 0
-                ):
-                    raise RuntimeError("Structural pipeline failed.")
+            # skip if dry run
+            if not args.dry_run:
+                # change to subject directory
+                with working_directory(str(output_dir)):
+                    # run the structural pipeline
+                    if (
+                        run_process(
+                            [
+                                "Structural_pp_090121.csh",
+                                str(struct_params),
+                                str(instructions_file),
+                                args.module_start,
+                                "1" if args.module_exit else "0",
+                            ]
+                        )
+                        != 0
+                    ):
+                        raise RuntimeError("Structural pipeline failed.")
 
     elif args.pipeline == "functional":
         # generate instructions file
@@ -337,20 +341,22 @@ def main():
                     maskdir=output_path / f"sub-{subject_id}" / "subcortical_mask",
                 ).save_params(func_params)
 
-                # change to session directory
-                with working_directory(str(func_out)):
-                    # run the functional pipeline
-                    if (
-                        run_process(
-                            [
-                                "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
-                                str(func_params),
-                                str(instructions_file),
-                                args.module_start,
-                                "1" if args.module_exit else "0",
-                                args.fmri_pp_module,
-                            ]
-                        )
-                        != 0
-                    ):
-                        raise RuntimeError("Functional pipeline failed.")
+                # skip if dry run
+                if args.dry_run:
+                    # change to session directory
+                    with working_directory(str(func_out)):
+                        # run the functional pipeline
+                        if (
+                            run_process(
+                                [
+                                    "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
+                                    str(func_params),
+                                    str(instructions_file),
+                                    args.module_start,
+                                    "1" if args.module_exit else "0",
+                                    args.fmri_pp_module,
+                                ]
+                            )
+                            != 0
+                        ):
+                            raise RuntimeError("Functional pipeline failed.")

@@ -1,3 +1,6 @@
 [submodule "extern/NORDIC_Raw"]
 	path = extern/NORDIC_Raw
 	url = https://github.com/vanandrew/NORDIC_Raw.git
+[submodule "extern/warpkit"]
+	path = extern/warpkit
+	url = ssh://git@github.com/vanandrew/warpkit.git

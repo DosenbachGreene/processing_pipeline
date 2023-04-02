@@ -48,7 +48,7 @@ if os.path.exists(FREESURFER_HOME):
     os.environ["PATH"] = os.path.join(FSFAST_HOME, "bin") + os.pathsep + os.environ["PATH"]
     os.environ["PATH"] = os.path.join(FREESURFER_HOME, "bin") + os.pathsep + os.environ["PATH"]
 # Workbench
-WORKBENCH = os.path.join(ME_PIPELINE_TOOLS_PATH, "pkg", "workbench")
+WORKBENCH = os.path.join(ME_PIPELINE_TOOLS_PATH, "pkg", "workbench", "bin_linux64")
 if os.path.exists(WORKBENCH):
     os.environ["WORKBENCH"] = str(WORKBENCH)
     os.environ["PATH"] = str(WORKBENCH) + os.pathsep + os.environ["PATH"]

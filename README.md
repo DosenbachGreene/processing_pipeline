@@ -3,7 +3,7 @@
 This repo contains the Dosenbach Lab Preprocessing Pipeline.
 
 
-## Dependencies
+## Dependencies for Local Install
 
 This pipeline requires 4dfp, fsl, freesurfer, and connectome workbench.
 
@@ -29,8 +29,8 @@ The 4dfp install script is located in `tools/install_4dfp.sh`. This script will 
 `tools/pkg` and place the compiled binaries and scripts under `tools/bin`.
 
 > **__NOTE:__** The installer contains fixes for GCC >10 compatibility, if you are using an older version of GCC
-> you may need to comment out some flags in the `sed` commands of the install script (e.g. -fallow-invalid-boz, 
-> -fallow-argument-mismatch) or 4dfp may fail to compile. TODO: Auto-detect GCC version to make this automatic.
+> you can use call the script with `1` as the first argument (e.g. `./install_4dfp.sh 1`)
+> to disable GCC >10 flags.
 
 ### FSL
 
@@ -52,23 +52,33 @@ install connectome workbench under `tools/pkg/workbench`.
 The MATLAB compiler runtime install script is located in `tools/install_mcr.sh`. This script will download and
 install the MATLAB compiler runtime under `tools/pkg/mcr`.
 
-### Docker Usage
+### NORDIC
 
-TODO: This section is not yet complete.
+The tools directory contains an install script for the NORDIC software. It will compile
+the NORDIC scripts into a compatible MATLAB MCR executable. To install it, simply run
+the `install_nordic.sh` script in the `tools` directory. This will download and build
+NORDIC under `tools/pkg/nordic`.
 
-> **__NOTE:__** To reduce the docker image size, the fsl install on the docker image has been stripped of all
-> non-essential files and programs.
-
+> **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2022a to compile. If you are
+> using another version of MATLAB, we currently do not support it.
 
 ## Installation
 
-To use this repo. Install the package with pip (virtualenvs or `-e`/editable are recommended):
+This repo currenly only works in editable mode (with strict enabled):
 
 ```bash
-pip install /path/to/repo -v
-# or
-pip install -e /path/to/repo -v
+python3 -m pip install -e /path/to/repo/ -v --config-settings editable_mode=strict
 ```
+
+## Docker Build
+
+To build the docker image, you will need to first compile NORDIC (see [above](#NORDIC)). Then, you can run build the docker image with:
+
+```bash
+docker buildx build . -t vanandrew/me_pipeline
+```
+Which will do a multi-image build of the docker image with the tag `vanandrew/me_pipeline`.
+
 
 ## Repository Structure
 
@@ -85,10 +95,10 @@ and reference data from the original pipeline that are called by the python scri
 - `extern`: for external git repos used in this pipeline. Currently the only one in use is for NORDIC.
 
 - `tools`: contains scripts for installing external dependencies. These include 4dfp, fsl, freesurfer, connectome
-workbench, and the MATLAB compiler runtime. Any MATLAB code called by the pipeline also lives here.
+workbench, and the MATLAB compiler runtime.
     
 
-## Some Terminology Definitions
+## Data Organization Definitions
 
 MR data has many terms that often get used interchangeably. Here are some definitions to help clarify the terms used
 (as well as the preferred BIDS terminology for each concept):
@@ -115,21 +125,15 @@ prefixed by `run-`.
 
 There are several levels of usage for this pipeline:
 
-- Level 0: NOT FOR THE FAINT OF HEART. The old, regular way of running the pipeline. Create your own param files and
+- [Level 0](#level-0-running-csh-scripts): **csh scripts.** NOT FOR THE FAINT OF HEART. The old, regular way of running the pipeline. Create your own param files and
 call the appropriate csh scripts (the usual names). If you're doing it this way you are probably an expert and don't
 need this README. The main benefit this version of the pipeline provides is that it can be deployed to any compute
 environment (not just the NIL servers).
 
-- Level 1: Run the provided scripts. Use the `download_dataset` command to download data from an XNAT server and
-organize it in the appropriate layout. Then use the `generate_params` command to generate param files for each
-subject/session. Finally, use the `run_pipeline` command to run the pipeline on the data. This way is recommended if
-you also aim to modify any params for a particular subject/session before running the pipeline
+- [Level 1]: **BIDS based processing.** See below.
+- Level 2: **Web Interface.** (TODO: NOT YET IMPLEMENTED).
 
-- Level 2: Fully automated pipeline (TODO: NOT YET IMPLEMENTED).
-
-- Level 3: Web Interface (TODO: NOT YET IMPLEMENTED).
-
-### Running csh scripts
+### Level 0: Running csh scripts
 
 This is for Level 0 users. Skip this section if you are not using this level of usage.
 
@@ -140,45 +144,7 @@ run_script Structural_pp_090121.csh [struct.params] [instructions.params]
 ```
 To see the full list of scripts you can run, check `run_script --help`.
 
-
-### Data Layout
-
-While this pipeline can be used without using a strict data layout, it is recommended that the data be organized in the
-following way:
-
-```
-Project_Root
-    sub-{SUBID01}
-        [ses-{SESID01}/vc{SESID01}]
-            SCANS
-                [dicom files]
-            study1
-            study2
-            ...
-        [ses-{SESID02}/vc{SESID02}]
-            SCANS
-                [dicom files]
-            study1
-            study2
-            ...
-    sub-{SUBID02}
-        [ses-{SESID01}/vc{SESID01}]
-            SCANS
-                [dicom files]
-            study1
-            study2
-            ...
-        [ses-{SESID02}/vc{SESID02}]
-            SCANS
-                [dicom files]
-            study1
-            study2
-            ...
-    ...
-```
-
-See https://bids-specification.readthedocs.io/en/stable/ for more details.
-
+### Level 1: BIDS Based Processing
 
 ### Downloading and Organizing Data
 
