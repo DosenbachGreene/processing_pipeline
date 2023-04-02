@@ -105,6 +105,7 @@ ENV FSLGECUDAQ=cuda.q
 ENV FSL_LOAD_NIFTI_EXTENSIONS=0
 ENV FSL_SKIP_GLOBAL=0
 ENV FSLDIR=/opt/fsl
+ENV FSL_DIR=/opt/fsl
 
 # install freesurfer
 RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer_ubuntu22-7.3.2_amd64.deb && \

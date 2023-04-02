@@ -158,9 +158,16 @@ class Params:
                     # write str as str
                     param_file.write(f"set {field.name} = {getattr(self, field.name)}")
                 elif field.type is Path:
+                    # ensure the path exists before writing
+                    if not getattr(self, field.name).exists():
+                        raise FileNotFoundError(f"Path '{getattr(self, field.name)}' does not exist.")
                     # write path as str
                     param_file.write(f"set {field.name} = {str(getattr(self, field.name))}")
                 elif field.type is List[Path]:
+                    # ensure all paths exist before writing
+                    for p in getattr(self, field.name):
+                        if not p.exists():
+                            raise FileNotFoundError(f"Path '{p}' does not exist.")
                     # write list of path as (str str ...)
                     param_file.write(f"set {field.name} = ( {' '.join([str(p) for p in getattr(self, field.name)])} )")
                 elif field.type is List[str]:
@@ -169,6 +176,12 @@ class Params:
                 elif field.type is List[int]:
                     # write list int as (int int ...)
                     param_file.write(f"set {field.name} = ( {' '.join([str(i) for i in getattr(self, field.name)])} )")
+                elif field.type is List[List[str]]:
+                    # write list of list of str as ( str,str,... str,str,... ... )
+                    param_file.write(
+                        f"set {field.name} = "
+                        f"( {' '.join([','.join([i for i in l]) for l in getattr(self, field.name)])} )"
+                    )
                 elif field.type is List[List[int]]:
                     # write list of list of int as ( int,int,... int,int,... ... )
                     param_file.write(
@@ -205,7 +218,7 @@ class FunctionalParams(Params):
     BOLDgrps: List[List[int]]
     runID: List[int]
     FCrunID: List[int]
-    sefm: List[List[int]]
+    sefm: List[List[str]]
     FSdir: Path
     PostFSdir: Path
     maskdir: Path

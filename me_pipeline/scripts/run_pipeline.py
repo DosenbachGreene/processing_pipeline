@@ -272,42 +272,49 @@ def main():
                 logging.info(f"Skipping subject {subject_id}.")
                 continue
 
-            for session_id, func_tasks in func_sessions.items():
+            for session_id, func_runs in func_sessions.items():
                 # set output directory
                 func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}"
                 func_out.mkdir(exist_ok=True, parents=True)
 
                 # TODO: add ability to filter tasks
                 # for now just use all of them
-                func_runs = []
-                runs_dict = {}
-                for _, runs in func_tasks.items():
-                    func_runs.extend(runs.keys())
-                    runs_dict = {**runs_dict, **runs}
+
+                # the functional pipeline requires that are runIDs are integers
+                # so we need to map the run keys in runs to integers
+                run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
+
+                # for each run, filter out the runs that have < 50 frames
+                runs = {
+                    run_num: [i for i in img_data if i.get_image().shape[-1] > 50]
+                    for run_num, img_data in func_runs.items()
+                }
+                # delete keys that are empty
+                runs = {k: v for k, v in runs.items() if len(v) > 0}
 
                 # for each run, identify the fieldmap used
                 BOLDgrps = {}
-                for idx, run in enumerate(func_runs):
+                for run in runs:
                     # get the field maps for this run
                     run_fmaps = fieldmaps[subject_id][session_id][run]
                     # create a string name
                     fmap_key = tuple([str(p) for p in run_fmaps])
                     # check if this key exists
-                    if fmap_key not in BOLDgrps:
-                        BOLDgrps[fmap_key] = [idx + 1]
+                    if fmap_key not in BOLDgrps:  # add run index to BOLDgrps
+                        BOLDgrps[fmap_key] = [run_key_to_int_dict[run]]
                     else:
-                        BOLDgrps[fmap_key].append(idx + 1)
+                        BOLDgrps[fmap_key].append(run_key_to_int_dict[run])
 
                 # for each run, map create a json that maps the runIDs to the data
                 # separate by magnitude and phase
                 runs_json = {
                     "mag": {
-                        idx + 1: [r.path for r in runs_dict[run] if "mag" in r.filename]
-                        for idx, run in enumerate(func_runs)
+                        run_key_to_int_dict[run]: [r.path for r in run_data if "mag" in r.filename]
+                        for run, run_data in runs.items()
                     },
                     "phase": {
-                        idx + 1: [r.path for r in runs_dict[run] if "phase" in r.filename]
-                        for idx, run in enumerate(func_runs)
+                        run_key_to_int_dict[run]: [r.path for r in run_data if "phase" in r.filename]
+                        for run, run_data in runs.items()
                     },
                 }
                 with open(func_out / "runs.json", "w") as f:
@@ -322,8 +329,8 @@ def main():
                     mpr=mpr.get_prefix().path,
                     t2wimg=t2wimg.get_prefix().path,
                     BOLDgrps=[g for g in BOLDgrps.values()],
-                    runID=[idx + 1 for idx, _ in enumerate(func_runs)],
-                    FCrunID=[idx + 1 for idx, _ in enumerate(func_runs)],
+                    runID=[run_key_to_int_dict[run] for run in runs],
+                    FCrunID=[run_key_to_int_dict[run] for run in runs],
                     sefm=[list(g) for g in BOLDgrps.keys()],
                     FSdir=output_path / "fs",
                     PostFSdir=output_path / "FREESURFER_fs_LR",

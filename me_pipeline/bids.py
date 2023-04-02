@@ -181,9 +181,6 @@ def get_functionals(layout: BIDSLayout) -> Dict:
 
             # Loop through all tasks for this session
             for task in layout.get_tasks(subject=subject, session=session):
-                # Initialize an empty dictionary for functional files for this task
-                func_task_dict = {}
-
                 # Loop through all runs for this task
                 for run in layout.get_runs(subject=subject, session=session, task=task):
                     # Get all functional files for this run
@@ -191,13 +188,9 @@ def get_functionals(layout: BIDSLayout) -> Dict:
                         subject=subject, session=session, task=task, run=run, suffix="bold", extension="nii.gz"
                     )
 
-                    # If there are any functional files for this run, add them to the task dictionary
+                    # If there are any functional files for this run, add them to the session dictionary
                     if func_files:
-                        func_task_dict[run] = func_files
-
-                # If there are any functional files for this task, add them to the session dictionary
-                if func_task_dict:
-                    func_session_dict[task] = func_task_dict
+                        func_session_dict[f"{task}{run}"] = func_files
 
             # If there are any functional files for this session, add them to the subject dictionary
             if func_session_dict:
@@ -261,31 +254,44 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
             # Get all functional runs for this session
             func_runs = layout.get_runs(subject=subject, session=session, suffix="bold", extension="nii.gz")
 
-            # Loop through all functional runs for this session
-            for run in func_runs:
-                # get the first echo functional image for the run
-                func_file = layout.get(
-                    subject=subject, session=session, run=run, suffix="bold", extension="nii.gz", part="mag", echo=1
-                )[0]
+            # Loop through all tasks for this session
+            for task in layout.get_tasks(subject=subject, session=session):
+                # Loop through all functional runs for this session
+                for run in func_runs:
+                    # get the first echo functional image for the run
+                    func_file = layout.get(
+                        subject=subject,
+                        session=session,
+                        task=task,
+                        run=run,
+                        suffix="bold",
+                        extension="nii.gz",
+                        part="mag",
+                        echo=1,
+                    )[0]
 
-                # Get all fieldmap files for this run
-                fmap_files = layout.get_fieldmap(func_file.path, return_list=True)
+                    # Get all fieldmap files for this run
+                    fmap_files = layout.get_fieldmap(func_file.path, return_list=True)
 
-                # just grab the first fieldmap file it we couldn't find any
-                if not fmap_files:
-                    fmap_AP = Path(layout.get(
-                        subject=subject, session=session, direction="AP", datatype="fmap", extension="nii.gz"
-                    )[0].path)
-                    fmap_PA = Path(layout.get(
-                        subject=subject, session=session, direction="PA", datatype="fmap", extension="nii.gz"
-                    )[0].path)
-                else:
-                    # get AP/PA
-                    fmap_AP = [Path(f["epi"]) for f in fmap_files if "dir-AP" in f["epi"]][0]
-                    fmap_PA = [Path(f["epi"]) for f in fmap_files if "dir-PA" in f["epi"]][0]
+                    # just grab the first fieldmap file it we couldn't find any
+                    if not fmap_files:
+                        fmap_AP = Path(
+                            layout.get(
+                                subject=subject, session=session, direction="AP", datatype="fmap", extension="nii.gz"
+                            )[0].path
+                        )
+                        fmap_PA = Path(
+                            layout.get(
+                                subject=subject, session=session, direction="PA", datatype="fmap", extension="nii.gz"
+                            )[0].path
+                        )
+                    else:  # else use the field maps we found
+                        # get AP/PA
+                        fmap_AP = [Path(f["epi"]) for f in fmap_files if "dir-AP" in f["epi"]][0]
+                        fmap_PA = [Path(f["epi"]) for f in fmap_files if "dir-PA" in f["epi"]][0]
 
-                # add field maps to the session dictionary
-                fmap_session_dict[run] = [fmap_AP, fmap_PA]
+                    # add field maps to the session dictionary
+                    fmap_session_dict[f"{task}{run}"] = [fmap_AP, fmap_PA]
 
             # If there are any fieldmap files for this session, add them to the subject dictionary
             if fmap_session_dict:

@@ -79,10 +79,9 @@ def test_get_functionals(layout):
         for session in layout.get_sessions(subject=subject):
             assert session in func_dict[subject].keys()
             for task in layout.get_tasks(subject=subject, session=session):
-                assert task in func_dict[subject][session].keys()
                 for run in layout.get_runs(subject=subject, session=session, task=task):
-                    assert run in func_dict[subject][session][task].keys()
+                    assert f"{task}{run}" in func_dict[subject][session].keys()
                     # check if BIDSFile objects are present
-                    assert isinstance(func_dict[subject][session][task][run], list)
-                    for file in func_dict[subject][session][task][run]:
+                    assert isinstance(func_dict[subject][session][f"{task}{run}"], list)
+                    for file in func_dict[subject][session][f"{task}{run}"]:
                         assert isinstance(file, BIDSImageFile)
