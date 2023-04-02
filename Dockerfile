@@ -44,6 +44,12 @@ FROM base as fdfp
 ADD tools /opt/tools
 RUN /opt/tools/install_4dfp.sh
 
+# get and install Julia
+FROM base as julia
+RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.5-linux-x86_64.tar.gz && \
+    tar -xzf julia-1.8.5-linux-x86_64.tar.gz && \
+    rm julia-1.8.5-linux-x86_64.tar.gz
+
 # setup final image
 FROM base as final
 
@@ -148,7 +154,7 @@ ENV WORKBENCH=/opt/workbench/bin_linux64
 ENV PATH=${WORKBENCH}:${PATH}
 
 # copy MATLAB compiler runtime
-COPY --from=matlab_compiler_runtime /opt/tools/mcr_runtime /opt/mcr_runtime
+COPY --from=matlab_compiler_runtime /opt/tools/pkg/mcr_runtime /opt/mcr_runtime
 
 # set MATLAB compiler runtime env variable
 ENV MCRROOT=/opt/mcr_runtime/v912
@@ -162,6 +168,12 @@ COPY --from=fdfp /opt/tools/pkg/refdir /opt/4dfp/refdir
 ENV REFDIR=/opt/4dfp/refdir
 ENV RELEASE=/opt/4dfp/bin
 ENV PATH=${RELEASE}:${PATH}
+
+# copy over julia
+COPY --from=julia /opt/julia-1.8.5 /opt/julia
+
+# set julia env variable
+ENV PATH=/opt/julia/bin:${PATH}
 
 # add this repo
 ADD me_pipeline /opt/processing_pipeline/me_pipeline
@@ -183,6 +195,8 @@ ENV PATH=${NORDIC}:${PATH}
 
 # and install pipeline and warpkit
 RUN cd /opt/processing_pipeline && \
+    # we need git to install warpkit
+    apt-get update && apt-get install -y git && \
     # upgrade pip before install
     python3 -m pip install pip --upgrade && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
