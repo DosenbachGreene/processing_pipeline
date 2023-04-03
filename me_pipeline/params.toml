@@ -69,7 +69,7 @@ blur = 1.4701
 lomotil = 0
 
 # cifti-creation parameters
-# If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
+# If set to true, will use MNI atlas-based ROIs to define subcortical voxels,
 # otherwise will use subcortical voxels based on individual-subject segmentation.
 # Must have performed FNIRT.
 Atlas_ROIs = false

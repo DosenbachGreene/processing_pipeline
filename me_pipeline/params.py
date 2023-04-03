@@ -270,6 +270,7 @@ class Instructions(Params):
     # compute fitted signal and optimally combined signal from multi-echo data
     ME_reg: bool = True
 
+    # I have no idea what this does, but it's probably important!
     dbnd_flag: bool = True
 
     # if NORDIC collected
@@ -328,7 +329,7 @@ class Instructions(Params):
     lomotil: int = 0
 
     # cifti-creation parameters
-    # If set to 1, will use MNI atlas-based ROIs to define subcortical voxels,
+    # If set to true, will use MNI atlas-based ROIs to define subcortical voxels,
     # otherwise will use subcortical voxels based on individual-subject segmentation.
     # Must have performed FNIRT.
     Atlas_ROIs: bool = False

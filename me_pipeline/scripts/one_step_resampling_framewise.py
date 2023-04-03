@@ -8,15 +8,12 @@ import argparse
 import shutil
 from datetime import datetime
 from tempfile import TemporaryDirectory
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from subprocess import run as subprocess_run
 from subprocess import PIPE, STDOUT, DEVNULL
 from typing import List
 import numpy as np
 from memori.pathman import PathManager as PathMan
-import nibabel as nib
-from scipy.ndimage import generic_filter
-from skimage.filters import threshold_otsu
 
 
 def check_consistency(data: List) -> None:
@@ -66,24 +63,11 @@ def bias_field_run(i, tmp_dir, ped, dwell, ref_tmp, bias_nii, phase_base, phase_
         check=True,
     )
     subprocess_run(
-        [
-            "applywarp",
-            f"--ref={ref_tmp}",
-            f"--in={bias_nii}",
-            f"--warp={bias_field_warp}",
-            f"--out={bias_field}",
-        ],
+        ["applywarp", f"--ref={ref_tmp}", f"--in={bias_nii}", f"--warp={bias_field_warp}", f"--out={bias_field}"],
         check=True,
     )
     subprocess_run(
-        [
-            "nifti_4dfp",
-            "-4",
-            f"{bias_field}",
-            f"{bias_field.get_path_and_prefix()}",
-        ],
-        check=True,
-        stdout=DEVNULL,
+        ["nifti_4dfp", "-4", f"{bias_field}", f"{bias_field.get_path_and_prefix()}"], check=True, stdout=DEVNULL
     )
 
 
@@ -110,6 +94,9 @@ def main():
 
     # parse arguments
     args = parser.parse_args()
+
+    # set fsl output type
+    os.environ["FSLOUTPUTTYPE"] = "NIFTI"
 
     # get epi images
     epis = [PathMan(i) for i in args.inputs]
@@ -170,10 +157,14 @@ def main():
         dims.append(dim)
 
         # convert the 4dfp to nifti
+        print(f"Converting {epi} to {epi_nii}")
+        sys.stdout.flush()
         subprocess_run(["nifti_4dfp", "-n", str(epi), str(epi_nii)], check=True)
 
         # now load the nifti and save each frame as a separate volume
         frame_prefix = str(epi.get_path_and_prefix().repath(tmp_dir.name))
+        print(f"Splitting frames from {epi_nii} to {frame_prefix}")
+        sys.stdout.flush()
         subprocess_run(["fslsplit", str(epi_nii), f"{frame_prefix}", "-t"], check=True)
 
     # check data consistency
@@ -182,7 +173,6 @@ def main():
 
     # get the number of frames
     n_frames = dims[0][3]
-    # n_frames = 10
 
     # add to transform string
     strwarp = ""
@@ -220,11 +210,12 @@ def main():
     subprocess_run(["nifti_4dfp", "-n", str(args.bias), bias_nii], check=True)
     phase_base = PathMan(phase_rads).get_path_and_prefix().repath(tmp_dir.name)
     framesout_bias = PathMan(tmp_dir.name) / f"framesout_bias.lst"
-    print("Undistorting bias field...")
-    with ProcessPoolExecutor(max_workers=args.parallel) as executor:
+    print("Generating shift maps...")
+    sys.stdout.flush()
+    with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
-            print(f"Generating shift map for frame: {i}")
+            print(f"Submitting job for: Generate shift map frame {i}")
             sys.stdout.flush()
 
             bias_field = PathMan(bias_nii).repath(tmp_dir.name).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
@@ -245,22 +236,16 @@ def main():
                 )
             ] = i
 
+        print("Waiting for jobs to complete...")
+        sys.stdout.flush()
         for future in as_completed(futures):
             future.result()
-            print(f"Completed frame: {futures[future]}")
+            (f"Completed job for: Generating shift map frame {futures[future]}")
             sys.stdout.flush()
 
     # create a blank 4dfp to keep track of undefined voxels
     blank = PathMan(tmp_dir.name) / "blank"
-    subprocess_run(
-        [
-            "extract_frame_4dfp",
-            str(epis[1]),
-            str(1),
-            f"-o{str(blank)}",
-        ],
-        check=True,
-    )
+    subprocess_run(["extract_frame_4dfp", str(epis[1]), str(1), f"-o{str(blank)}"], check=True)
     subprocess_run(["scale_4dfp", str(blank), str(0), "-b1"], check=True)
     subprocess_run(["nifti_4dfp", "-n", str(blank), str(blank)], check=True)
     blank = blank.append_suffix(".nii").path
@@ -268,11 +253,12 @@ def main():
     # for each frame
     frameout_list = []
     PathMan("onestep_FAILED").unlink(missing_ok=True)  # reset the failed flag file
-    print("Undistorting EPIs...")
-    with ProcessPoolExecutor(max_workers=args.parallel) as executor:
+    print("Resampling EPIs...")
+    sys.stdout.flush()
+    with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
-            print(f"Processing Frame: {i}")
+            print(f"Submitting job for: Resampling EPI frame {i}")
             sys.stdout.flush()
             j = 1 + 1
             padded = f"{i:04d}"
@@ -315,44 +301,26 @@ def main():
                 )
             ] = i
 
+        print("Waiting for jobs to complete...")
+        sys.stdout.flush()
         for future in as_completed(futures):
             future.result()
-            print(f"Completed frame: {futures[future]}")
+            print(f"Completed job for: Resampling EPI frame {futures[future]}")
             sys.stdout.flush()
 
     # merge the split volumes and then do intensity normalization
     # combine split bias fields
-    subprocess_run(
-        [
-            "paste_4dfp",
-            "-a",
-            framesout_bias,
-            PathMan(tmp_dir.name) / "combined_bias_field",
-        ],
-        check=True,
-    )
+    print("Combining bias fields...")
+    sys.stdout.flush()
+    subprocess_run(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_dir.name) / "combined_bias_field"], check=True)
     combined_bias = str((PathMan(tmp_dir.name) / "combined_bias_field").with_suffix(".4dfp.img"))
+    print("Intensity normalizing EPIs...")
+    sys.stdout.flush()
     for k in range(len(epis)):
         # combine split volumes
         temp_out = PathMan(tmp_dir.name) / f"temp_out_{k}"
-        subprocess_run(
-            [
-                "paste_4dfp",
-                "-a",
-                frameout_list[k],
-                temp_out,
-            ],
-            check=True,
-        )
-        subprocess_run(
-            [
-                "imgopr_4dfp",
-                f"-p{out[k]}",
-                temp_out,
-                combined_bias,
-            ],
-            check=True,
-        )
+        subprocess_run(["paste_4dfp", "-a", frameout_list[k], temp_out], check=True)
+        subprocess_run(["imgopr_4dfp", f"-p{out[k]}", temp_out, combined_bias, "-R", "-z", "-u"], check=True)
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
         with open(f"{os.path.splitext(out[k])[0]}.4dfp.img.rec", "w") as f:
             f.write(
@@ -366,3 +334,5 @@ def main():
 
     # close the temporary directory
     tmp_dir.cleanup()
+    print("Done!")
+    sys.stdout.flush()
