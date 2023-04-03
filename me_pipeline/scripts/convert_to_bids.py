@@ -4,6 +4,7 @@ from heudiconv.main import workflow
 from heudiconv.cli.run import get_parser, lgr
 from pathlib import Path
 from memori.pathman import PathManager as PathMan
+from me_pipeline import HEURISTIC_FILE
 
 
 def main(argv=None):
@@ -17,6 +18,8 @@ def main(argv=None):
         sys.exit(1)
 
     kwargs = vars(args)
+    # force set heuristic file
+    kwargs["heuristic"] = HEURISTIC_FILE
     workflow(**kwargs)
 
     # do some post-processing on the output (field maps)

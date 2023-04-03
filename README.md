@@ -2,7 +2,6 @@
 
 This repo contains the Dosenbach Lab Preprocessing Pipeline.
 
-
 ## Dependencies for Local Install
 
 This pipeline requires 4dfp, fsl, freesurfer, and connectome workbench.
@@ -29,7 +28,7 @@ The 4dfp install script is located in `tools/install_4dfp.sh`. This script will 
 `tools/pkg` and place the compiled binaries and scripts under `tools/bin`.
 
 > **__NOTE:__** The installer contains fixes for GCC >10 compatibility, if you are using an older version of GCC
-> you can use call the script with `1` as the first argument (e.g. `./install_4dfp.sh 1`)
+> you can call the script with `1` as the first argument (e.g. `./install_4dfp.sh 1`)
 > to disable GCC >10 flags.
 
 ### FSL
@@ -130,7 +129,7 @@ call the appropriate csh scripts (the usual names). If you're doing it this way 
 need this README. The main benefit this version of the pipeline provides is that it can be deployed to any compute
 environment (not just the NIL servers).
 
-- [Level 1]: **BIDS based processing.** See below.
+- [Level 1](#level-1-bids-based-processing): **BIDS based processing.** See below.
 - Level 2: **Web Interface.** (TODO: NOT YET IMPLEMENTED).
 
 ### Level 0: Running csh scripts
@@ -148,61 +147,112 @@ To see the full list of scripts you can run, check `run_script --help`.
 
 ### Downloading and Organizing Data
 
-For convenience, this repo provides a command line tool for auto-downloading data from an XNAT server and
-organizing it in the above layout:
+For convenience, this repo provides a command line tool for auto-downloading data from CNDA:
 
 ```bash
-download_dataset [base_dir] [project_name] [subject_id] [experiement_id] --project_label [project_label] \
-    --session_label [session_label] --scan_label [scan_label]
+download_dataset [base_dir] [project_name] [subject_id] [experiement_id] --skip_dcm_sort
 ```
 
 where `project_name`, `subject_id`, and `experiment_id` are the XNAT project, subject, and experiment IDs,
-respectively. This script will create the data at `base_dir/project_name/subject_id/experiment_id/SCANS` directory,
-and also generate the necessary study folders and SCANS.studies.txt file needed for the pipeline.
+respectively. This script will create the data at `base_dir/[name_of_archive]/SCANS` directory.
 
-### Generating Param Files
+### Converting to BIDS
 
-To generate param files for each subject/session, use the `generate_params` command:
+To convert to your DICOMs to a BIDS Dataset, use the `convert_to_bids` command:
 
 ```bash
-# Instructions file should be at project directory level
-generate_params instructions [path_to_project_dir]
-# Structural params file should be at subject directory level
-generate_params structural [path_to_subject_dir]
-# Functional params file should be at session directory level
-generate_params functional [path_to_session_dir]
+convert_to_bids --files /path/to/archive/SCANS/ -s [subject_id] -ss [session_id] -o /path/to/output/project -c dcm2niix -b --overwrite
 ```
 
-> **__NOTE:__** TODO: We use path inputs here to make this script for versatile, but probably better to change
-> this to just take in the subject/session labels and then find the appropriate directories given as project
-> directory. 
+This will create a bids dataset at `/path/to/output/project` with the subject label `[subject_id]` and session label
+`[session_id]`. The `-b` flag will generate additional BIDS metadata automatically. The
+`--overwrite` flag will overwrite any existing files in the output directory.
+
+> **__NOTE:__** The BIDS conversion is built off of manually encoded heuristics searching for specific DICOM tags.
+> It may fail if it encounters a scan it has not seen before. If this happens, contact Andrew or Vahdeta.
 
 ### Running the Pipeline
 
-For all pipelines, the instructions file is expected to be at the project directory level, the structural
-params file is expected to be at the subject directory level, and the functional params file is expected to be at
-the session directory level.
+To run the pipeline, you can invoke the `run_pipeline` command:
+
+```bash
+run_pipeline -h
+usage: run_pipeline [-h] {structural,functional,params} ...
+
+TODO
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+pipeline:
+  {structural,functional,params}
+                        pipeline to run
+    structural          Structural Pipeline
+    functional          Functional Pipeline
+    params              Generate params file
+
+Vahdeta Suljic <suljic@wustl.edu>, Andrew Van <vanandrew@wustl.edu> 12/09/2022
+```
+The `run_pipeline` has three subcommands: `structural`, `functional`, and `params`. The `structural` and `functional`
+run the stuctural and functional pipelines respectively. The `params` generates a configuration file that will allow
+you to modify the pipeline parameters. You can load this file into the `run_pipeline` command using the `--config`
+flag when invoking one of the pipeline commands below.
 
 #### Structural Pipeline
 
-To run the structural pipeline, use the `run_pipeline` command:
+To run the structural pipeline, use `run_pipeline structural`:
 
 ```bash
-run_pipeline structural [project_dir] [subject_label]
+run_pipeline structural [bids_dir]
 ```
 
-This will run the structural pipeline for the subject `[subject-label]` in the project `[project_dir]`.
+This will read in subjects from the BIDS dataset at `[bids_dir]` and run the structural pipeline on each subject. By
+default, outputs are written out to `[bids_dir]/derivatives/me_pipeline` as per the BIDS specification. To change the
+output directory, use the `--output_dir` flag.
+
+To only process certain subjects, use the `--participant_label` flag.
+
+> **__NOTE:__** At the moment, the pipeline auto searches for T1w and T2w images across all sessions for a subject and
+> processes them as a single average T1w and T2w image. If you need to process anatomical sessions separately, the
+> easiest way at the moment is to create a separate BIDS dataset for each anatomical session.
+>
+> The option to process anatomical sessions separately will be added in the future.
 
 ### Functional Pipeline
 
-> **__NOTE:__** The functional pipeline requires outputs from the structural pipeline to completely run. Consider
-> running the structural pipeline first.
+> **__NOTE:__** The functional pipeline requires outputs from the structural pipeline to completely run.
 
-To run the functional pipeline, use the `run_pipeline` command:
+To run the functional pipeline, use the `run_pipeline functional` command:
 
 ```bash
-run_pipeline functional [project_dir] [subject_label] [session_label]
+run_pipeline functional [bids_dir]
 ```
 
-This will run the functional pipeline for the session `[session_label]` in the subject `[subject_label]` in the
-project `[project_dir]`.
+Like the structural pipeline, this will read in subjects from the BIDS dataset at `[bids_dir]` and run the functional
+pipeline on each subject, session, run. By default, outputs are written out to `[bids_dir]/derivatives/me_pipeline` and
+can be changed with the `--output_dir` flag.
+
+To see which runs map to which file, you can look at the `runs.json` file. Located in every session output folder
+(e.g. `[bids_dir]/derivatives/me_pipeline/sub-[subject_id]/ses-[session_id]`), this file contains a mapping of bids
+input files to each `boldX` folder:
+
+```json
+{
+    "mag": {
+        "2": [
+            "/data/nil-bluearc/GMT/Andrew/experimental_pipeline/test_data/sub-20002/ses-50504/func/sub-20002_ses-50504_task-rest_run-02_echo-1_part-mag_bold.nii.gz",
+            "/data/nil-bluearc/GMT/Andrew/experimental_pipeline/test_data/sub-20002/ses-50504/func/sub-20002_ses-50504_task-rest_run-02_echo-2_part-mag_bold.nii.gz",
+            "/data/nil-bluearc/GMT/Andrew/experimental_pipeline/test_data/sub-20002/ses-50504/func/sub-20002_ses-50504_task-rest_run-02_echo-3_part-mag_bold.nii.gz",
+            "/data/nil-bluearc/GMT/Andrew/experimental_pipeline/test_data/sub-20002/ses-50504/func/sub-20002_ses-50504_task-rest_run-02_echo-4_part-mag_bold.nii.gz",
+            "/data/nil-bluearc/GMT/Andrew/experimental_pipeline/test_data/sub-20002/ses-50504/func/sub-20002_ses-50504_task-rest_run-02_echo-5_part-mag_bold.nii.gz"
+        ],
+        ...
+    },
+    "phase": {
+        ...
+    }
+}
+```
+
+Each list of files is split into `"mag"` and `"phase"` keys for magnitude and phase data respectively. The inner key (e.g. `"2"`) corresponds to the index of the boldX folder (e.g. `bold2`). The list of files are the input files for that boldX folder.
+
