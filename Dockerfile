@@ -9,7 +9,7 @@ WORKDIR /opt
 
 # get dependencies
 RUN apt-get update && \
-    apt-get install -y build-essential ftp tcsh wget \
+    apt-get install -y build-essential ftp tcsh wget git jq \
     python3 python3-pip gawk gfortran tcl wish unzip
 
 # get and install fsl
@@ -195,8 +195,6 @@ ENV PATH=${NORDIC}:${PATH}
 
 # and install pipeline and warpkit
 RUN cd /opt/processing_pipeline && \
-    # we need git to install warpkit
-    apt-get update && apt-get install -y git && \
     # upgrade pip before install
     python3 -m pip install pip --upgrade && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
