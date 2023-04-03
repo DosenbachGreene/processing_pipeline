@@ -146,15 +146,14 @@ def main():
     os.environ["TMPDIR"] = str(tmpdir)
 
     if args.pipeline == "structural":
-        # generate instructions file
-        if args.config is not None:
-            Instructions.load(args.config).save_params(output_path / "instructions.params")
-        else:
-            # check if instructions file exists
-            instructions_file = output_path / "instructions.params"
-            if not instructions_file.exists():
-                Instructions().save_params(output_path / "instructions.params")
+        # set instructions file
         instructions_file = output_path / "instructions.params"
+        if args.config is not None:  # load instructions from config file
+            instructions = Instructions.load(args.config)
+        else:  # generate new instructions
+            instructions = Instructions()
+        # write instructions to file
+        instructions.save_params(instructions_file)
 
         # generate dataset description file for derivatives
         dataset_description = parse_bids_dataset(bids_path, get_dataset_description)
@@ -220,15 +219,14 @@ def main():
                 logging.info(f"Dry run: skipping functional pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
-        # generate instructions file
-        if args.config is not None:
-            Instructions.load(args.config).save_params(output_path / "instructions.params")
-        else:
-            # check if instructions file exists
-            instructions_file = output_path / "instructions.params"
-            if not instructions_file.exists():
-                Instructions().save_params(output_path / "instructions.params")
+        # set instructions file
         instructions_file = output_path / "instructions.params"
+        if args.config is not None:  # load instructions from config file
+            instructions = Instructions.load(args.config)
+        else:  # generate new instructions
+            instructions = Instructions()
+        # write instructions to file
+        instructions.save_params(instructions_file)
 
         # parse the bids directory and grab functionals
         functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
@@ -298,18 +296,23 @@ def main():
                 # delete keys that are empty
                 runs = {k: v for k, v in runs.items() if len(v) > 0}
 
-                # for each run, identify the fieldmap used
                 BOLDgrps = {}
-                for run in runs:
-                    # get the field maps for this run
-                    run_fmaps = fieldmaps[subject_id][session_id][run]
-                    # create a string name
-                    fmap_key = tuple([str(p) for p in run_fmaps])
-                    # check if this key exists
-                    if fmap_key not in BOLDgrps:  # add run index to BOLDgrps
-                        BOLDgrps[fmap_key] = [run_key_to_int_dict[run]]
-                    else:
-                        BOLDgrps[fmap_key].append(run_key_to_int_dict[run])
+                if instructions.medic:  # in medic mode, each run is it's own field map
+                    BOLDgrps = {
+                        str(run_key_to_int_dict[run]): [run_key_to_int_dict[run]]
+                        for run in runs
+                    }
+                else:  # in non-medic mode, for each run, identify the fieldmap used
+                    for run in runs:
+                        # get the field maps for this run
+                        run_fmaps = fieldmaps[subject_id][session_id][run]
+                        # create a string name
+                        fmap_key = tuple([str(p) for p in run_fmaps])
+                        # check if this key exists
+                        if fmap_key not in BOLDgrps:  # add run index to BOLDgrps
+                            BOLDgrps[fmap_key] = [run_key_to_int_dict[run]]
+                        else:
+                            BOLDgrps[fmap_key].append(run_key_to_int_dict[run])
 
                 # for each run, map create a json that maps the runIDs to the data
                 # separate by magnitude and phase

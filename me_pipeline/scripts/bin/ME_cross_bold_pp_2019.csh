@@ -946,6 +946,9 @@ while ( $i <= $#BOLDgrps )
 		#############################################
 		# TODO: Is this the best way to handle this?
 
+		# BOLDgrps should be the same as runIDS in MEDIC mode, so just take the field map
+		# by using the $run
+
 		# Get the field maps for this BOLD run
 		set fmaps =  bold${run}/MEDIC/${patid}_b${run}_fieldmaps
 

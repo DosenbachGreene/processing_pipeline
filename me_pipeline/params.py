@@ -281,8 +281,8 @@ class Instructions(Params):
 
     # synthetic field map variables - affect processing only if $distor == 3
     # TODO: These aren't valid paths; FIX
-    bases: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_basis.4dfp.img"
-    mean: str = "/data/petsun43/data1/atlas/FMAPBases/FNIRT_474_all_mean.4dfp.img"
+    bases: str = "/not/working/please/ignore/FNIRT_474_all_basis.4dfp.img"
+    mean: str = "/not/working/please/ignore/FNIRT_474_all_mean.4dfp.img"
     # number of bases to use
     nbases: int = 5
     # number of synthetic field map iterations
