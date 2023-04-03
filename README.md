@@ -1,6 +1,26 @@
 # Dosenbach Lab Preprocessing Pipeline
 
-This repo contains the Dosenbach Lab Preprocessing Pipeline.
+- [Dosenbach Lab Preprocessing Pipeline](#dosenbach-lab-preprocessing-pipeline)
+  * [Dependencies for Local Install](#dependencies-for-local-install)
+    + [4dfp](#4dfp)
+    + [FSL](#fsl)
+    + [FreeSurfer](#freesurfer)
+    + [Connectome Workbench](#connectome-workbench)
+    + [MATLAB Compiler Runtime](#matlab-compiler-runtime)
+    + [NORDIC](#nordic)
+    + [Other System Dependencies](#other-system-dependencies)
+  * [Installation](#installation)
+  * [Docker Build](#docker-build)
+  * [Repository Structure](#repository-structure)
+  * [Data Organization Definitions](#data-organization-definitions)
+  * [Usage](#usage)
+    + [Level 0: Running csh scripts](#level-0--running-csh-scripts)
+    + [Level 1: BIDS Based Processing](#level-1--bids-based-processing)
+    + [Downloading and Organizing Data](#downloading-and-organizing-data)
+    + [Converting to BIDS](#converting-to-bids)
+    + [Running the Pipeline](#running-the-pipeline)
+      - [Structural Pipeline](#structural-pipeline)
+      - [Functional Pipeline](#functional-pipeline)
 
 ## Dependencies for Local Install
 
@@ -60,6 +80,18 @@ NORDIC under `tools/pkg/nordic`.
 
 > **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2022a to compile. If you are
 > using another version of MATLAB, we currently do not support it.
+
+### Other System Dependencies
+
+There are a few other system dependencies that are required for this pipeline to run. These include:
+
+```bash
+jq
+tcsh
+python3  # >= 3.7
+gawk
+wish
+```
 
 ## Installation
 
@@ -218,7 +250,7 @@ To only process certain subjects, use the `--participant_label` flag.
 >
 > The option to process anatomical sessions separately will be added in the future.
 
-### Functional Pipeline
+#### Functional Pipeline
 
 > **__NOTE:__** The functional pipeline requires outputs from the structural pipeline to completely run.
 

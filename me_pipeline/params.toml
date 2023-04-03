@@ -25,7 +25,7 @@ num_cpus = 8
 # compute fitted signal and optimally combined signal from multi-echo data
 ME_reg = 1
 
-# ???
+# I have no idea what this does, but it's probably important!
 dbnd_flag = 1
 
 # if NORDIC collected
