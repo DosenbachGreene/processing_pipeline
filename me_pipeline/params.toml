@@ -14,7 +14,7 @@ target = "$REFDIR/TRIO_Y_NDC"
 outspace_flag = "mni2mm"
 
 # if set script will invoke fnirt
-nlalign = 0
+nlalign = false
 
 # use MEDIC (Multi-Echo DIstortion Correction)
 medic = true
@@ -23,10 +23,10 @@ medic = true
 num_cpus = 8
 
 # compute fitted signal and optimally combined signal from multi-echo data
-ME_reg = 1
+ME_reg = true
 
 # I have no idea what this does, but it's probably important!
-dbnd_flag = 1
+dbnd_flag = true
 
 # if NORDIC collected
 isnordic = true

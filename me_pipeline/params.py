@@ -256,7 +256,7 @@ class Instructions(Params):
     outspace_flag: str = "mni2mm"
 
     # if set script will invoke fnirt
-    nlalign: int = 0
+    nlalign: bool = False
 
     # use MEDIC (Multi-Echo DIstortion Correction)
     medic: bool = True
@@ -268,9 +268,9 @@ class Instructions(Params):
     delta: float = 0.00246
 
     # compute fitted signal and optimally combined signal from multi-echo data
-    ME_reg: int = 1
+    ME_reg: bool = True
 
-    dbnd_flag: int = 1
+    dbnd_flag: bool = True
 
     # if NORDIC collected
     isnordic: bool = True
