@@ -21,7 +21,7 @@ dependencies = [
   "pydicom >= 2.3.1",
   "matplotlib >= 3.5.1",
   "numpy >= 1.23.5",
-  "scipy >= 1.10.0",
+  "scipy >= 1.8.1",
   "pandas >= 1.4.2",
   "heudiconv >= 0.12.2",
   "toml >= 0.10.2",
@@ -40,7 +40,8 @@ zip-safe = false
 
 [tool.setuptools.packages.find]
 where = ["."]
-exclude = ["tests"]
+include = ["me_pipeline*"]
+exclude = ["tests*"]
 
 [tool.black]
 line-length = 120

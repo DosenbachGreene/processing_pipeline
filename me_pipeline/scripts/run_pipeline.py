@@ -216,6 +216,8 @@ def main():
                         != 0
                     ):
                         raise RuntimeError("Structural pipeline failed.")
+            else:
+                logging.info(f"Dry run: skipping functional pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
         # generate instructions file
@@ -342,7 +344,7 @@ def main():
                 ).save_params(func_params)
 
                 # skip if dry run
-                if args.dry_run:
+                if not args.dry_run:
                     # change to session directory
                     with working_directory(str(func_out)):
                         # run the functional pipeline
@@ -360,3 +362,5 @@ def main():
                             != 0
                         ):
                             raise RuntimeError("Functional pipeline failed.")
+                else:
+                    logging.info(f"Dry run: skipping functional pipeline for {subject_id}.")
