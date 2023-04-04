@@ -309,7 +309,7 @@ class Instructions(Params):
 
     # DVARS frame censoring threshold; 0 -> compute threshold using DVARS autocrit
     # disables DVARS censoring if not set
-    # DVARthresh: float = False
+    DVARthresh: float = None  # type: ignore
     # standard deviation from the mode used in computing the DVARS autocrit
     DVARsd: float = 3.5
     # spatial smoothing in mm interal compute_dvars_4dfp

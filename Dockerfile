@@ -41,8 +41,12 @@ RUN /opt/tools/install_mcr.sh
 
 # get and install 4dfp
 FROM base as fdfp
-ADD tools/install_4dfp.sh /opt/tools/install_4dfp.sh
+ADD tools/FSLTransforms /opt/tools/FSLTransforms
+ADD tools/me_fmri /opt/tools/me_fmri
+ADD tools/refdir_extras /opt/tools/refdir_extras
+ADD tools/updated_4dfp_scripts /opt/tools/updated_4dfp_scripts
 ADD tools/get_4dfp.sh /opt/tools/get_4dfp.sh
+ADD tools/install_4dfp.sh /opt/tools/install_4dfp.sh
 RUN /opt/tools/install_4dfp.sh
 
 # get and install Julia

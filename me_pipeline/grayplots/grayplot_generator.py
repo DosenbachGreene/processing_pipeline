@@ -1,3 +1,4 @@
+from memori.pathman import PathManager as PathMan
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -6,7 +7,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 from .grayplot_helpers import *
 
-sns.set_theme(font_scale=0.5)
+sns.set_theme(font_scale=0.5)  # type: ignore
 
 
 class GrayplotGenerator:
@@ -20,6 +21,8 @@ class GrayplotGenerator:
         # Load dat file names into variables
         self.ddat_name = ddat_name
         self.rdat_name = rdat_name
+
+        self.functional_base = PathMan(functional_name).get_prefix().path
 
         # Read functional image
         self.functional_image = read_image_4dfp(functional_name)
@@ -42,7 +45,7 @@ class GrayplotGenerator:
         """
 
         # Create multipage pdf document
-        with PdfPages("grayplots.pdf") as pdf:
+        with PdfPages(f"{self.functional_base}_grayplots.pdf") as pdf:
             # Create page one of pdf, which contains all grayplots
             grayplot_figure = self.create_grayplot_figure()
             pdf.savefig(grayplot_figure)
@@ -100,6 +103,7 @@ class GrayplotGenerator:
             step=100,
             rows=(5, 6),
             y_label="ExtraAx",
+            xaxis=True,
         )
 
         return fig
@@ -150,7 +154,7 @@ class GrayplotGenerator:
 
         return fig
 
-    def plot_timecourse(self, timecourse, fig, grid, step, rows, y_label):
+    def plot_timecourse(self, timecourse, fig, grid, step, rows, y_label, xaxis=False):
         """
         Generates plot for given timecourse
         Args:
@@ -175,12 +179,14 @@ class GrayplotGenerator:
             timecourse[0:upper_bound:step, :],
             vmin=low_lim,
             vmax=high_lim,
-            cmap=mpl.colormaps["gist_gray"],
+            cmap=mpl.colormaps["gist_gray"],  # type: ignore
             aspect="auto",
         )
         timecourse_plot.set_yticks([])
         timecourse_plot.set_ylabel(y_label)
         timecourse_plot.grid(False)
+        if not xaxis:
+            timecourse_plot.set_xticks([])
 
     def plot_movement_frequency(self, fig, grid, title, column, data):
         """

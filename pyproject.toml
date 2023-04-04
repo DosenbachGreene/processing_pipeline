@@ -25,6 +25,7 @@ dependencies = [
   "pandas >= 1.4.2",
   "heudiconv >= 0.12.2",
   "toml >= 0.10.2",
+  "seaborn >= 0.11.2",
 ]
 
 [project.optional-dependencies]
