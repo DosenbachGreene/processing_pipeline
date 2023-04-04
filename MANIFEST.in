@@ -1,2 +1,3 @@
 # include outside scripts
 recursive-include me_pipeline/scripts/bin *
+recursive-include me_pipeline/scripts/data *

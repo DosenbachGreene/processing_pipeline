@@ -144,6 +144,10 @@ class Params:
         # loop over fields writing each attribute to file
         with open(path, "w") as param_file:
             for field in fields(self):
+                # if the value of the field is None, then skip
+                if getattr(self, field.name) is None:
+                    continue
+
                 # format field based on type
                 if field.type is bool:
                     # write boolean as int
@@ -305,7 +309,7 @@ class Instructions(Params):
 
     # DVARS frame censoring threshold; 0 -> compute threshold using DVARS autocrit
     # disables DVARS censoring if not set
-    DVARthresh: bool = False
+    # DVARthresh: float = False
     # standard deviation from the mode used in computing the DVARS autocrit
     DVARsd: float = 3.5
     # spatial smoothing in mm interal compute_dvars_4dfp

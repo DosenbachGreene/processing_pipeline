@@ -52,7 +52,7 @@ FDthresh = 0.08
 
 # DVARS frame censoring threshold; 0 -> compute threshold using DVARS autocrit
 # disables DVARS censoring if not set
-DVARthresh = false
+# DVARthresh = 0.0
 # standard deviation from the mode used in computing the DVARS autocrit
 DVARsd = 3.5
 # spatial smoothing in mm interal compute_dvars_4dfp

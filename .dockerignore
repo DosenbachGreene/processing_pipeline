@@ -1,0 +1,10 @@
+tools/pkg/freesurfer
+tools/pkg/fsl
+tools/pkg/mcr_runtime
+tools/pkg/nil-tools
+tools/pkg/refdir
+tools/pkg/scripts
+tools/pkg/workbench
+tools/pkg/*.zip
+tools/pkg/*.gz
+tools/pkg/*.tar

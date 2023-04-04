@@ -10,7 +10,7 @@ WORKDIR /opt
 # get dependencies
 RUN apt-get update && \
     apt-get install -y build-essential ftp tcsh wget git jq \
-    python3 python3-pip gawk gfortran tcl wish unzip
+    python3 python3-pip gawk gfortran tcl wish unzip dc bc
 
 # get and install fsl
 FROM base as fsl
@@ -36,12 +36,13 @@ RUN wget https://www.humanconnectome.org/storage/app/media/workbench/workbench-l
 
 # get and install MATLAB Compiler Runtime
 FROM base as matlab_compiler_runtime
-ADD tools /opt/tools
+ADD tools/install_mcr.sh /opt/tools/install_mcr.sh
 RUN /opt/tools/install_mcr.sh
 
 # get and install 4dfp
 FROM base as fdfp
-ADD tools /opt/tools
+ADD tools/install_4dfp.sh /opt/tools/install_4dfp.sh
+ADD tools/get_4dfp.sh /opt/tools/get_4dfp.sh
 RUN /opt/tools/install_4dfp.sh
 
 # get and install Julia
@@ -171,8 +172,6 @@ ENV PATH=${RELEASE}:${PATH}
 
 # copy over julia
 COPY --from=julia /opt/julia-1.8.5 /opt/julia
-
-# set julia env variable
 ENV PATH=/opt/julia/bin:${PATH}
 
 # add this repo
@@ -199,9 +198,6 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install pip --upgrade && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
-
-# Add dependencies
-RUN apt-get update && apt-get install -y dc bc
 
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]
