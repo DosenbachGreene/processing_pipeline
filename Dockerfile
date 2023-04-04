@@ -206,5 +206,8 @@ RUN cd /opt/processing_pipeline && \
 # add symlink for msm
 RUN ln -s ${FSLDIR}/bin/msm ${FSLDIR}/share/fsl/bin/msm
 
+# other dependencies
+RUN apt-get update && apt-get install -y libglu1-mesa libglib2.0-0
+
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]
