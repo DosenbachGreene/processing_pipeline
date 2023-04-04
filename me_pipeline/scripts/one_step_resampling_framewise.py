@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from subprocess import run as subprocess_run
 from subprocess import PIPE, STDOUT, DEVNULL
 from typing import List
+import nibabel as nib
 import numpy as np
 from memori.pathman import PathManager as PathMan
 
@@ -85,7 +86,7 @@ def main():
     parser.add_argument("-ped", required=True)
     parser.add_argument("-dwell", required=True)
     parser.add_argument("-ref", required=True)
-    parser.add_argument("-bias", required=True)
+    parser.add_argument("-bias")
     postxfm = parser.add_mutually_exclusive_group(required=True)
     postxfm.add_argument("-postmat")
     postxfm.add_argument("-postwarp")
@@ -203,6 +204,17 @@ def main():
     # convert ref to nifti
     ref_nii = PathMan(args.ref).repath(tmp_dir.name).append_suffix(".nii").path
     subprocess_run(["nifti_4dfp", "-n", args.ref, ref_nii], check=True)
+
+    # if no bias field is provided, use all ones
+    if args.bias is None:
+        reference_img = nib.load(ref_nii)
+        ones = np.ones(reference_img.shape)
+        nib.Nifti1Image(ones, reference_img.affine, reference_img.header).to_filename(
+            PathMan(tmp_dir.name) / "bias.nii"
+        )
+        # convert to 4dfp
+        args.bias = (PathMan(tmp_dir.name) / "bias").path
+        subprocess_run(["nifti_4dfp", "-4", str(PathMan(tmp_dir.name) / "bias.nii"), args.bias], check=True)
 
     # for each frame, undistort the bias field for that frame
     # first get a nifti of the bias field

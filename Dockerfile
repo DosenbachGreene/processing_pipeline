@@ -56,10 +56,10 @@ FROM base as final
 # # Use native python for fsl stuff
 # RUN python3 -m pip install fslpy
 
-# TODO: test below to make sure it works first
-# # minimal fsl setup
+# # minimal fsl setup TODO: haven't had time to test yet, so we disable for now
 # # this installs only needed programs
 # # make symlink from fslpython to system python
+# # this saves about 10 GB of space on the docker image
 # RUN ln -s /usr/bin/python3 /usr/bin/fslpython
 # # copy over programs
 # RUN mkdir -p /opt/fsl/bin
@@ -199,6 +199,9 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install pip --upgrade && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
+
+# Add dependencies
+RUN apt-get update && apt-get install -y dc bc
 
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]

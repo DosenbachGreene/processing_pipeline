@@ -16,11 +16,11 @@
 - [Usage](#usage)
   * [Level 0: Running csh scripts](#level-0--running-csh-scripts)
   * [Level 1: BIDS Based Processing](#level-1--bids-based-processing)
-  * [Downloading and Organizing Data](#downloading-and-organizing-data)
-  * [Converting to BIDS](#converting-to-bids)
-  * [Running the Pipeline](#running-the-pipeline)
-    + [Structural Pipeline](#structural-pipeline)
-    + [Functional Pipeline](#functional-pipeline)
+    + [Downloading and Organizing Data](#downloading-and-organizing-data)
+    + [Converting to BIDS](#converting-to-bids)
+    + [Running the Pipeline](#running-the-pipeline)
+      - [Structural Pipeline](#structural-pipeline)
+      - [Functional Pipeline](#functional-pipeline)
 
 ## Dependencies for Local Install
 
@@ -177,7 +177,7 @@ To see the full list of scripts you can run, check `run_script --help`.
 
 ### Level 1: BIDS Based Processing
 
-### Downloading and Organizing Data
+#### Downloading and Organizing Data
 
 For convenience, this repo provides a command line tool for auto-downloading data from CNDA:
 
@@ -188,7 +188,7 @@ download_dataset [base_dir] [project_name] [subject_id] [experiement_id] --skip_
 where `project_name`, `subject_id`, and `experiment_id` are the XNAT project, subject, and experiment IDs,
 respectively. This script will create the data at `base_dir/[name_of_archive]/SCANS` directory.
 
-### Converting to BIDS
+#### Converting to BIDS
 
 To convert to your DICOMs to a BIDS Dataset, use the `convert_to_bids` command:
 
@@ -203,7 +203,7 @@ This will create a bids dataset at `/path/to/output/project` with the subject la
 > **__NOTE:__** The BIDS conversion is built off of manually encoded heuristics searching for specific DICOM tags.
 > It may fail if it encounters a scan it has not seen before. If this happens, contact Andrew or Vahdeta.
 
-### Running the Pipeline
+#### Running the Pipeline
 
 To run the pipeline, you can invoke the `run_pipeline` command:
 
@@ -230,7 +230,7 @@ run the stuctural and functional pipelines respectively. The `params` generates 
 you to modify the pipeline parameters. You can load this file into the `run_pipeline` command using the `--config`
 flag when invoking one of the pipeline commands below.
 
-#### Structural Pipeline
+##### Structural Pipeline
 
 To run the structural pipeline, use `run_pipeline structural`:
 
@@ -250,7 +250,7 @@ To only process certain subjects, use the `--participant_label` flag.
 >
 > The option to process anatomical sessions separately will be added in the future.
 
-#### Functional Pipeline
+##### Functional Pipeline
 
 > **__NOTE:__** The functional pipeline requires outputs from the structural pipeline to completely run.
 

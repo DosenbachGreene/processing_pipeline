@@ -284,7 +284,7 @@ def main():
                 # TODO: add ability to filter tasks
                 # for now just use all of them
 
-                # the functional pipeline requires that are runIDs are integers
+                # the functional pipeline requires runIDs to be integers
                 # so we need to map the run keys in runs to integers
                 run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
 
@@ -298,10 +298,7 @@ def main():
 
                 BOLDgrps = {}
                 if instructions.medic:  # in medic mode, each run is it's own field map
-                    BOLDgrps = {
-                        str(run_key_to_int_dict[run]): [run_key_to_int_dict[run]]
-                        for run in runs
-                    }
+                    BOLDgrps = {str(run_key_to_int_dict[run]): [run_key_to_int_dict[run]] for run in runs}
                 else:  # in non-medic mode, for each run, identify the fieldmap used
                     for run in runs:
                         # get the field maps for this run

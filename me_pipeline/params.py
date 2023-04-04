@@ -158,16 +158,9 @@ class Params:
                     # write str as str
                     param_file.write(f"set {field.name} = {getattr(self, field.name)}")
                 elif field.type is Path:
-                    # ensure the path exists before writing
-                    if not Path(getattr(self, field.name)).exists():
-                        raise FileNotFoundError(f"Path '{getattr(self, field.name)}' does not exist.")
                     # write path as str
                     param_file.write(f"set {field.name} = {str(getattr(self, field.name))}")
                 elif field.type is List[Path]:
-                    # ensure all paths exist before writing
-                    for p in getattr(self, field.name):
-                        if not Path(p).exists():
-                            raise FileNotFoundError(f"Path '{p}' does not exist.")
                     # write list of path as (str str ...)
                     param_file.write(f"set {field.name} = ( {' '.join([str(p) for p in getattr(self, field.name)])} )")
                 elif field.type is List[str]:

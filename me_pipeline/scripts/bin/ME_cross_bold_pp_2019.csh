@@ -860,10 +860,19 @@ if ($BiasField) then
 			#######################################
 			# compute bias field and its reciprocal
 			#######################################
-			fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -b -o ${base} ${base} || exit $status
+			fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -b -v -o ${base} ${base} || exit $status
+			# Test if bias correction failed with all NaNs in ${base}_bias
+			set bc_fail = `python -c "import nibabel as nib;import numpy as np;img=nib.load('${base}_bias.nii');print(int(np.isnan(img.get_fdata()).all()))"`
 			niftigz_4dfp -4 ${base}_restore ${base}_restore		|| exit $status
 			niftigz_4dfp -4 ${base}_bias    ${base}_bias 		|| exit $status
 			scale_4dfp ${base} 0 -b1 -aones						|| exit $status
+			if ($bc_fail) then
+				echo "*** ========================== ATTENTION! ============================ ***"
+				echo "*** ================================================================== ***"
+				echo "Bias field correction failed for ${base}"
+				exit 1
+				echo "*** ================================================================== ***"
+			endif
 			imgopr_4dfp -r$patid"_b"$runID[$k]_invBF ${base}_ones ${base}_bias	|| exit $status
 			@ i = 1
 			while ($i <= $necho)
@@ -950,7 +959,7 @@ while ( $i <= $#BOLDgrps )
 		# by using the $run
 
 		# Get the field maps for this BOLD run
-		set fmaps =  bold${run}/MEDIC/${patid}_b${run}_fieldmaps
+		set fmaps = bold${run}/MEDIC/${patid}_b${run}_fieldmaps
 
 		# make the MEDIC directory
 		mkdir -p MEDIC
