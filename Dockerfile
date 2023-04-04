@@ -10,7 +10,18 @@ WORKDIR /opt
 # get dependencies
 RUN apt-get update && \
     apt-get install -y build-essential ftp tcsh wget git jq \
-    python3 python3-pip gawk gfortran tcl wish unzip dc bc
+    python3 python3-pip gfortran tcl wish unzip dc bc \
+    libglu1-mesa libglib2.0-0
+
+# compile and install gawk 5.2.1
+RUN wget https://ftp.gnu.org/gnu/gawk/gawk-5.2.1.tar.gz && \
+    tar -xzf gawk-5.2.1.tar.gz && \
+    cd gawk-5.2.1 && \
+    ./configure && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf gawk-5.2.1.tar.gz gawk-5.2.1
 
 # get and install fsl
 FROM base as fsl
@@ -137,6 +148,8 @@ ENV FSLGECUDAQ=cuda.q
 ENV FSL_LOAD_NIFTI_EXTENSIONS=0
 ENV FSL_SKIP_GLOBAL=0
 ENV PATH=${FSLDIR}/share/fsl/bin:${PATH}
+# add symlink for msm
+RUN ln -s ${FSLDIR}/bin/msm ${FSLDIR}/share/fsl/bin/msm
 
 # copy over FREESURFER
 COPY --from=freesurfer /usr/local/freesurfer/ /usr/local/freesurfer/
@@ -177,6 +190,8 @@ ENV PATH=${RELEASE}:${PATH}
 # copy over julia
 COPY --from=julia /opt/julia-1.8.5/ /opt/julia/
 ENV PATH=/opt/julia/bin:${PATH}
+# add libjulia to ldconfig
+RUN echo "/opt/julia/lib" >> /etc/ld.so.conf.d/julia.conf && ldconfig
 
 # add this repo
 ADD me_pipeline /opt/processing_pipeline/me_pipeline
@@ -203,11 +218,9 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
 
-# add symlink for msm
-RUN ln -s ${FSLDIR}/bin/msm ${FSLDIR}/share/fsl/bin/msm
-
-# other dependencies
-RUN apt-get update && apt-get install -y libglu1-mesa libglib2.0-0
+# set HOME to root, just in-case the -u flag is used and force permissions to 777
+ENV HOME=/root
+RUN chmod -R 777 /root
 
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]

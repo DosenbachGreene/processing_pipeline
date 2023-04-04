@@ -57,6 +57,7 @@ FUNCTIONAL_MODULES = [
 FMRI_PP_MODULES = [
     "regtest",
     "BOLD",
+    "NORDIC",
     "BOLD1",
     "BOLD2",
     "BOLD3",
@@ -64,7 +65,6 @@ FMRI_PP_MODULES = [
     "BOLD5",
     "MODEL",
     "NORM",
-    "NORDIC",
     "CLEANUP",
 ]
 
