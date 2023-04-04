@@ -124,7 +124,7 @@ FROM base as final
 # COPY --from=fsl /opt/fsl/data/standard /opt/fsl/data/standard
 
 # just copy over everything in fsl for now
-COPY --from=fsl /opt/fsl /opt/fsl
+COPY --from=fsl /opt/fsl/ /opt/fsl/
 
 # FSL env variables
 ENV FSLDIR=/opt/fsl
@@ -139,7 +139,7 @@ ENV FSL_SKIP_GLOBAL=0
 ENV PATH=${FSLDIR}/share/fsl/bin:${PATH}
 
 # copy over FREESURFER
-COPY --from=freesurfer /usr/local/freesurfer /usr/local/freesurfer
+COPY --from=freesurfer /usr/local/freesurfer/ /usr/local/freesurfer/
 
 # set freesurfer env variable
 ENV FREESURFER_HOME=/usr/local/freesurfer/7.3.2
@@ -152,22 +152,22 @@ ENV PATH=${FSFAST_HOME}/bin:${PATH}
 ENV PATH=${FREESURFER_HOME}/bin:${PATH}
 
 # copy over connectome workbench
-COPY --from=connectome_workbench /opt/workbench /opt/workbench
+COPY --from=connectome_workbench /opt/workbench/ /opt/workbench/
 
 # set connectome workbench env variable
 ENV WORKBENCH=/opt/workbench/bin_linux64
 ENV PATH=${WORKBENCH}:${PATH}
 
 # copy MATLAB compiler runtime
-COPY --from=matlab_compiler_runtime /opt/tools/pkg/mcr_runtime /opt/mcr_runtime
+COPY --from=matlab_compiler_runtime /opt/tools/pkg/mcr_runtime/ /opt/mcr_runtime/
 
 # set MATLAB compiler runtime env variable
 ENV MCRROOT=/opt/mcr_runtime/v912
 
 # copy over 4dfp
 RUN mkdir -p /opt/4dfp
-COPY --from=fdfp /opt/tools/bin /opt/4dfp/bin
-COPY --from=fdfp /opt/tools/pkg/refdir /opt/4dfp/refdir
+COPY --from=fdfp /opt/tools/bin/ /opt/4dfp/bin/
+COPY --from=fdfp /opt/tools/pkg/refdir/ /opt/4dfp/refdir/
 
 # set 4dfp env variables
 ENV REFDIR=/opt/4dfp/refdir
@@ -175,7 +175,7 @@ ENV RELEASE=/opt/4dfp/bin
 ENV PATH=${RELEASE}:${PATH}
 
 # copy over julia
-COPY --from=julia /opt/julia-1.8.5 /opt/julia
+COPY --from=julia /opt/julia-1.8.5/ /opt/julia/
 ENV PATH=/opt/julia/bin:${PATH}
 
 # add this repo
@@ -202,6 +202,9 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install pip --upgrade && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
+
+# add symlink for msm
+RUN ln -s ${FSLDIR}/bin/msm ${FSLDIR}/share/fsl/bin/msm
 
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]
