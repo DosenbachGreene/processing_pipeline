@@ -90,6 +90,7 @@ def main():
     structural.add_argument("--log_file", help="Path to log file")
     structural.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     structural.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
+    structural.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
 
     functional = subparser.add_parser("functional", help="Functional Pipeline")
     functional.add_argument("bids_dir", help="Path to bids_directory.")
@@ -108,6 +109,7 @@ def main():
     functional.add_argument("--log_file", help="Path to log file")
     functional.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     functional.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
+    functional.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -141,7 +143,10 @@ def main():
     output_path.mkdir(exist_ok=True, parents=True)
 
     # setup TMPDIR
-    tmpdir = (output_path / "tmp").absolute()
+    if args.tmp_dir is not None:
+        tmpdir = Path(args.tmp_dir).absolute().resolve()
+    else:
+        tmpdir = (output_path / "tmp").absolute()
     tmpdir.mkdir(exist_ok=True, parents=True)
     os.environ["TMPDIR"] = str(tmpdir)
 
