@@ -110,6 +110,7 @@ def main():
     functional.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     functional.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
     functional.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
+    functional.add_argument("--ses_label", help="For paper, will likely be removed later.")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -283,7 +284,8 @@ def main():
 
             for session_id, func_runs in func_sessions.items():
                 # set output directory
-                func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}"
+                suffix = "" if args.ses_label is None else f"w{args.ses_label}"
+                func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}{suffix}"
                 func_out.mkdir(exist_ok=True, parents=True)
 
                 # TODO: add ability to filter tasks

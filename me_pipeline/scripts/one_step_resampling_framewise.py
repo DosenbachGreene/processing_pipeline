@@ -227,7 +227,7 @@ def main():
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
-            print(f"Submitting job for: Generate shift map frame {i}")
+            print(f"Submitting job for: Generating shift map frame {i}")
             sys.stdout.flush()
 
             bias_field = PathMan(bias_nii).repath(tmp_dir.name).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
@@ -252,7 +252,7 @@ def main():
         sys.stdout.flush()
         for future in as_completed(futures):
             future.result()
-            (f"Completed job for: Generating shift map frame {futures[future]}")
+            print(f"Completed job for: Generating shift map frame {futures[future]}")
             sys.stdout.flush()
 
     # create a blank 4dfp to keep track of undefined voxels
