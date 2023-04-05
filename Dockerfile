@@ -223,6 +223,8 @@ RUN cd /opt/processing_pipeline && \
 # set HOME to root, just in-case the -u flag is used and force permissions to 777
 ENV HOME=/root
 RUN chmod -R 777 /root
+# and for refdir make sure data is readable for all users
+RUN chmod -R 755 ${REFDIR}
 
 # set entrypoint to run_pipeline
 ENTRYPOINT ["run_pipeline"]

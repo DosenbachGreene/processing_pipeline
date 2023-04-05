@@ -336,13 +336,13 @@ def main():
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
         with open(f"{os.path.splitext(out[k])[0]}.4dfp.img.rec", "w") as f:
             f.write(
-                f"rec {os.path.splitext(out[k])[0]}.4dfp.img {datetime.now().strftime('%c')} "
+                f"rec {os.path.splitext(out[k])[0]}.4dfp.img {datetime.now().strftime('%c')} "  # type: ignore
                 f"{os.getlogin()}@{os.uname().nodename}\n"
             )
             if os.path.isfile(f"{epis[k]}.4dfp.img.rec"):
                 with open(f"{epis[k]}.4dfp.img.rec") as epi_rec_file:
                     f.write(epi_rec_file.read())
-            f.write(f"endrec {datetime.now().strftime('%c')} {os.getlogin()}\n")
+            f.write(f"endrec {datetime.now().strftime('%c')} {os.getlogin()}\n")  # type: ignore
 
     # close the temporary directory
     tmp_dir.cleanup()
