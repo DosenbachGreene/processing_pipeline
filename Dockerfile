@@ -13,15 +13,15 @@ RUN apt-get update && \
     python3 python3-pip gfortran tcl wish unzip dc bc \
     libglu1-mesa libglib2.0-0
 
-# compile and install gawk 5.2.1
-RUN wget https://ftp.gnu.org/gnu/gawk/gawk-5.2.1.tar.gz && \
-    tar -xzf gawk-5.2.1.tar.gz && \
-    cd gawk-5.2.1 && \
+# compile and install gawk 4.2.1 (since 4dfp requires it)
+RUN wget https://ftp.gnu.org/gnu/gawk/gawk-4.2.1.tar.gz && \
+    tar -xzf gawk-4.2.1.tar.gz && \
+    cd gawk-4.2.1 && \
     ./configure && \
     make && \
     make install && \
     cd .. && \
-    rm -rf gawk-5.2.1.tar.gz gawk-5.2.1
+    rm -rf gawk-4.2.1.tar.gz gawk-4.2.1
 
 # get and install fsl
 FROM base as fsl
