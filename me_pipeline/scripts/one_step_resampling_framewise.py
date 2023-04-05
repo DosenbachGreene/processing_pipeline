@@ -335,14 +335,19 @@ def main():
         subprocess_run(["imgopr_4dfp", f"-p{out[k]}", temp_out, combined_bias, "-R", "-z", "-u"], check=True)
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
         with open(f"{os.path.splitext(out[k])[0]}.4dfp.img.rec", "w") as f:
+            # try to get the login name, but if we fail, just use "unknown"
+            try:
+                login = os.getlogin()
+            except OSError:
+                login = "unknown"
             f.write(
                 f"rec {os.path.splitext(out[k])[0]}.4dfp.img {datetime.now().strftime('%c')} "  # type: ignore
-                f"{os.getlogin()}@{os.uname().nodename}\n"
+                f"{login}@{os.uname().nodename}\n"
             )
             if os.path.isfile(f"{epis[k]}.4dfp.img.rec"):
                 with open(f"{epis[k]}.4dfp.img.rec") as epi_rec_file:
                     f.write(epi_rec_file.read())
-            f.write(f"endrec {datetime.now().strftime('%c')} {os.getlogin()}\n")  # type: ignore
+            f.write(f"endrec {datetime.now().strftime('%c')} {login}\n")  # type: ignore
 
     # close the temporary directory
     tmp_dir.cleanup()
