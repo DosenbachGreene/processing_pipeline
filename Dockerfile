@@ -210,6 +210,8 @@ ADD tools/pkg/nordic /opt/processing_pipeline/tools/pkg/nordic
 # set NORDIC env variable
 ENV NORDIC=/opt/processing_pipeline/tools/pkg/nordic
 ENV PATH=${NORDIC}:${PATH}
+RUN chmod 755 ${NORDIC}/run_NORDIC_main.sh
+RUN chmod 755 ${NORDIC}/NORDIC_main
 
 # and install pipeline and warpkit
 RUN cd /opt/processing_pipeline && \
