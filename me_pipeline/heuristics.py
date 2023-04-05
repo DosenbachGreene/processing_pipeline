@@ -201,8 +201,8 @@ def infotodict(seqinfo):
         if "SBRef" in s.series_description:
             continue
 
-        # T1w/T2w
-        if "T1w_MPR_vNav_4e RMS" in s.series_description and _test_image_type(
+        # T1w
+        elif "T1w_MPR_vNav_4e RMS" in s.series_description and _test_image_type(
             ["ORIGINAL", "PRIMARY", "OTHER", "ND", "NORM", "MEAN"], s.image_type
         ):
             info[t1w].append(s.series_id)
@@ -214,6 +214,11 @@ def infotodict(seqinfo):
             continue
 
         # T2w
+        elif "T2w_SPC_vNav" in s.series_description and _test_image_type(
+            ["ORIGINAL", "PRIMARY", "M", "ND", "NORM"], s.image_type
+        ):
+            info[t2w].append(s.series_id)
+            continue
         elif "ABCD_T2w_SPC_vNav" in s.series_description and _test_image_type(
             ["ORIGINAL", "PRIMARY", "M", "ND", "NORM"], s.image_type
         ):
