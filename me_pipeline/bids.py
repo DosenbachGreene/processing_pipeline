@@ -22,6 +22,10 @@ def parse_bids_dataset(
     Dict
         Parse dataset return as a dictionary.
     """
+    # delete the existing database if it exists
+    if reset_database:
+        database_path = Path(bids_dir) / "layout_index.sqlite"
+        database_path.unlink(missing_ok=True)
     # Create a BIDSLayout object for the dataset
     layout = BIDSLayout(bids_dir, database_path=bids_dir)
 
