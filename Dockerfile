@@ -1,6 +1,9 @@
 FROM ubuntu:22.04 as base
 LABEL maintainer="Andrew Van <vanandrew@wustl.edu>"
 
+# Set MATLAB VERSION to install appropriate MCR
+ARG MATLAB_VERSION
+
 # set noninteractive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 

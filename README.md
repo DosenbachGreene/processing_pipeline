@@ -6,8 +6,8 @@
   * [FSL](#fsl)
   * [FreeSurfer](#freesurfer)
   * [Connectome Workbench](#connectome-workbench)
-  * [MATLAB Compiler Runtime](#matlab-compiler-runtime)
   * [NORDIC](#nordic)
+  * [MATLAB Compiler Runtime](#matlab-compiler-runtime)
   * [Other System Dependencies](#other-system-dependencies)
 - [Installation](#installation)
 - [Docker Build](#docker-build)
@@ -66,11 +66,6 @@ freesurfer under `tools/pkg/freesurfer`.
 The connectome workbench install script is located in `tools/install_workbench.sh`. This script will download and
 install connectome workbench under `tools/pkg/workbench`.
 
-### MATLAB Compiler Runtime
-
-The MATLAB compiler runtime install script is located in `tools/install_mcr.sh`. This script will download and
-install the MATLAB compiler runtime under `tools/pkg/mcr`.
-
 ### NORDIC
 
 The tools directory contains an install script for the NORDIC software. It will compile
@@ -78,8 +73,16 @@ the NORDIC scripts into a compatible MATLAB MCR executable. To install it, simpl
 the `install_nordic.sh` script in the `tools` directory. This will download and build
 NORDIC under `tools/pkg/nordic`.
 
-> **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2022a to compile. If you are
-> using another version of MATLAB, we currently do not support it.
+> **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2017b or newer to compile.
+
+### MATLAB Compiler Runtime
+
+The MATLAB compiler runtime install script is located in `tools/install_mcr.sh`. This script will download and
+install the MATLAB compiler runtime under `tools/pkg/mcr`.
+
+> **__NOTE:__** You should run this after installing NORDIC, as the NORDIC installer sets your MATLAB_VERSION
+> environment variable to the version of MATLAB that it was compiled with. This will ensure the correct version
+> of the MCR is installed.
 
 ### Other System Dependencies
 

@@ -1,0 +1,7 @@
+services:
+  me_pipeline:
+    image: ghcr.io/dosenbachgreene/me_pipeline:latest
+    build:
+      context: .
+      args:
+        - MATLAB_VERSION=$MATLAB_VERSION
