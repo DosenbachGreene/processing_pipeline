@@ -783,11 +783,13 @@ if ( -e $$bold.lst ) /bin/rm -f $$bold.lst
 touch $$bold.lst
 @ k = 1
 while ($k <= $runs)
+	# always delete existing movement parameters
+	rm -f bold$runID[$k]/${patid}_b${runID[$k]}_xr3d*
 	echo bold$runID[$k]/$patid"_b"$runID[$k] >> $$bold.lst
 	@ k++
 end
-echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	# -R disables resampling
-cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log	|| exit $status
+echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst # -R disables resampling
+cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst|| exit $status
 /bin/rm -f $$bold.lst
 if (! -d movement) mkdir movement
 @ k = 1
