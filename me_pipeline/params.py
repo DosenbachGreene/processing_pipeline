@@ -1,11 +1,138 @@
+import json
 from pathlib import Path
 from dataclasses import asdict, dataclass, field, fields, _MISSING_TYPE
+from typing import Any, Dict, List, Union
 import toml
-from typing import Any, List, Union
 
 
 # Define path to internal params file for copy
 PARAMS_FILE = Path(__file__).resolve().absolute().parent / "params.toml"
+
+
+class RunsMap:
+    """A class to map files to their corresponding runs.
+
+    This class is used to map the functional runs to their corresponding fieldmaps.
+    It also maps the runIDs to the data.
+
+    Parameters
+    ----------
+    func_runs : Dict
+        A dictionary mapping the runID to the image data
+    fieldmaps : Dict
+        A dictionary mapping the runID to the fieldmap data
+    medic_mode : bool, optional
+        Whether or not the pipeline is in medic mode, by default False
+    """
+
+    def __init__(self, func_runs: Dict, fieldmaps: Dict, medic_mode: bool = False):
+        # the functional pipeline requires runIDs to be integers
+        # so we need to map the run keys in runs to integers
+        self.run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
+
+        # save field map references
+        self.fieldmaps = fieldmaps
+
+        # for each run, filter out the runs that have < 50 frames
+        self.runs = {
+            run_num: [i for i in img_data if i.get_image().shape[-1] > 50] for run_num, img_data in func_runs.items()
+        }
+        # delete keys that are empty
+        self.runs = {k: v for k, v in self.runs.items() if len(v) > 0}
+
+        # set the BOLDmap
+        self.set_BOLDmap(medic_mode)
+
+        # for each run, map create a dict that maps the runIDs to the data
+        # separate by magnitude and phase
+        # also add the fmap key with BOLDmap
+        self.runs_dict = {
+            "mag": {
+                self.run_key_to_int_dict[run]: [r.path for r in run_data if "mag" in r.filename]
+                for run, run_data in self.runs.items()
+            },
+            "phase": {
+                self.run_key_to_int_dict[run]: [r.path for r in run_data if "phase" in r.filename]
+                for run, run_data in self.runs.items()
+            },
+        }
+
+    def set_BOLDmap(self, medic_mode: bool = False):
+        """Generates BOLDmap."""
+        self.BOLDmap = {}
+        if medic_mode:  # in medic mode, each run is it's own field map
+            self.BOLDmap = {str(self.run_key_to_int_dict[run]): [self.run_key_to_int_dict[run]] for run in self.runs}
+        else:  # in non-medic mode, for each run, identify the fieldmap used
+            for run in self.runs:
+                # get the field maps for this run
+                run_fmaps = self.fieldmaps[run]
+                # create a string name
+                fmap_key = tuple([str(p) for p in run_fmaps])
+                # check if this key exists
+                if fmap_key not in self.BOLDmap:  # add run index to BOLDmap
+                    self.BOLDmap[fmap_key] = [self.run_key_to_int_dict[run]]
+                else:
+                    self.BOLDmap[fmap_key].append(self.run_key_to_int_dict[run])
+
+    def update(self, runs_dict: Dict, medic_mode: bool = False):
+        """Update the object with a new runs_dict, and updates the runs and run_key_to_int_dict accordingly."""
+        # update the runs_dict
+        self.runs_dict = runs_dict
+
+        # ensure mag and phase keys have same length
+        assert len(self.runs_dict["mag"]) == len(self.runs_dict["phase"])
+
+        # and ensure they have the same keys
+        assert set(self.runs_dict["mag"].keys()) == set(self.runs_dict["phase"].keys())
+
+        # update the runs by forming {task}{runnum} from filenames
+        self.runs = [
+            f"{funcs[0].split('task-')[1].split('_')[0]}{funcs[0].split('run-')[1].split('_')[0]}"
+            for funcs in runs_dict["mag"].values()
+        ]
+
+        # update the run_key_to_int_dict
+        self.run_key_to_int_dict = {k: int(list(runs_dict['mag'].keys())[i]) for i, k in enumerate(self.runs)}
+
+        # update the BOLDmap
+        self.set_BOLDmap(medic_mode)
+
+    @property
+    def BOLDgrps(self) -> List[List[int]]:
+        """A list of lists containing the runIDs for each fieldmap group"""
+        return list(self.BOLDmap.values())
+
+    @property
+    def runIDs(self) -> List[int]:
+        """A list of runIDs"""
+        return [self.run_key_to_int_dict[run] for run in self.runs]
+
+    @property
+    def sefms(self) -> List[List[str]]:
+        """A list of PEPolar fieldmaps"""
+        return [list(g) for g in self.BOLDmap.keys()]
+
+    def write(self, output_path: Union[Path, str]):
+        """Write the runs map to a json file."""
+        output_path = Path(output_path)
+        with open(output_path, "w") as f:
+            json.dump(self.runs_dict, f, indent=4)
+
+    def save_config(self, subject_id: str, session_id: str, output_path: Union[Path, str]):
+        """Write as session config w/ runs map to a toml file."""
+        # convert keys to strings
+        runs_dict = {}
+        runs_dict[subject_id] = {}
+        runs_dict[subject_id][session_id] = {"config": {}}
+        runs_dict[subject_id][session_id]["mag"] = {
+            str(k): [str(Path(p).name) for p in v] for k, v in self.runs_dict["mag"].items()
+        }
+        runs_dict[subject_id][session_id]["phase"] = {
+            str(k): [str(Path(p).name) for p in v] for k, v in self.runs_dict["phase"].items()
+        }
+        output_path = Path(output_path)
+        with open(output_path, "w") as f:
+            toml.dump(runs_dict, f)
 
 
 def parse_type(value: Any) -> Any:
@@ -106,6 +233,26 @@ class Params:
 
         # return the params with assigned values
         return cls(**assignment_dict)
+
+    def update(self, data_dict: Dict) -> None:
+        """Updates the params with the values in the data_dict.
+
+        This also performs type checking to ensure the correct types are being assigned.
+        """
+        # loop through each key in the data dict
+        for key, value in data_dict.items():
+            # get the field type
+            field_type = self.__dataclass_fields__[key].type
+            # get the value type
+            value_type = parse_type(value)
+            # check if the type is correct
+            if value_type is not field_type:
+                raise TypeError(
+                    f"Error parsing data dict.\n"
+                    f"Type of '{key}' is '{value_type}' but should be '{field_type}'."
+                )
+            # set the value
+            setattr(self, key, value)
 
     def save(self, path: Union[Path, str]) -> None:
         """Saves the params to a toml file at the specified path.

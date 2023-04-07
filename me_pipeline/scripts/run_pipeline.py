@@ -2,8 +2,10 @@ import os
 import argparse
 import shutil
 import json
+import toml
 import logging
 from pathlib import Path
+from typing import Tuple, Union
 from memori.pathman import PathManager as PathMan
 from memori.logging import setup_logging, run_process
 from memori.helpers import working_directory
@@ -18,6 +20,7 @@ from me_pipeline.params import (
     Instructions,
     StructuralParams,
     FunctionalParams,
+    RunsMap,
     PARAMS_FILE,
 )
 from . import epilog
@@ -69,6 +72,31 @@ FMRI_PP_MODULES = [
 ]
 
 
+def generate_instructions(output_path: Path, config: Union[Path, str, None] = None) -> Tuple[Path, Instructions]:
+    """Generates instructions file.
+
+    Parameters
+    ----------
+    output_path : Path
+        output path for instructions file
+    config : Union[Path, str]
+        path to config file to initialize instructions file with
+
+    Returns
+    -------
+    Path
+        path to instructions file
+    """
+    instructions_file = output_path / "instructions.params"
+    if config is not None:  # load instructions from config file
+        instructions = Instructions.load(config)
+    else:  # generate new instructions
+        instructions = Instructions()
+    # write instructions to file
+    instructions.save_params(instructions_file)
+    return instructions_file, instructions
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="TODO",
@@ -111,6 +139,10 @@ def main():
     functional.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
     functional.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
     functional.add_argument("--ses_label", help="For paper, will likely be removed later.")
+    functional.add_argument(
+        "--save_session_config", help="Save session config files to path. Use with --dry_run option."
+    )
+    functional.add_argument("--load_session_config", nargs="+", help="Load session config file(s).")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -152,15 +184,6 @@ def main():
     os.environ["TMPDIR"] = str(tmpdir)
 
     if args.pipeline == "structural":
-        # set instructions file
-        instructions_file = output_path / "instructions.params"
-        if args.config is not None:  # load instructions from config file
-            instructions = Instructions.load(args.config)
-        else:  # generate new instructions
-            instructions = Instructions()
-        # write instructions to file
-        instructions.save_params(instructions_file)
-
         # generate dataset description file for derivatives
         dataset_description = parse_bids_dataset(bids_path, get_dataset_description)
         dataset_description["GeneratedBy"] = [{"Name": "me_pipeline"}]
@@ -190,6 +213,9 @@ def main():
             # set output directory
             output_dir = output_path / f"sub-{subject_id}"
             output_dir.mkdir(exist_ok=True, parents=True)
+
+            # set instructions file
+            instructions_file, _ = generate_instructions(output_dir, args.config)
 
             # construct structural params
             StructuralParams(
@@ -225,14 +251,12 @@ def main():
                 logging.info(f"Dry run: skipping functional pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
-        # set instructions file
-        instructions_file = output_path / "instructions.params"
-        if args.config is not None:  # load instructions from config file
-            instructions = Instructions.load(args.config)
-        else:  # generate new instructions
-            instructions = Instructions()
-        # write instructions to file
-        instructions.save_params(instructions_file)
+        # if runs maps provided, load them all in
+        user_sessions_dict = {}
+        if args.load_session_config:
+            for rmap in args.load_session_config:
+                with open(rmap, "r") as f:
+                    user_sessions_dict.update(toml.load(f))
 
         # parse the bids directory and grab functionals
         functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
@@ -288,50 +312,32 @@ def main():
                 func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}{suffix}"
                 func_out.mkdir(exist_ok=True, parents=True)
 
-                # TODO: add ability to filter tasks
-                # for now just use all of them
+                # set instructions file
+                instructions_file, instructions = generate_instructions(func_out, args.config)
 
-                # the functional pipeline requires runIDs to be integers
-                # so we need to map the run keys in runs to integers
-                run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
+                # if config exists in the session config, update instructions
+                if args.load_session_config:
+                    if subject_id in user_sessions_dict:
+                        if session_id in user_sessions_dict[subject_id]:
+                            if "config" in user_sessions_dict[subject_id][session_id]:
+                                # update instructions with session config
+                                instructions.update(user_sessions_dict[subject_id][session_id]["config"])
+                                # resave instructions file
+                                instructions.save_params(instructions_file)
 
-                # for each run, filter out the runs that have < 50 frames
-                runs = {
-                    run_num: [i for i in img_data if i.get_image().shape[-1] > 50]
-                    for run_num, img_data in func_runs.items()
-                }
-                # delete keys that are empty
-                runs = {k: v for k, v in runs.items() if len(v) > 0}
+                # initialize runs map
+                runs_map = RunsMap(func_runs, fieldmaps[subject_id][session_id], instructions.medic)
 
-                BOLDgrps = {}
-                if instructions.medic:  # in medic mode, each run is it's own field map
-                    BOLDgrps = {str(run_key_to_int_dict[run]): [run_key_to_int_dict[run]] for run in runs}
-                else:  # in non-medic mode, for each run, identify the fieldmap used
-                    for run in runs:
-                        # get the field maps for this run
-                        run_fmaps = fieldmaps[subject_id][session_id][run]
-                        # create a string name
-                        fmap_key = tuple([str(p) for p in run_fmaps])
-                        # check if this key exists
-                        if fmap_key not in BOLDgrps:  # add run index to BOLDgrps
-                            BOLDgrps[fmap_key] = [run_key_to_int_dict[run]]
-                        else:
-                            BOLDgrps[fmap_key].append(run_key_to_int_dict[run])
+                # check if subject/session in user_runs_dict
+                if args.load_session_config:
+                    if subject_id in user_sessions_dict:
+                        if session_id in user_sessions_dict[subject_id]:
+                            if "mag" in user_sessions_dict[subject_id][session_id]:
+                                # update runs map with user_runs_dict
+                                runs_map.update(user_sessions_dict[subject_id][session_id], instructions.medic)
 
-                # for each run, map create a json that maps the runIDs to the data
-                # separate by magnitude and phase
-                runs_json = {
-                    "mag": {
-                        run_key_to_int_dict[run]: [r.path for r in run_data if "mag" in r.filename]
-                        for run, run_data in runs.items()
-                    },
-                    "phase": {
-                        run_key_to_int_dict[run]: [r.path for r in run_data if "phase" in r.filename]
-                        for run, run_data in runs.items()
-                    },
-                }
-                with open(func_out / "runs.json", "w") as f:
-                    json.dump(runs_json, f, indent=4)
+                # write runs map to file
+                runs_map.write(func_out / "runs.json")
 
                 # construct functional params
                 func_params = func_out / "func.params"
@@ -341,14 +347,21 @@ def main():
                     patid=f"sub-{subject_id}",
                     mpr=mpr.get_prefix().path,
                     t2wimg=t2wimg.get_prefix().path,
-                    BOLDgrps=[g for g in BOLDgrps.values()],
-                    runID=[run_key_to_int_dict[run] for run in runs],
-                    FCrunID=[run_key_to_int_dict[run] for run in runs],
-                    sefm=[list(g) for g in BOLDgrps.keys()],
+                    BOLDgrps=runs_map.BOLDgrps,
+                    runID=runs_map.runIDs,
+                    FCrunID=runs_map.runIDs,
+                    sefm=runs_map.sefms,
                     FSdir=output_path / "fs",
                     PostFSdir=output_path / "FREESURFER_fs_LR",
                     maskdir=output_path / f"sub-{subject_id}" / "subcortical_mask",
                 ).save_params(func_params)
+
+                # saves a session config runs to toml
+                if args.save_session_config:
+                    runs_map_config = Path(args.save_session_config)
+                    runs_map_config = runs_map_config / f"sub-{subject_id}_ses-{session_id}.toml"
+                    runs_map.save_config(subject_id, session_id, runs_map_config)
+                    logging.info(f"Saved runs map config to {runs_map_config}")
 
                 # skip if dry run
                 if not args.dry_run:
