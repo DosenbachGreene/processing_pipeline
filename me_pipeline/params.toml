@@ -41,6 +41,8 @@ skip = 0
 normode = false
 # when set enables intensity biasfield correction
 BiasField = true
+# sets N4 biasfield correction to be used for biasfield correction (requires fs7)
+N4 = false
 # when set prevents re-computation of extant t4 files
 useold = true
 

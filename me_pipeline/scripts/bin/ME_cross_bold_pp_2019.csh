@@ -860,7 +860,17 @@ if ($BiasField) then
 			#######################################
 			# compute bias field and its reciprocal
 			#######################################
-			fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -b -v -o ${base} ${base} || exit $status
+			if (! $?N4) @ N4 = 0  # @ N4 = 1 in params is required to use N4 bias field correction
+			if ($N4) then  # use N4 for bias field correction
+				# I'm using the Freesurfer 7 version for now
+				echo "Running N4 bias field correction..."
+				AntsN4BiasFieldCorrectionFs -i ${base}.nii -o ${base}_restore.nii -s 2 || exit $status
+				# get the bias field from the restored image
+				fslmaths ${base}.nii -div ${base}_restore.nii ${base}_bias.nii || exit $status
+			else  # use fast for bias field correction
+				echo "Running fast bias field correction..."
+				fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -b -v -o ${base} ${base} || exit $status
+			endif
 			# Test if bias correction failed with all NaNs in ${base}_bias
 			set bc_fail = `python -c "import nibabel as nib;import numpy as np;img=nib.load('${base}_bias.nii');print(int(np.isnan(img.get_fdata()).all()))"`
 			niftigz_4dfp -4 ${base}_restore ${base}_restore		|| exit $status
@@ -869,9 +879,9 @@ if ($BiasField) then
 			if ($bc_fail) then
 				echo "*** ========================== ATTENTION! ============================ ***"
 				echo "*** ================================================================== ***"
-				echo "Bias field correction failed for ${base}"
-				exit 1
+				echo "*** ============ Bias field correction failed for ${base} ============ ***"
 				echo "*** ================================================================== ***"
+				exit 1
 			endif
 			imgopr_4dfp -r$patid"_b"$runID[$k]_invBF ${base}_ones ${base}_bias	|| exit $status
 			@ i = 1
@@ -1148,6 +1158,8 @@ while ( $k <= $runs )
 		set f = `echo $mode | gawk '{print 1000/$1}'`
 	endif
 	scale_4dfp $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt $f -anorm || exit $status
+	# convert to nifti
+	nifti_4dfp -n $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm $patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm.nii || exit $status
 
 	####################
 	# voxelwise SNR maps

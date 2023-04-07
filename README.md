@@ -110,6 +110,9 @@ docker buildx build . -t vanandrew/me_pipeline
 ```
 Which will do a multi-image build of the docker image with the tag `vanandrew/me_pipeline`.
 
+> **__NOTE:__** The docker image currently requires that you run the `install_nordic.sh` script
+> prior to building the docker image. This is because the NORDIC MCR executable is not included
+> in the repo, and is instead built with MATLAB prior to building the docker image.
 
 ## Repository Structure
 
@@ -174,6 +177,57 @@ To run any of the csh scripts, you can use the `run_script` command:
 run_script Structural_pp_090121.csh [struct.params] [instructions.params]
 ```
 To see the full list of scripts you can run, check `run_script --help`.
+
+The `instructions.params` file has slightly different keys from the original. See the
+params file below for more information:
+
+```bash
+set bids = 0  #  When using the run_script program, bids mode must be turned off.
+set cleanup = 0
+set economy = 0
+set inpath = $cwd
+set target = $REFDIR/TRIO_Y_NDC
+set outspace_flag = mni2mm
+set nlalign = 0
+set medic = 0  # 0 = no medic, 1 = medic
+set num_cpus = 8  # number of cpus to use for parallel processing, replaces OSResample_parallel
+set delta = 0.00246
+set ME_reg = 1
+set dbnd_flag = 1
+set isnordic = 1
+set runnordic = 1
+set noiseframes = 0
+set bases = /not/working/please/ignore/FNIRT_474_all_basis.4dfp.img  # these are broken atm
+set mean = /not/working/please/ignore/FNIRT_474_all_mean.4dfp.img   # these are broken atm
+set nbases = 5
+set niter = 5
+set GetBoldConfig = 1
+set skip = 0
+set normode = 0
+set BiasField = 0
+set useold = 1
+set FCdir = FCmaps
+set ncontig = 3
+set FDthresh = 0.08
+set DVARsd = 3.5
+set DVARblur = 10.0
+set bpss_params = ( -bl0.005 -ol2 -bh0.1 -oh2 )
+set blur = 1.4701
+set lomotil = 0
+set Atlas_ROIs = 0
+set surfsmooth = 1.7
+set subcortsmooth = 1.7
+set CSF_excl_lim = 0.15
+set CSF_lcube = 4
+set CSF_svdt = 0.15
+set WM_lcube = 3
+set WM_svdt = 0.15
+set nRegress = 20
+set min_frames = 50
+set ROIdir = $REFDIR/CanonicalROIsNP705
+set ROIimg = CanonicalROIsNP705_on_MNI152_2mm.4dfp.img
+```
+The other params files are the same as the original.
 
 ### Level 1: BIDS Based Processing
 

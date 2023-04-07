@@ -10,17 +10,43 @@ from me_pipeline import HEURISTIC_FILE
 def main(argv=None):
     # run heudiconv
     parser = get_parser()
+
+    # parse the arguments
     args = parser.parse_args(argv)
+
     # exit if nothing to be done
     if not args.files and not args.dicom_dir_template and not args.command:
         lgr.warning("Nothing to be done - displaying usage help")
         parser.print_help()
         sys.exit(1)
 
+    # get dictional
     kwargs = vars(args)
-    # force set heuristic file
-    kwargs["heuristic"] = HEURISTIC_FILE
+
+    # check the files argument, if it is a zip, then unzip it and replaces the argument
+    tmp_dirs = []
+    for i, f in enumerate(kwargs["files"]):
+        if Path(f).suffix == ".zip":
+            # create a temporary directory in the output
+            tmp_dir = Path(kwargs["outdir"]) / ".temp" / Path(f).stem
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_dirs.append(tmp_dir)
+            lgr.info(f"Unzipping {f}")
+            shutil.unpack_archive(f, tmp_dir)
+            lgr.info(f"Unzipped {f} to {tmp_dir}")
+            # replace the argument
+            kwargs["files"][i] = str(tmp_dir)
+
+    # force set heuristic file to our own internal one if None set
+    if kwargs["heuristic"] is None:
+        kwargs["heuristic"] = HEURISTIC_FILE
+
+    # call the heudiconv workflow
     workflow(**kwargs)
+
+    # remove the temporary directories
+    for tmp_dir in tmp_dirs:
+        shutil.rmtree(tmp_dir)
 
     # do some post-processing on the output (field maps)
     lgr.info("BIDS cannot handle multi-echo field maps - renaming echo 1")

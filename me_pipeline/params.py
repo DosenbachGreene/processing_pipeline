@@ -295,6 +295,8 @@ class Instructions(Params):
     normode: bool = False
     # when set enables intensity biasfield correction
     BiasField: bool = True
+    # sets N4 biasfield correction to be used for biasfield correction
+    N4: bool = False
     # when set prevents re-computation of extant t4 files
     useold: bool = True
 
