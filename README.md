@@ -73,7 +73,8 @@ the NORDIC scripts into a compatible MATLAB MCR executable. To install it, simpl
 the `install_nordic.sh` script in the `tools` directory. This will download and build
 NORDIC under `tools/pkg/nordic`.
 
-> **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2017b or newer to compile.
+> **__NOTE:__** The NORDIC MCR compilation requires MATLAB 2017b or newer to compile. You will also need to
+> have the MATLAB compiler license installed on your machine.
 
 ### MATLAB Compiler Runtime
 
@@ -106,12 +107,27 @@ python3 -m pip install -e /path/to/repo/ -v --config-settings editable_mode=stri
 
 ## Docker Build
 
-To build the docker image, you will need to first compile NORDIC (see [above](#NORDIC)). Then, you can run build the docker image with:
+To build the docker image, you will need to first compile NORDIC (see [above](#NORDIC)).
+Then, you can run build the docker image with:
 
 ```bash
-docker buildx build . -t vanandrew/me_pipeline
+docker buildx build --build-arg MATLAB_VERSION=R20XXx . -t ghcr.io/dosenbachgreene/me_pipeline
 ```
-Which will do a multi-image build of the docker image with the tag `vanandrew/me_pipeline`.
+
+Where `MATLAB_VERSION` is the version defined in your `.env` file at the root of the project repo. The `.env` file
+is auto-generated after running the `install_nordic` script and specifies which MATLAB version NORDIC was compiled
+with.
+
+Alternatively, if you have docker compose installed, you can run:
+
+```bash
+docker compose build
+```
+
+which will auto-source your `.env` file and pass the `MATLAB_VERSION` variable to the docker build command
+automatically.
+
+Both will do a multi-stage build of the docker image with the tag `ghcr.io/dosenbachgreene/me_pipeline`.
 
 > **__NOTE:__** The docker image currently requires that you run the `install_nordic.sh` script
 > prior to building the docker image. This is because the NORDIC MCR executable is not included

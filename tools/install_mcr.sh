@@ -8,7 +8,8 @@ pushd $tools_dir/pkg/mcr > /dev/null
 # check the USER's MATLAB_VERSION from env file
 [[ -f $tools_dir/../.env ]] && export $(grep -v '^#' $tools_dir/../.env | xargs)
 if [[ -z $MATLAB_VERSION ]]; then
-    MATLAB_VERSION="R2022a"
+    echo "MATLAB_VERSION is not set in .env file"
+    exit 1
 fi
 
 # Define the MCR link based on the MATLAB version

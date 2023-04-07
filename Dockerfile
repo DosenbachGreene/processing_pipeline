@@ -3,6 +3,7 @@ LABEL maintainer="Andrew Van <vanandrew@wustl.edu>"
 
 # Set MATLAB VERSION to install appropriate MCR
 ARG MATLAB_VERSION
+RUN test -n "$MATLAB_VERSION" || (echo "MATLAB_VERSION not set. Did you forget to run install_nordic.sh?" && false)
 
 # set noninteractive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
