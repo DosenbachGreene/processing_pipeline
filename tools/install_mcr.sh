@@ -5,7 +5,8 @@ tools_dir=$(realpath $(dirname $(command -v $0)))
 mkdir -p $tools_dir/pkg/mcr
 pushd $tools_dir/pkg/mcr > /dev/null
 
-# check the USER's MATLAB_VERSION, if not defined use R2022a
+# check the USER's MATLAB_VERSION from env file
+[[ -f $tools_dir/../.env ]] && export $(grep -v '^#' $tools_dir/../.env | xargs)
 if [[ -z $MATLAB_VERSION ]]; then
     MATLAB_VERSION="R2022a"
 fi
@@ -20,6 +21,9 @@ elif [[ $MATLAB_VERSION == "R2018a" ]]; then
 elif [[ $MATLAB_VERSION == "R2018b" ]]; then
     MCR_LINK=https://ssd.mathworks.com/supportfiles/downloads/R2018b/deployment_files/R2018b/installers/glnxa64/MCR_R2018b_glnxa64_installer.zip
     MCR_ZIP=MCR_R2018b_glnxa64_installer.zip
+elif [[ $MATLAB_VERSION == "R2019a" ]]; then
+    MCR_LINK=https://ssd.mathworks.com/supportfiles/downloads/R2019a/Release/9/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2019a_Update_9_glnxa64.zip
+    MCR_ZIP=MATLAB_Runtime_R2019a_Update_9_glnxa64.zip
 elif [[ $MATLAB_VERSION == "R2019b" ]]; then
     MCR_LINK=https://ssd.mathworks.com/supportfiles/downloads/R2019b/Release/9/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2019b_Update_9_glnxa64.zip
     MCR_ZIP=MATLAB_Runtime_R2019b_Update_9_glnxa64.zip
@@ -44,9 +48,12 @@ elif [[ $MATLAB_VERSION == "R2022b" ]]; then
 elif [[ $MATLAB_VERSION == "R2023a" ]]; then
     MCR_LINK=https://ssd.mathworks.com/supportfiles/downloads/R2023a/Release/0/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2023a_glnxa64.zip
     MCR_ZIP=MATLAB_Runtime_R2023a_glnxa64.zip
+else
+    echo "Unsupported MATLAB Version: $MATLAB_VERSION"
+    exit 1
 fi
 
-# mcr 2022a
+# download mcr
 if [[ ! -f ../$MCR_ZIP ]]; then
     wget $MCR_LINK
 else
