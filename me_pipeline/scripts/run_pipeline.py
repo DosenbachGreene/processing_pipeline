@@ -119,6 +119,11 @@ def main():
     structural.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     structural.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
     structural.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
+    structural.add_argument(
+        "--save_struct_config",
+        help="Save struct config files to path. Use with --dry_run option.",
+    )
+    structural.add_argument("--load_struct_config", nargs="+", help="Load struct config file(s) from path.")
 
     functional = subparser.add_parser("functional", help="Functional Pipeline")
     functional.add_argument("bids_dir", help="Path to bids_directory.")
@@ -140,9 +145,9 @@ def main():
     functional.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
     functional.add_argument("--ses_label", help="For paper, will likely be removed later.")
     functional.add_argument(
-        "--save_session_config", help="Save session config files to path. Use with --dry_run option."
+        "--save_func_config", help="Save functional config files to path. Use with --dry_run option."
     )
-    functional.add_argument("--load_session_config", nargs="+", help="Load session config file(s).")
+    functional.add_argument("--load_func_config", nargs="+", help="Load functional config file(s).")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -184,6 +189,15 @@ def main():
     os.environ["TMPDIR"] = str(tmpdir)
 
     if args.pipeline == "structural":
+        # load subject config files if any
+        user_struct_dict = {}
+        if args.load_struct_config:
+            for rmap in args.load_struct_config:
+                with open(rmap, "r") as f:
+                    config = toml.load(f)
+                    # map config to subject
+                    user_struct_dict[config['structid'].split("sub-")[1]] = config
+
         # generate dataset description file for derivatives
         dataset_description = parse_bids_dataset(bids_path, get_dataset_description)
         dataset_description["GeneratedBy"] = [{"Name": "me_pipeline"}]
@@ -199,8 +213,14 @@ def main():
             if args.participant_label is not None and subject_id not in args.participant_label:
                 continue
 
+            # set output directory
+            output_dir = output_path / f"sub-{subject_id}"
+            output_dir.mkdir(exist_ok=True, parents=True)
+
+            # set instructions file
+            instructions_file, _ = generate_instructions(output_dir, args.config)
+
             # combine files from all sessions
-            # TODO: Add a way for user to filter sessions
             mpr_files = []
             t2w_files = []
             for session_id in sessions.keys():
@@ -210,15 +230,8 @@ def main():
                 mpr_files.extend([f.path for f in anatomicals["T1w"][subject_id][session_id]])
                 t2w_files.extend([f.path for f in anatomicals["T2w"][subject_id][session_id]])
 
-            # set output directory
-            output_dir = output_path / f"sub-{subject_id}"
-            output_dir.mkdir(exist_ok=True, parents=True)
-
-            # set instructions file
-            instructions_file, _ = generate_instructions(output_dir, args.config)
-
             # construct structural params
-            StructuralParams(
+            sp = StructuralParams(
                 patid=f"sub-{subject_id}",
                 structid=f"sub-{subject_id}",
                 studydir=output_path,
@@ -226,8 +239,25 @@ def main():
                 t2wdirs=t2w_files,
                 FSdir=output_path / "fs",
                 PostFSdir=output_path / "FREESURFER_fs_LR",
-            ).save_params(output_dir / "struct.params")
+            )
+
+            # load user config if any
+            if args.load_struct_config:
+                # check if user config exists
+                if subject_id in user_struct_dict:
+                    # update params with user config
+                    sp.update(user_struct_dict[subject_id])
+                    logging.info(f"Loaded user config for sub-{subject_id}.")
+                    logging.info(f"User config: {user_struct_dict[subject_id]}")
+
+            # save the params file
+            sp.save_params(output_dir / "struct.params")
             struct_params = output_dir / "struct.params"
+
+            # save the params file to toml
+            if args.save_struct_config:
+                out = (Path(args.save_struct_config) / f"sub-{subject_id}").absolute().resolve().with_suffix(".toml")
+                sp.save(out)
 
             # skip if dry run
             if not args.dry_run:
@@ -253,8 +283,8 @@ def main():
     elif args.pipeline == "functional":
         # if runs maps provided, load them all in
         user_sessions_dict = {}
-        if args.load_session_config:
-            for rmap in args.load_session_config:
+        if args.load_func_config:
+            for rmap in args.load_func_config:
                 with open(rmap, "r") as f:
                     user_sessions_dict.update(toml.load(f))
 
@@ -316,7 +346,7 @@ def main():
                 instructions_file, instructions = generate_instructions(func_out, args.config)
 
                 # if config exists in the session config, update instructions
-                if args.load_session_config:
+                if args.load_func_config:
                     if subject_id in user_sessions_dict:
                         if session_id in user_sessions_dict[subject_id]:
                             if "config" in user_sessions_dict[subject_id][session_id]:
@@ -329,7 +359,7 @@ def main():
                 runs_map = RunsMap(func_runs, fieldmaps[subject_id][session_id], instructions.medic)
 
                 # check if subject/session in user_runs_dict
-                if args.load_session_config:
+                if args.load_func_config:
                     if subject_id in user_sessions_dict:
                         if session_id in user_sessions_dict[subject_id]:
                             if "mag" in user_sessions_dict[subject_id][session_id]:
@@ -357,8 +387,8 @@ def main():
                 ).save_params(func_params)
 
                 # saves a session config runs to toml
-                if args.save_session_config:
-                    runs_map_config = Path(args.save_session_config)
+                if args.save_func_config:
+                    runs_map_config = Path(args.save_func_config)
                     runs_map_config = runs_map_config / f"sub-{subject_id}_ses-{session_id}.toml"
                     runs_map.save_config(subject_id, session_id, runs_map_config)
                     logging.info(f"Saved runs map config to {runs_map_config}")

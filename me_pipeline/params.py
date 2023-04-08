@@ -9,6 +9,10 @@ import toml
 PARAMS_FILE = Path(__file__).resolve().absolute().parent / "params.toml"
 
 
+# TODO: I think I need to rework the logic for this, it doesn't make much sense
+# to separate the functional params from the Runs map object
+
+
 class RunsMap:
     """A class to map files to their corresponding runs.
 
@@ -92,7 +96,7 @@ class RunsMap:
         ]
 
         # update the run_key_to_int_dict
-        self.run_key_to_int_dict = {k: int(list(runs_dict['mag'].keys())[i]) for i, k in enumerate(self.runs)}
+        self.run_key_to_int_dict = {k: int(list(runs_dict["mag"].keys())[i]) for i, k in enumerate(self.runs)}
 
         # update the BOLDmap
         self.set_BOLDmap(medic_mode)
@@ -247,10 +251,12 @@ class Params:
             value_type = parse_type(value)
             # check if the type is correct
             if value_type is not field_type:
-                raise TypeError(
-                    f"Error parsing data dict.\n"
-                    f"Type of '{key}' is '{value_type}' but should be '{field_type}'."
-                )
+                if not (
+                    (field_type is Path and value_type is str) or (field_type is List[Path] and value_type is List[str])
+                ):  # path and str are compatible
+                    raise TypeError(
+                        f"Error parsing data dict.\n" f"Type of '{key}' is '{value_type}' but should be '{field_type}'."
+                    )
             # set the value
             setattr(self, key, value)
 
