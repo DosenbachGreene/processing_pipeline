@@ -9,15 +9,16 @@ install and invoke the heudiconv command line tool:
 
 """
 from typing import Any, Dict, List, Tuple
+from types import SimpleNamespace
 
 
 # For setting the IntendedFor field in the fieldmap json files
-POPULATE_INTENDED_FOR_OPTS = {"matching_parameters": ["ImagingVolume", "Shims"], "criterion": "Closest"}
+POPULATE_INTENDED_FOR_OPTS = {"matching_parameters": ["ImagingVolume", "Shims"], "criterion": "First"}
 
 # The below globals search on series description for the given string
 
 # List of resting state
-ME_REST = ["BOLD_NORDIC", "rest_ep2d_bold_ME"]
+ME_REST = ["BOLD_NORDIC", "rest_ep2d_bold_ME", "rest_ep2d_bold_4ME"]
 
 # List of tasks
 ME_TASKS = ["VoiceHCPTask"]
@@ -27,6 +28,9 @@ AP_FIELDMAPS = ["SpinEchoFieldMap_AP", "GEFieldMap_AP_forME"]
 
 # List of PA field maps to check for
 PA_FIELDMAPS = ["SpinEchoFieldMap_PA", "GEFieldMap_PA_forME"]
+
+# Dictionary to store extra metadata keyed by series uid
+EXTRA_METADATA = {}
 
 
 def _test_image_type(image_type_pattern: List[str], image_type: List[str]) -> bool:
@@ -75,8 +79,16 @@ def check_add_multi_echo(info: Dict, key: Any, series: Any, dtype: str) -> bool:
             ):
                 info[key].append({"item": series.series_id, "part": "mag"})
                 return True
+            elif _test_image_type(
+                ["ORIGINAL", "PRIMARY", "M", "MB", f"TE{echo}", "NORM", "ND"], series.image_type
+            ):
+                info[key].append({"item": series.series_id, "part": "mag"})
+                return True
         elif dtype == "phase":
             if _test_image_type(["ORIGINAL", "PRIMARY", "P", "MB", f"TE{echo}", "ND", "MOSAIC"], series.image_type):
+                info[key].append({"item": series.series_id, "part": "phase"})
+                return True
+            elif _test_image_type(["ORIGINAL", "PRIMARY", "P", "MB", f"TE{echo}", "ND"], series.image_type):
                 info[key].append({"item": series.series_id, "part": "phase"})
                 return True
     # no match
@@ -123,6 +135,37 @@ def check_in_sequence(items: Any, sequence: List[Any]) -> bool:
         True if at least one item in items is in sequenceS
     """
     return any(item in sequence for item in items)
+
+
+def filter_dicom(dcmdata: Any) -> bool:
+    """This function is used to filter out dicom series that are not needed.
+
+    I'm currently using it to get access to other metadata that is not
+    currently available by default in the heudiconv seqinfo dictionary. This
+    mainly applies to the enhanced dicoms in the new XA30 OS.
+
+    Parameters
+    ----------
+    dcmdata : Any
+        The dicom data to check.
+
+    Returns
+    -------
+    bool
+        True if the dicom series should be filtered.
+    """
+    # check if the series is an enhanced dicom
+    file_type = dcmdata.file_meta[0x0002, 0x0002].repval
+    if "Enhanced MR Image Storage" in file_type:
+        # get the series uid
+        series_uid = dcmdata.SeriesInstanceUID
+        # store the dcmdata in the EXTRA_METADATA dictionary
+        # if it's not already there
+        if series_uid not in EXTRA_METADATA:
+            EXTRA_METADATA[series_uid] = dcmdata
+
+    # always include the dicom
+    return False
 
 
 def infotodict(seqinfo):
@@ -197,6 +240,15 @@ def infotodict(seqinfo):
     }
 
     for idx, s in enumerate(seqinfo):
+        # first check if this is an enhanced dicom
+        # if so, we need to fill in the missing fields in the seqinfo
+        if s.series_uid in EXTRA_METADATA:
+            # convert s to a mutable object
+            s = SimpleNamespace(**s._asdict())
+            dcmdata = EXTRA_METADATA[s.series_uid]
+            s.sequence_name = dcmdata[0x5200, 0x9230][0][0x0018, 0x9226][0][0x0021, 0x1177].value
+            s.image_type = dcmdata[0x5200, 0x9230][0][0x0021, 0x11FE][0][0x0021, 0x1175].value
+
         # skip all SBRefs
         if "SBRef" in s.series_description:
             continue
@@ -242,7 +294,7 @@ def infotodict(seqinfo):
         # Field Maps
         # AP
         elif check_in_sequence(AP_FIELDMAPS, s.series_description) and _test_image_type(
-            ["ORIGINAL", "PRIMARY", "M", "ND", "MOSAIC"], s.image_type
+            ["ORIGINAL", "PRIMARY", "M", "ND"], s.image_type
         ):
             info[fmap_AP].append(
                 {
@@ -253,7 +305,7 @@ def infotodict(seqinfo):
             continue
         # PA
         elif check_in_sequence(PA_FIELDMAPS, s.series_description) and _test_image_type(
-            ["ORIGINAL", "PRIMARY", "M", "ND", "MOSAIC"], s.image_type
+            ["ORIGINAL", "PRIMARY", "M", "ND"], s.image_type
         ):
             info[fmap_PA].append(
                 {

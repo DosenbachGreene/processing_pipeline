@@ -3,7 +3,6 @@ import shutil
 from heudiconv.main import workflow
 from heudiconv.cli.run import get_parser, lgr
 from pathlib import Path
-from memori.pathman import PathManager as PathMan
 from me_pipeline import HEURISTIC_FILE
 
 
@@ -49,31 +48,34 @@ def main(argv=None):
         shutil.rmtree(tmp_dir)
 
     # do some post-processing on the output (field maps)
-    lgr.info("BIDS cannot handle multi-echo field maps - renaming echo 1")
+    lgr.info("BIDS cannot handle multi-echo field maps - checking for renaming of echo 1 fmaps")
     output_path = Path(kwargs["outdir"])
 
     # check the fmaps directory and rename the first echo to remove the echo number
-    for subject in output_path.iterdir():
-        if "sub-" not in subject.name and not subject.is_dir():
-            continue
-        for session in subject.iterdir():
-            if "ses-" not in session.name and not session.is_dir():
+    try:
+        for subject in output_path.iterdir():
+            if "sub-" not in subject.name and not subject.is_dir():
                 continue
-            # check the fmaps directory
-            fmaps = session / "fmap"
-            if not fmaps.exists():
-                continue
-            # loop through fmaps
-            for f in fmaps.iterdir():
-                # if 1st echo, rename without echo
-                if "echo-1" in f.name:
-                    shutil.copyfile(f, f.with_name(f.name.replace("_echo-1", "")))
-                    lgr.info(f"Renamed {f.name} to {f.name.replace('_echo-1', '')}")
-                    # move file to .heudiconv
-                    shutil.move(f, output_path / ".heudiconv" / f.name)
-                    lgr.info(f"Moved {f.name} to .heudiconv")
-                for echo in range(2, 10):
-                    if f"echo-{echo}" in f.name:
+            for session in subject.iterdir():
+                if "ses-" not in session.name and not session.is_dir():
+                    continue
+                # check the fmaps directory
+                fmaps = session / "fmap"
+                if not fmaps.exists():
+                    continue
+                # loop through fmaps
+                for f in fmaps.iterdir():
+                    # if 1st echo, rename without echo
+                    if "echo-1" in f.name:
+                        shutil.copyfile(f, f.with_name(f.name.replace("_echo-1", "")))
+                        lgr.info(f"Renamed {f.name} to {f.name.replace('_echo-1', '')}")
                         # move file to .heudiconv
                         shutil.move(f, output_path / ".heudiconv" / f.name)
                         lgr.info(f"Moved {f.name} to .heudiconv")
+                    for echo in range(2, 10):
+                        if f"echo-{echo}" in f.name:
+                            # move file to .heudiconv
+                            shutil.move(f, output_path / ".heudiconv" / f.name)
+                            lgr.info(f"Moved {f.name} to .heudiconv")
+    except Exception as e:
+        pass

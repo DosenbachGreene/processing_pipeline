@@ -43,7 +43,8 @@ def main():
                     "--converter",
                     "dcm2niix",
                     "-b",
-                    "notop"
+                    "notop",
+                    "--overwrite",
                 ]
             ))
 
