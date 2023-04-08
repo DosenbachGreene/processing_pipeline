@@ -120,9 +120,10 @@ def main():
         if not epi_img.exists():
             raise FileNotFoundError(f"Could not find {epi_img}")
 
-        # convert ifh to hdr
-        if not epi_hdr.exists():
-            subprocess_run(["ifh2hdr", str(epi_img)])
+        # convert  ifh to header, if it exists, override the header
+        if epi_hdr.exists():
+            epi_hdr.unlink()
+        subprocess_run(["ifh2hdr", str(epi_img)])
 
         # setup output filename
         out.append(epi.append_suffix(f"_{args.trailer}"))
