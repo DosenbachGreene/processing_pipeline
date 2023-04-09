@@ -386,6 +386,12 @@ def main():
                     maskdir=output_path / f"sub-{subject_id}" / "subcortical_mask",
                 ).save_params(func_params)
 
+                # if session has no runs, skip
+                if len(runs_map.runIDs) == 0:
+                    logging.info(f"No runs for subject {subject_id} session {session_id}.")
+                    logging.info(f"Skipping subject {subject_id} session {session_id}.")
+                    continue
+
                 # saves a session config runs to toml
                 if args.save_func_config:
                     runs_map_config = Path(args.save_func_config)

@@ -37,9 +37,9 @@ class RunsMap:
         # save field map references
         self.fieldmaps = fieldmaps
 
-        # for each run, filter out the runs that have < 50 frames
+        # for each run, filter out the runs that have < 150 frames
         self.runs = {
-            run_num: [i for i in img_data if i.get_image().shape[-1] > 50] for run_num, img_data in func_runs.items()
+            run_num: [i for i in img_data if i.get_image().shape[-1] > 150] for run_num, img_data in func_runs.items()
         }
         # delete keys that are empty
         self.runs = {k: v for k, v in self.runs.items() if len(v) > 0}
