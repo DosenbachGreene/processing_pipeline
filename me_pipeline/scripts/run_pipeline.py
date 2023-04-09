@@ -390,6 +390,8 @@ def main():
                 if len(runs_map.runIDs) == 0:
                     logging.info(f"No runs for subject {subject_id} session {session_id}.")
                     logging.info(f"Skipping subject {subject_id} session {session_id}.")
+                    # remove the func_out directory
+                    shutil.rmtree(func_out)
                     continue
 
                 # saves a session config runs to toml
