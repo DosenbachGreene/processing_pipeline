@@ -21,6 +21,8 @@ class RunsMap:
 
     Parameters
     ----------
+    bids_dir : Path
+        The path to the BIDS directory
     func_runs : Dict
         A dictionary mapping the runID to the image data
     fieldmaps : Dict
@@ -129,10 +131,10 @@ class RunsMap:
         runs_dict[subject_id] = {}
         runs_dict[subject_id][session_id] = {"config": {}}
         runs_dict[subject_id][session_id]["mag"] = {
-            str(k): [str(Path(p).name) for p in v] for k, v in self.runs_dict["mag"].items()
+            str(k): v for k, v in self.runs_dict["mag"].items()
         }
         runs_dict[subject_id][session_id]["phase"] = {
-            str(k): [str(Path(p).name) for p in v] for k, v in self.runs_dict["phase"].items()
+            str(k): v for k, v in self.runs_dict["phase"].items()
         }
         output_path = Path(output_path)
         with open(output_path, "w") as f:
