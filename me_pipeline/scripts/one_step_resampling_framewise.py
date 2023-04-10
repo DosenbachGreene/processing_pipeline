@@ -160,13 +160,19 @@ def main():
 
         # convert the 4dfp to nifti
         print(f"Converting {epi} to {epi_nii}")
-        sys.stdout.flush()
+        try:
+            sys.stdout.flush()
+        except BlockingIOError:
+            pass
         subprocess_run(["nifti_4dfp", "-n", str(epi), str(epi_nii)], check=True)
 
         # now load the nifti and save each frame as a separate volume
         frame_prefix = str(epi.get_path_and_prefix().repath(tmp_dir.name))
         print(f"Splitting frames from {epi_nii} to {frame_prefix}")
-        sys.stdout.flush()
+        try:
+            sys.stdout.flush()
+        except BlockingIOError:
+            pass
         subprocess_run(["fslsplit", str(epi_nii), f"{frame_prefix}", "-t"], check=True)
 
     # check data consistency
@@ -224,12 +230,18 @@ def main():
     phase_base = PathMan(phase_rads).get_path_and_prefix().repath(tmp_dir.name)
     framesout_bias = PathMan(tmp_dir.name) / f"framesout_bias.lst"
     print("Generating shift maps...")
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        pass
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
             print(f"Submitting job for: Generating shift map frame {i}")
-            sys.stdout.flush()
+            try:
+                sys.stdout.flush()
+            except BlockingIOError:
+                pass
 
             bias_field = PathMan(bias_nii).repath(tmp_dir.name).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
             with open(framesout_bias, "a") as f:
@@ -250,11 +262,17 @@ def main():
             ] = i
 
         print("Waiting for jobs to complete...")
-        sys.stdout.flush()
+        try:
+            sys.stdout.flush()
+        except BlockingIOError:
+            pass
         for future in as_completed(futures):
             future.result()
             print(f"Completed job for: Generating shift map frame {futures[future]}")
-            sys.stdout.flush()
+            try:
+                sys.stdout.flush()
+            except BlockingIOError:
+                pass
 
     # create a blank 4dfp to keep track of undefined voxels
     blank = PathMan(tmp_dir.name) / "blank"
@@ -267,12 +285,18 @@ def main():
     frameout_list = []
     PathMan("onestep_FAILED").unlink(missing_ok=True)  # reset the failed flag file
     print("Resampling EPIs...")
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        pass
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
         for i in range(n_frames):
             print(f"Submitting job for: Resampling EPI frame {i}")
-            sys.stdout.flush()
+            try:
+                sys.stdout.flush()
+            except BlockingIOError:
+                pass
             j = 1 + 1
             padded = f"{i:04d}"
 
@@ -303,7 +327,10 @@ def main():
             # run resampling script
             epi_list = " ".join([str(epi.get_path_and_prefix()) for epi in epis])
             print(f"Resampling_AV.csh {STRresample} {padded} {j} {epi_list}")
-            sys.stdout.flush()
+            try:
+                sys.stdout.flush()
+            except BlockingIOError:
+                pass
             futures[
                 executor.submit(
                     resampling_run,
@@ -315,20 +342,32 @@ def main():
             ] = i
 
         print("Waiting for jobs to complete...")
-        sys.stdout.flush()
+        try:
+            sys.stdout.flush()
+        except BlockingIOError:
+            pass
         for future in as_completed(futures):
             future.result()
             print(f"Completed job for: Resampling EPI frame {futures[future]}")
-            sys.stdout.flush()
+            try:
+                sys.stdout.flush()
+            except BlockingIOError:
+                pass
 
     # merge the split volumes and then do intensity normalization
     # combine split bias fields
     print("Combining bias fields...")
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        pass
     subprocess_run(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_dir.name) / "combined_bias_field"], check=True)
     combined_bias = str((PathMan(tmp_dir.name) / "combined_bias_field").with_suffix(".4dfp.img"))
     print("Intensity normalizing EPIs...")
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        pass
     for k in range(len(epis)):
         # combine split volumes
         temp_out = PathMan(tmp_dir.name) / f"temp_out_{k}"
@@ -353,4 +392,7 @@ def main():
     # close the temporary directory
     tmp_dir.cleanup()
     print("Done!")
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except BlockingIOError:
+        pass
