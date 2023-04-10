@@ -107,6 +107,8 @@ python3 -m pip install -e /path/to/repo/ -v --config-settings editable_mode=stri
 
 ## Docker Build
 
+A docker build is currently available on [DockerHub](https://hub.docker.com/repository/docker/vanandrew/me_pipeline).
+
 To build the docker image, you will need to first compile NORDIC (see [above](#NORDIC)).
 Then, you can run build the docker image with:
 
