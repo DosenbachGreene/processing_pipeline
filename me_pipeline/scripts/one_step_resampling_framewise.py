@@ -297,7 +297,7 @@ def main():
                 sys.stdout.flush()
             except BlockingIOError:
                 pass
-            j = 1 + 1
+            j = i + 1
             padded = f"{i:04d}"
 
             # get the phase for the frame
