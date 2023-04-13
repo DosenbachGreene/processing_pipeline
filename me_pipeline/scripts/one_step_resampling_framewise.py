@@ -108,7 +108,7 @@ def main():
     pixdims = []
 
     # make a temporary directory
-    tmp_dir = TemporaryDirectory(dir=os.environ["TMPDIR"])
+    tmp_dir = TemporaryDirectory(dir=os.environ.get("TMPDIR", "/tmp"))
 
     # loop over epis
     for i, epi in enumerate(epis):
