@@ -286,7 +286,19 @@ def main():
         if args.load_func_config:
             for rmap in args.load_func_config:
                 with open(rmap, "r") as f:
-                    user_sessions_dict.update(toml.load(f))
+                    # add/combine dictionaries with subkeys
+                    # TODO: this is very sloppy, ideally we can do this nicely with some recursive logic instead
+                    # load the toml file
+                    config = toml.load(f)
+                    # for each subject in config
+                    for sub in config:
+                        # if subject is not in user_sessions_dict, we can add the entire dictionary
+                        if sub not in user_sessions_dict:
+                            user_sessions_dict.update(config)
+                        else:
+                            # otherwise we need to add the session
+                            for ses in config[sub]:
+                                user_sessions_dict[sub].update({ses: config[sub][ses]})
 
         # parse the bids directory and grab functionals
         functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
