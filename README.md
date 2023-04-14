@@ -135,6 +135,33 @@ Both will do a multi-stage build of the docker image with the tag `ghcr.io/dosen
 > prior to building the docker image. This is because the NORDIC MCR executable is not included
 > in the repo, and is instead built with MATLAB prior to building the docker image.
 
+The docker build makes the `run_pipline` script the entrypoint. An example invocation for the help is given below:
+
+```bash
+docker run \
+  -u $(id -u):$(id -g) -it --rm \
+  -v $(pwd -P)/..:/data \
+  -v /tmp:/tmpdir \
+  vanandrew/me_pipeline:2023.4.4 -h
+usage: run_pipeline [-h] {structural,functional,params} ...
+
+TODO
+
+options:
+  -h, --help            show this help message and exit
+
+pipeline:
+  {structural,functional,params}
+                        pipeline to run
+    structural          Structural Pipeline
+    functional          Functional Pipeline
+    params              Generate params file
+
+Vahdeta Suljic <suljic@wustl.edu>, Andrew Van <vanandrew@wustl.edu> 12/09/2022
+```
+
+See the [Usage](#Usage) section for more details on how to run the pipeline.
+
 ## Repository Structure
 
 This section is for developers. Skip this section if you aren't intending to push any code changes.
