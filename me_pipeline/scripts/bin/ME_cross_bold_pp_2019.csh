@@ -96,6 +96,32 @@ if ( ! $?SUBJECTS_DIR ) then
 	exit 1
 endif
 
+# check if num_cpus is not defined
+if ( ! $?num_cpus ) then
+	# check OSResample_parallel, raise deprecation warning and assign to num_cpus
+	if ( $?OSResample_parallel ) then
+		echo "OSResample_parallel is assigned, but this is now deprecated."
+		echo "This pipeline will automatically assign num_cpus to OSResample_parallel."
+		echo "But in the future this behavior will be removed."
+		set num_cpus = $OSResample_parallel
+		sleep 30
+	else
+		# default to 1 cpu
+		echo "num_cpus is not defined, defaulting to 1 cpu"
+		set num_cpus = 1
+	endif
+endif
+
+# if medic not defined then default to off
+if ( ! $?medic ) then
+	set medic = 0
+endif
+
+# default bids mode to off
+if ( ! $?bids ) then
+	set bids = 0
+endif
+
 ###############
 # parse options
 ###############

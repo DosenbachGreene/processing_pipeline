@@ -2,7 +2,7 @@
 
 tools_dir=$(realpath $(dirname $(command -v $0)))
 
-# check for a 2022 MATLAB on the system
+# check for MATLAB on the system
 MATLAB_VERSION=$(basename $(matlab -n | grep ' MATLAB ' | cut -d= -f2))
 echo "Detected MATLAB Version: $MATLAB_VERSION"
 if [[ $MATLAB_VERSION == "R2023a" || 
@@ -28,6 +28,8 @@ if [[ $MATLAB_VERSION == "R2023a" ||
             matlab -nojvm -r 'compile_nordic_to_mcr; quit;'
             rm -rf $tools_dir/pkg/nordic
             mv NORDIC_MCR $tools_dir/pkg/nordic
+            chmod +x $tools_dir/pkg/nordic/run_NORDIC_main.sh
+            chmod +x $tools_dir/pkg/nordic/NORDIC_main
         popd > /dev/null
     popd > /dev/null
     # delete nordic_git

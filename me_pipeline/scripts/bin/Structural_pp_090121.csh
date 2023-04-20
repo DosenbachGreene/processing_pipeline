@@ -40,6 +40,11 @@ set subdir = $studydir/$patid
 set T1dir  = $subdir/T1
 set T2dir  = $subdir/T2
 
+# default bids mode to off
+if ( ! $?bids ) then
+	set bids = 0
+endif
+
 if ( $#mprdirs > 1 ) then
 	set mpr = ${structid}_T1w_debias_avg
 else
