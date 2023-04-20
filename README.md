@@ -14,11 +14,12 @@
 - [Repository Structure](#repository-structure)
 - [Data Organization Definitions](#data-organization-definitions)
 - [Usage](#usage)
-  * [Level 0: Running csh scripts](#level-0--running-csh-scripts)
-  * [Level 1: BIDS Based Processing](#level-1--bids-based-processing)
+  * [Level 0: Running csh scripts](#level-0---running-csh-scripts)
+  * [Level 1: BIDS Based Processing](#level-1---bids-based-processing)
     + [Downloading and Organizing Data](#downloading-and-organizing-data)
     + [Converting to BIDS](#converting-to-bids)
     + [Running the Pipeline](#running-the-pipeline)
+      - [Configuring the Pipeline](#configuring-the-pipeline)
       - [Structural Pipeline](#structural-pipeline)
       - [Functional Pipeline](#functional-pipeline)
 
@@ -207,15 +208,15 @@ prefixed by `run-`.
 
 There are several levels of usage for this pipeline:
 
-- [Level 0](#level-0-running-csh-scripts): **csh scripts.** NOT FOR THE FAINT OF HEART. The old, regular way of running the pipeline. Create your own param files and
+- [Level 0](#level-0---running-csh-scripts): **csh scripts.** NOT FOR THE FAINT OF HEART. The old, regular way of running the pipeline. Create your own param files and
 call the appropriate csh scripts (the usual names). If you're doing it this way you are probably an expert and don't
 need this README. The main benefit this version of the pipeline provides is that it can be deployed to any compute
 environment (not just the NIL servers).
 
-- [Level 1](#level-1-bids-based-processing): **BIDS based processing.** See below.
+- [Level 1](#level-1---bids-based-processing): **BIDS based processing.** See below.
 - Level 2: **Web Interface.** (TODO: NOT YET IMPLEMENTED).
 
-### Level 0: Running csh scripts
+### Level 0 - Running csh scripts
 
 This is for Level 0 users. Skip this section if you are not using this level of usage.
 
@@ -277,7 +278,11 @@ set ROIimg = CanonicalROIsNP705_on_MNI152_2mm.4dfp.img
 ```
 The other params files are the same as the original.
 
-### Level 1: BIDS Based Processing
+> **__NOTE:__** Existing params files should be compatible with this version of the 
+> pipeline. However, it is recommended that you use the new params (medic, num_cpus, etc.)
+> as the old params (OSResample_parallel, etc.) will be deprecated in the future.
+
+### Level 1 - BIDS Based Processing
 
 #### Downloading and Organizing Data
 
@@ -327,10 +332,55 @@ pipeline:
 
 Vahdeta Suljic <suljic@wustl.edu>, Andrew Van <vanandrew@wustl.edu> 12/09/2022
 ```
-The `run_pipeline` has three subcommands: `structural`, `functional`, and `params`. The `structural` and `functional`
-run the stuctural and functional pipelines respectively. The `params` generates a configuration file that will allow
-you to modify the pipeline parameters. You can load this file into the `run_pipeline` command using the `--config`
-flag when invoking one of the pipeline commands below.
+The `run_pipeline` has three subcommands: `structural`, `functional`, and `params`. The 
+`structural` and `functional` run the stuctural and functional pipelines respectively, 
+while `params` allows you to generate a params.toml file to configure the pipeline.
+
+##### Configuring the Pipeline
+
+> **__NOTE:__** These params files are different from the old style params file. The new 
+> params file is a [TOML](https://toml.io/en/) file that replaces the functionality of the 
+> old instructions.params file. It has support for various data types, comments, and
+> nested tables for future expansion.
+
+To generate a params file, use `run_pipeline params`:
+
+```bash
+run_pipeline params /path/to/params.toml
+```
+
+This will generate a params file at `/path/to/params.toml`. You can then edit the params 
+file to configure the pipeline.
+
+```toml
+# use bids mode (unless you know what you're doing, this should always be true)
+bids = true
+
+# Delete intermediary files for significant data storage improvement
+cleanup = false
+
+# controls saving of intermediary files
+economy = 0
+
+# atlas-representation target in 711-2B space
+target = "$REFDIR/TRIO_Y_NDC"
+
+# final fMRI data resolution and space
+outspace_flag = "mni2mm"
+
+# if set script will invoke fnirt
+nlalign = false
+
+# use MEDIC (Multi-Echo DIstortion Correction)
+medic = true
+
+# number of threads/processes to use
+num_cpus = 8
+
+# and more options ...
+```
+
+Loading the params file is done by passing the `--config` flag to the `functional/strutural` subcommands of the `run_pipeline` command.
 
 ##### Structural Pipeline
 
@@ -351,6 +401,8 @@ To only process certain subjects, use the `--participant_label` flag.
 > easiest way at the moment is to create a separate BIDS dataset for each anatomical session.
 >
 > The option to process anatomical sessions separately will be added in the future.
+
+It is possible to load a params file to configure the pipeline with the `--config` flag.
 
 ##### Functional Pipeline
 
@@ -390,3 +442,4 @@ input files to each `boldX` folder:
 
 Each list of files is split into `"mag"` and `"phase"` keys for magnitude and phase data respectively. The inner key (e.g. `"2"`) corresponds to the index of the boldX folder (e.g. `bold2`). The list of files are the input files for that boldX folder.
 
+It is possible to load a params file to configure the pipeline with the `--config` flag.
