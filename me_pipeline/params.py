@@ -31,7 +31,7 @@ class RunsMap:
         Whether or not the pipeline is in medic mode, by default False
     """
 
-    def __init__(self, func_runs: Dict, fieldmaps: Dict, medic_mode: bool = False):
+    def __init__(self, func_runs: Dict, fieldmaps: Dict, medic_mode: bool = False, min_frames: int = 50):
         # the functional pipeline requires runIDs to be integers
         # so we need to map the run keys in runs to integers
         self.run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
@@ -39,9 +39,10 @@ class RunsMap:
         # save field map references
         self.fieldmaps = fieldmaps
 
-        # for each run, filter out the runs that have < 150 frames
+        # for each run, filter out the runs that have < min_frames
         self.runs = {
-            run_num: [i for i in img_data if i.get_image().shape[-1] > 150] for run_num, img_data in func_runs.items()
+            run_num: [i for i in img_data if i.get_image().shape[-1] > min_frames]
+            for run_num, img_data in func_runs.items()
         }
         # delete keys that are empty
         self.runs = {k: v for k, v in self.runs.items() if len(v) > 0}
@@ -130,12 +131,8 @@ class RunsMap:
         runs_dict = {}
         runs_dict[subject_id] = {}
         runs_dict[subject_id][session_id] = {"config": {}}
-        runs_dict[subject_id][session_id]["mag"] = {
-            str(k): v for k, v in self.runs_dict["mag"].items()
-        }
-        runs_dict[subject_id][session_id]["phase"] = {
-            str(k): v for k, v in self.runs_dict["phase"].items()
-        }
+        runs_dict[subject_id][session_id]["mag"] = {str(k): v for k, v in self.runs_dict["mag"].items()}
+        runs_dict[subject_id][session_id]["phase"] = {str(k): v for k, v in self.runs_dict["phase"].items()}
         output_path = Path(output_path)
         with open(output_path, "w") as f:
             toml.dump(runs_dict, f)

@@ -196,7 +196,7 @@ def main():
                 with open(rmap, "r") as f:
                     config = toml.load(f)
                     # map config to subject
-                    user_struct_dict[config['structid'].split("sub-")[1]] = config
+                    user_struct_dict[config["structid"].split("sub-")[1]] = config
 
         # generate dataset description file for derivatives
         dataset_description = parse_bids_dataset(bids_path, get_dataset_description)
@@ -368,7 +368,9 @@ def main():
                                 instructions.save_params(instructions_file)
 
                 # initialize runs map
-                runs_map = RunsMap(func_runs, fieldmaps[subject_id][session_id], instructions.medic)
+                runs_map = RunsMap(
+                    func_runs, fieldmaps[subject_id][session_id], instructions.medic, instructions.min_frames
+                )
 
                 # check if subject/session in user_runs_dict
                 if args.load_func_config:

@@ -224,8 +224,9 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
 
-# set HOME to root, just in-case the -u flag is used and force permissions to 777
+# set JULIA_DEPOT_PATH and HOME to root, just in-case the -u flag is used and force permissions to 777
 ENV HOME=/root
+ENV JULIA_DEPOT_PATH=/root/.julia
 RUN chmod -R 777 /root
 # and for refdir make sure data is readable for all users
 RUN chmod -R 755 ${REFDIR}
