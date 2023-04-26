@@ -263,16 +263,23 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
                 # Loop through all functional runs for this session
                 for run in func_runs:
                     # get the first echo functional image for the run
-                    func_file = layout.get(
-                        subject=subject,
-                        session=session,
-                        task=task,
-                        run=run,
-                        suffix="bold",
-                        extension="nii.gz",
-                        part="mag",
-                        echo=1,
-                    )[0]
+                    try:
+                        func_file = layout.get(
+                            subject=subject,
+                            session=session,
+                            task=task,
+                            run=run,
+                            suffix="bold",
+                            extension="nii.gz",
+                            part="mag",
+                            echo=1,
+                        )[0]
+                    except IndexError:
+                        # if this failed this probably means this is single echo data
+                        # try to get the functional images without the echo
+                        func_file = layout.get(
+                            subject=subject, session=session, task=task, run=run, suffix="bold", extension="nii.gz"
+                        )[0]
 
                     # Get all fieldmap files for this run
                     fmap_files = layout.get_fieldmap(func_file.path, return_list=True)

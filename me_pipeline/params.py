@@ -36,6 +36,9 @@ class RunsMap:
         # so we need to map the run keys in runs to integers
         self.run_key_to_int_dict = {k: i + 1 for i, k in enumerate(func_runs.keys())}
 
+        # create a dictionary that maps to the opposite
+        self.run_int_to_key_dict = {v: k for k, v in self.run_key_to_int_dict.items()}
+
         # save field map references
         self.fieldmaps = fieldmaps
 
@@ -50,9 +53,8 @@ class RunsMap:
         # set the BOLDmap
         self.set_BOLDmap(medic_mode)
 
-        # for each run, map create a dict that maps the runIDs to the data
+        # for each run, create a dict that maps the runIDs to the data
         # separate by magnitude and phase
-        # also add the fmap key with BOLDmap
         self.runs_dict = {
             "mag": {
                 self.run_key_to_int_dict[run]: [r.path for r in run_data if "mag" in r.filename]
@@ -63,6 +65,15 @@ class RunsMap:
                 for run, run_data in self.runs.items()
             },
         }
+
+        # in single echo data, the above will return empty lists
+        # try to readd the data to the runs_dict if we found an empty list
+        for k, v in self.runs_dict["mag"].items():
+            if len(v) == 0:
+                self.runs_dict["mag"][k] = [r.path for r in self.runs[self.run_int_to_key_dict[k]]]
+        for k, v in self.runs_dict["phase"].items():
+            if len(v) == 0:
+                self.runs_dict["phase"][k] = [r.path for r in self.runs[self.run_int_to_key_dict[k]]]
 
     def set_BOLDmap(self, medic_mode: bool = False):
         """Generates BOLDmap."""
@@ -100,6 +111,9 @@ class RunsMap:
 
         # update the run_key_to_int_dict
         self.run_key_to_int_dict = {k: int(list(runs_dict["mag"].keys())[i]) for i, k in enumerate(self.runs)}
+
+        # update the reverse mapping
+        self.run_int_to_key_dict = {v: k for k, v in self.run_key_to_int_dict.items()}
 
         # update the BOLDmap
         self.set_BOLDmap(medic_mode)
