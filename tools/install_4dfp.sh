@@ -106,7 +106,7 @@ popd > /dev/null
 ### Update some scripts not in default 4dfp install ###
 rm -f bin/sefm_pp_AT.csh
 rm -f bin/one_step_resampling_AT.csh
-cp updated_4dfp_scripts/* bin/
+cp -f updated_4dfp_scripts/* bin/
 
 ### Build me_fmri ###
 pushd me_fmri > /dev/null

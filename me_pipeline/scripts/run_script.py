@@ -26,11 +26,11 @@ def main():
     parser.add_argument("--log_file", help="Path to log file")
 
     # parse arguments
-    args = parser.parse_args()
+    args, extras = parser.parse_known_args()
 
     # setup logging
     setup_logging(args.log_file)
 
     # run script
-    if run_process([args.script, *args.script_args]) != 0:
+    if run_process([args.script, *args.script_args, *extras]) != 0:
         raise RuntimeError(f"Script {args.script} failed.")
