@@ -101,8 +101,14 @@ def get_anatomicals(layout: BIDSLayout) -> Dict:
         t1w_subject_dict = {}
         t2w_subject_dict = {}
 
+        # get subject sessions
+        sessions = layout.get_sessions(subject=subject)
+        # if sessions empty, set to None
+        if not sessions:
+            sessions = [None]
+
         # Loop through all sessions for this subject
-        for session in layout.get_sessions(subject=subject):
+        for session in sessions:
             # Get all T1w files for this session
             t1w_files = layout.get(subject=subject, session=session, suffix="T1w", extension="nii.gz")
 
@@ -178,8 +184,14 @@ def get_functionals(layout: BIDSLayout) -> Dict:
         # Initialize an empty dictionary for functional files for this subject
         func_subject_dict = {}
 
+        # get subject sessions
+        sessions = layout.get_sessions(subject=subject)
+        # if sessions empty, set to None
+        if not sessions:
+            sessions = [None]
+
         # Loop through all sessions for this subject
-        for session in layout.get_sessions(subject=subject):
+        for session in sessions:
             # Initialize an empty dictionary for functional files for this session
             func_session_dict = {}
 
@@ -250,8 +262,14 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
         # Initialize an empty dictionary for fieldmap files for this subject
         fmap_subject_dict = {}
 
+        # get subject sessions
+        sessions = layout.get_sessions(subject=subject)
+        # if sessions empty, set to None
+        if not sessions:
+            sessions = [None]
+
         # Loop through all sessions for this subject
-        for session in layout.get_sessions(subject=subject):
+        for session in sessions:
             # Initialize an empty dictionary for fieldmap files for this session
             fmap_session_dict = {}
 

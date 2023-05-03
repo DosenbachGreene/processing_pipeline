@@ -224,11 +224,15 @@ def main():
             mpr_files = []
             t2w_files = []
             for session_id in sessions.keys():
-                # check if session has both T1w and T2w
-                if session_id not in anatomicals["T2w"][subject_id]:
-                    continue
+                # add T1w file to list
                 mpr_files.extend([f.path for f in anatomicals["T1w"][subject_id][session_id]])
-                t2w_files.extend([f.path for f in anatomicals["T2w"][subject_id][session_id]])
+                # check if session has a T2w
+                try:
+                    if session_id not in anatomicals["T2w"][subject_id]:
+                        continue
+                    t2w_files.extend([f.path for f in anatomicals["T2w"][subject_id][session_id]])
+                except KeyError:
+                    logging.info("Session {session_id} does not have a T2.")
 
             # construct structural params
             sp = StructuralParams(
@@ -278,7 +282,7 @@ def main():
                     ):
                         raise RuntimeError("Structural pipeline failed.")
             else:
-                logging.info(f"Dry run: skipping functional pipeline for {subject_id}.")
+                logging.info(f"Dry run: skipping structural pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
         # if runs maps provided, load them all in
