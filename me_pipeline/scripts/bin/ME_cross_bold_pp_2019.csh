@@ -783,13 +783,14 @@ BOLD1:
 @ k = 1
 while ($k <= $runs)
 	source  bold$runID[$k]/$patid"_b"$runID[$k].params
-	fslinfo bold$runID[$k]/$patid"_b"$runID[$k]_echo1.nii | sed '/dim4/d' >! $$fslinfo_run$k
+	fslinfo bold$runID[$k]/$patid"_b"$runID[$k]_echo1.nii | sed '/dim4/d' | sed '/cal_max/d' | sed '/cal_min/d' >! $$fslinfo_run$k
 	@ k++
 end
 if (-e ConsistencyCheck.txt) /bin/rm -f ConsistencyCheck.txt; touch ConsistencyCheck.txt
 @ k = 2
 while ($k <= $runs)
 	diff bold$runID[1]/$patid"_b"$runID[1].params bold$runID[$k]/$patid"_b"$runID[$k].params >> ConsistencyCheck.txt
+	echo `diff $$fslinfo_run1 $$fslinfo_run$k`
 	if `diff $$fslinfo_run1 $$fslinfo_run$k` then
 		echo $program":" inconsistent fMRI image dimensions across runs
 		exit -1
@@ -991,8 +992,6 @@ while ( $i <= $#BOLDgrps )
 		#############################################
 		# create a first frame field map for MEDIC
 		#############################################
-		# TODO: Is this the best way to handle this?
-
 		# BOLDgrps should be the same as runIDS in MEDIC mode, so just take the field map
 		# by using the $run
 
@@ -1025,6 +1024,9 @@ while ( $i <= $#BOLDgrps )
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
 			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
+			if ( $distort == 4 ) then  # the modes set for T2 don't work too well for MEDIC corrected data, swap to the MPR params in MEDIC mode
+				set mode = (4099 4099 3075 2051 2051)
+			endif
 		else
 			set struct = atlas/${mpr}
 			set mode = (4099 4099 3075 2051 2051)
