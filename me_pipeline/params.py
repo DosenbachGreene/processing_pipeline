@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from pathlib import Path
 from dataclasses import asdict, dataclass, field, fields, _MISSING_TYPE
 from typing import Any, Dict, List, Union
@@ -322,8 +323,12 @@ class Params:
                     # write int as int
                     param_file.write(f"set {field.name} = {getattr(self, field.name)}")
                 elif field.type is float:
-                    # write float as float
-                    param_file.write(f"set {field.name} = {getattr(self, field.name)}")
+                    # check if float is 0, replace with 0 integer to ensure backwards compatiblity with csh scripts
+                    if np.isclose(getattr(self, field.name), 0):
+                        param_file.write(f"set {field.name} = 0")
+                    else:
+                        # write float as float
+                        param_file.write(f"set {field.name} = {getattr(self, field.name)}")
                 elif field.type is str:
                     # write str as str
                     param_file.write(f"set {field.name} = {getattr(self, field.name)}")
