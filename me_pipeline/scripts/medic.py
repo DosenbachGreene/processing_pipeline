@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--out_prefix", help="Prefix to output field maps and displacment maps.")
     parser.add_argument("-f", "--noiseframes", type=int, default=0, help="Number of noise frames")
     parser.add_argument("-n", "--n_cpus", type=int, default=4, help="Number of CPUs to use.")
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
 
     # parse arguments
     args = parser.parse_args()
@@ -57,9 +58,30 @@ def main():
         raise ValueError("Could not find PhaseEncodingDirection in metadata.")
 
     # now run medic
-    fmaps_native, dmaps, fmaps = medic(
-        phase_data, mag_data, echo_times, total_readout_time, phase_encoding_direction, n_cpus=args.n_cpus
-    )
+    if args.debug:
+        fmaps_native, dmaps, fmaps = medic(
+            phase_data,
+            mag_data,
+            echo_times,
+            total_readout_time,
+            phase_encoding_direction,
+            n_cpus=args.n_cpus,
+            border_filt=(1000, 1000),
+            svd_filt=1000,
+            critical_freq=None,
+            debug=True,
+        )
+    else:
+        fmaps_native, dmaps, fmaps = medic(
+            phase_data,
+            mag_data,
+            echo_times,
+            total_readout_time,
+            phase_encoding_direction,
+            n_cpus=args.n_cpus,
+            svd_filt=10,
+            critical_freq=None,
+        )
 
     # save the fmaps and dmaps to file
     print("Saving field maps and displacement maps to file...")

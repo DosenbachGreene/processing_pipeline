@@ -1019,8 +1019,14 @@ while ( $i <= $#BOLDgrps )
 		####################################################
 		# pha2epi.csh registers and applies field map to EPI
 		####################################################
-		echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
-		pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
+		if ( $distort == 4 ) then
+			# skips registration
+			echo pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+			pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
+		else
+			echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+			pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
+		endif
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
 			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
@@ -1120,6 +1126,7 @@ while ( $i <= $#BOLDgrps )
 		set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
 		if ($BiasField) set strwarp = "$strwarp -bias bold$runID[$k]/${patid}_b$runID[$k]_invBF"
 		if ( $distort == 4 ) then
+			echo bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img
 			# this is for MEDIC framewise distortion corrections
 			echo one_step_resampling_framewise -i bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img -xr3dmat \
 				$xr3dmat -phase $fmaps -ped $ped -dwell $dwell -ref $outspace $strwarp -parallel ${num_cpus} \
