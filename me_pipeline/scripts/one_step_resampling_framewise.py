@@ -167,7 +167,9 @@ def main():
         subprocess_run(["nifti_4dfp", "-n", str(epi), str(epi_nii)], check=True)
 
         # now load the nifti and save each frame as a separate volume
-        frame_prefix = str(epi.get_path_and_prefix().repath(tmp_dir.name))
+        path_prefix = PathMan(tmp_dir.name) / "split_volumes"
+        path_prefix.mkdir(exist_ok=True)
+        frame_prefix = str(epi.get_path_and_prefix().repath(path_prefix.path))
         print(f"Splitting frames from {epi_nii} to {frame_prefix}")
         try:
             sys.stdout.flush()
@@ -200,7 +202,11 @@ def main():
     ref = PathMan(args.ref)
     ref_nii = ref.with_suffix(".nii")
     ref_4dfp = ref.with_suffix(".4dfp.img")
-    ref_tmp = ref_nii.repath(tmp_dir.name)
+
+    # create a tmp path for ref nifti
+    ref_tmp_path = PathMan(tmp_dir.name) / "ref_nifti"
+    ref_tmp_path.mkdir(exist_ok=True)
+    ref_tmp = ref_nii.repath(ref_tmp_path.name)
     if not ref_nii.exists():
         if not ref_4dfp.exists():
             raise FileNotFoundError(f"Could not find {ref_nii} or {ref_4dfp}")
@@ -209,26 +215,28 @@ def main():
         shutil.copy2(str(ref_nii), str(ref_tmp))
 
     # convert ref to nifti
-    ref_nii = PathMan(args.ref).repath(tmp_dir.name).append_suffix(".nii").path
+    ref_nii = PathMan(args.ref).repath(ref_tmp_path.name).append_suffix(".nii").path 
     subprocess_run(["nifti_4dfp", "-n", args.ref, ref_nii], check=True)
 
     # if no bias field is provided, use all ones
     if args.bias is None:
         reference_img = nib.load(ref_nii)
         ones = np.ones(reference_img.shape)
+        tmp_bias_dir = PathMan(tmp_dir.name) / "bias"
+        tmp_bias_dir.mkdir(exist_ok=True)
         nib.Nifti1Image(ones, reference_img.affine, reference_img.header).to_filename(
-            PathMan(tmp_dir.name) / "bias.nii"
+            PathMan(tmp_bias_dir.name) / "bias.nii"
         )
         # convert to 4dfp
-        args.bias = (PathMan(tmp_dir.name) / "bias").path
-        subprocess_run(["nifti_4dfp", "-4", str(PathMan(tmp_dir.name) / "bias.nii"), args.bias], check=True)
+        args.bias = (PathMan(tmp_bias_dir.name) / "bias").path
+        subprocess_run(["nifti_4dfp", "-4", str(PathMan(tmp_bias_dir.name) / "bias.nii"), args.bias], check=True)
 
     # for each frame, undistort the bias field for that frame
     # first get a nifti of the bias field
-    bias_nii = PathMan(args.bias).repath(tmp_dir.name).append_suffix(".nii").path
+    bias_nii = PathMan(args.bias).repath(tmp_bias_dir.name).append_suffix(".nii").path
     subprocess_run(["nifti_4dfp", "-n", str(args.bias), bias_nii], check=True)
-    phase_base = PathMan(phase_rads).get_path_and_prefix().repath(tmp_dir.name)
-    framesout_bias = PathMan(tmp_dir.name) / f"framesout_bias.lst"
+    phase_base = PathMan(phase_rads).get_path_and_prefix().repath(tmp_bias_dir.name)
+    framesout_bias = PathMan(tmp_bias_dir.name) / f"framesout_bias.lst"
     print("Generating shift maps...")
     try:
         sys.stdout.flush()
@@ -243,14 +251,14 @@ def main():
             except BlockingIOError:
                 pass
 
-            bias_field = PathMan(bias_nii).repath(tmp_dir.name).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
+            bias_field = PathMan(bias_nii).repath(tmp_bias_dir.name).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
             with open(framesout_bias, "a") as f:
                 f.write(f"{bias_field.get_path_and_prefix()}\n")
             futures[
                 executor.submit(
                     bias_field_run,
                     i,
-                    tmp_dir.name,
+                    tmp_bias_dir.name,
                     args.ped,
                     args.dwell,
                     ref_tmp,
@@ -275,7 +283,9 @@ def main():
                 pass
 
     # create a blank 4dfp to keep track of undefined voxels
-    blank = PathMan(tmp_dir.name) / "blank"
+    tmp_blank_path = PathMan(tmp_dir.name) / "blank_tmp"
+    tmp_blank_path.mkdir(exist_ok=True)
+    blank = PathMan(tmp_blank_path.name) / "blank"
     subprocess_run(["extract_frame_4dfp", str(epis[1]), str(1), f"-o{str(blank)}"], check=True)
     subprocess_run(["scale_4dfp", str(blank), str(0), "-b1"], check=True)
     subprocess_run(["nifti_4dfp", "-n", str(blank), str(blank)], check=True)
@@ -285,6 +295,10 @@ def main():
     frameout_list = []
     PathMan("onestep_FAILED").unlink(missing_ok=True)  # reset the failed flag file
     print("Resampling EPIs...")
+
+    # create tmp directory for resampled EPIs
+    tmp_epi_path = PathMan(tmp_dir.name) / "resampled_epis"
+    tmp_epi_path.mkdir(exist_ok=True)
     try:
         sys.stdout.flush()
     except BlockingIOError:
@@ -305,7 +319,7 @@ def main():
 
             # create STRresample string
             STRresample = (
-                f"{tmp_dir.name} {ref.get_prefix()} {phase_frame} {args.dwell} {args.ped}"
+                f"{tmp_epi_path.name} {ref.get_prefix()} {phase_frame} {args.dwell} {args.ped}"
                 f" 1 {blank} {args.xr3dmat} {warpmode}"
             )
 
@@ -318,8 +332,8 @@ def main():
             for k in range(len(epis)):
                 epi_basename = epis[k].get_prefix().path
                 ref_basename = ref_tmp.get_prefix().path
-                name = PathMan(tmp_dir.name) / f"{epi_basename}_on_{ref_basename}{padded}_defined"
-                frameout = PathMan(tmp_dir.name) / f"framesout_{k}.lst"
+                name = PathMan(tmp_epi_path.name) / f"{epi_basename}_on_{ref_basename}{padded}_defined"
+                frameout = PathMan(tmp_epi_path.name) / f"framesout_{k}.lst"
                 frameout_list.append(frameout)
                 with open(frameout, "a") as f:
                     f.write(f"{name}\n")
@@ -361,8 +375,8 @@ def main():
         sys.stdout.flush()
     except BlockingIOError:
         pass
-    subprocess_run(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_dir.name) / "combined_bias_field"], check=True)
-    combined_bias = str((PathMan(tmp_dir.name) / "combined_bias_field").with_suffix(".4dfp.img"))
+    subprocess_run(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_bias_dir.name) / "combined_bias_field"], check=True)
+    combined_bias = str((PathMan(tmp_bias_dir.name) / "combined_bias_field").with_suffix(".4dfp.img"))
     print("Intensity normalizing EPIs...")
     try:
         sys.stdout.flush()
@@ -370,7 +384,7 @@ def main():
         pass
     for k in range(len(epis)):
         # combine split volumes
-        temp_out = PathMan(tmp_dir.name) / f"temp_out_{k}"
+        temp_out = PathMan(tmp_epi_path.name) / f"temp_out_{k}"
         subprocess_run(["paste_4dfp", "-a", frameout_list[k], temp_out], check=True)
         subprocess_run(["imgopr_4dfp", f"-p{out[k]}", temp_out, combined_bias, "-R", "-z", "-u"], check=True)
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
