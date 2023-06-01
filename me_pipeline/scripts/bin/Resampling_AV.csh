@@ -27,62 +27,65 @@ while ( $#argv > 0 )
 	set epi = ($epi $argv[1]);shift;
 end
 
+mkdir -p $D/j$j
 #######################
 # extract xr3d.mat file
 #######################
-grep -x -A4 "t4 frame $j" $xr3dmat | tail -4 >  $D/${epi[1]:t}${padded}_tmp_t4
-grep -x -A6 "t4 frame $j" $xr3dmat | tail -1 >> $D/${epi[1]:t}${padded}_tmp_t4
+grep -x -A4 "t4 frame $j" $xr3dmat | tail -4 >  $D/j$j/${epi[1]:t}${padded}_tmp_t4
+grep -x -A6 "t4 frame $j" $xr3dmat | tail -1 >> $D/j$j/${epi[1]:t}${padded}_tmp_t4
 
 ##################################################################################################
 # run affine convert (xr3d to fsl) on extracted matrix and compute $strwarp for use by convertwarp
 ##################################################################################################
-aff_conv xf $epi[1] $epi[1] $D/${epi[1]:t}${padded}_tmp_t4 \
-	$D/${epi[1]:t}${padded} $D/${epi[1]:t}${padded} $D/${epi[1]:t}_${padded}_to_xr3d.mat > /dev/null || goto FAILED
+aff_conv xf $epi[1] $epi[1] $D/j$j/${epi[1]:t}${padded}_tmp_t4 \
+	$D/${epi[1]:t}${padded} $D/${epi[1]:t}${padded} $D/j$j/${epi[1]:t}_${padded}_to_xr3d.mat > /dev/null || goto FAILED
 
 if ( $warpmode == 1 ) then  	# affine only
-	$FSLDIR/bin/convert_xfm -omat $D/${epi[1]:t}_${padded}_to_outspace.mat -concat $postmat $D/${epi[1]:t}_${padded}_to_xr3d.mat || goto FAILED
-	set strwarp =  "--postmat=$D/${epi[1]:t}_${padded}_to_outspace.mat"
+	$FSLDIR/bin/convert_xfm -omat $D/j$j/${epi[1]:t}_${padded}_to_outspace.mat -concat $postmat $D/j$j/${epi[1]:t}_${padded}_to_xr3d.mat || goto FAILED
+	set strwarp =  "--postmat=$D/j$j/${epi[1]:t}_${padded}_to_outspace.mat"
 else if ( $warpmode == 2 ) then	# affine+FNIRT
-	set strwarp =  "--premat=$D/${epi[1]:t}_${padded}_to_xr3d.mat --warp1=$postwarp"
+	set strwarp =  "--premat=$D/j$j/${epi[1]:t}_${padded}_to_xr3d.mat --warp1=$postwarp"
 endif
 
 ###################################################
 # align the field map to EPI of frame indexed by $j
 ###################################################
 if ( $DistortionCorrect ) then 
-	$FSLDIR/bin/convert_xfm -omat $D/${epi[1]:t}${padded}_to_xr3d_inv.mat -inverse $D/${epi[1]:t}_${padded}_to_xr3d.mat || goto FAILED
+	$FSLDIR/bin/convert_xfm -omat $D/j$j/${epi[1]:t}${padded}_to_xr3d_inv.mat -inverse $D/j$j/${epi[1]:t}_${padded}_to_xr3d.mat || goto FAILED
 	$FSLDIR/bin/flirt -in ${phase} -ref $D/${epi[1]:t}${padded} \
-		-applyxfm -init $D/${epi[1]:t}${padded}_to_xr3d_inv.mat -out $D/${epi[1]:t}${padded}_phase || goto FAILED
-	$FSLDIR/bin/fugue --loadfmap=$D/${epi[1]:t}${padded}_phase --dwell=$dwell \
-		--saveshift=$D/${epi[1]:t}${padded}_shift --unwarpdir=$ped  || goto FAILED
-	set strwarp = "$strwarp --shiftmap=$D/${epi[1]:t}${padded}_shift --shiftdir=$ped"
+		-applyxfm -init $D/j$j/${epi[1]:t}${padded}_to_xr3d_inv.mat -out $D/j$j/${epi[1]:t}${padded}_phase || goto FAILED
+	$FSLDIR/bin/fugue --loadfmap=$D/j$j/${epi[1]:t}${padded}_phase --dwell=$dwell \
+		--saveshift=$D/j$j/${epi[1]:t}${padded}_shift --unwarpdir=$ped  || goto FAILED
+	set strwarp = "$strwarp --shiftmap=$D/j$j/${epi[1]:t}${padded}_shift --shiftdir=$ped"
 endif
 
 ########################
 # compose all transforms
 ########################
-$FSLDIR/bin/convertwarp --ref=$D/$ref.nii --out=$D/${epi[1]:t}${padded}_warp$$ $strwarp || goto FAILED
-$FSLDIR/bin/fslmaths $D/${epi[1]:t}${padded}_warp$$ -nan $D/${epi[1]:t}${padded}_warp || goto FAILED
+$FSLDIR/bin/convertwarp --ref=$D/$ref.nii --out=$D/j$j/${epi[1]:t}${padded}_warp$$ $strwarp || goto FAILED
+$FSLDIR/bin/fslmaths $D/j$j/${epi[1]:t}${padded}_warp$$ -nan $D/j$j/${epi[1]:t}${padded}_warp || goto FAILED
 
 ##################################################################
 # apply all transformations in one step
 # xform the blank image = all ones to keep track of defined voxels
 ##################################################################
-$FSLDIR/bin/applywarp --ref=$D/$ref.nii --warp=$D/${epi[1]:t}${padded}_warp \
+$FSLDIR/bin/applywarp --ref=$D/$ref.nii --warp=$D/j$j/${epi[1]:t}${padded}_warp \
 	--in=$blank --out=${blank}_on_${ref:t}$padded --interp=spline || goto FAILED
 nifti_4dfp -4 ${blank}_on_${ref:t}$padded ${blank}_on_${ref:t}$padded > /dev/null  || goto FAILED
-set rmlst=($D/${epi[1]:t}${padded}_warp$$.nii ${blank}_on_${ref:t}$padded.nii )
+set rmlst=($D/j$j/${epi[1]:t}${padded}_warp$$.nii ${blank}_on_${ref:t}$padded.nii )
 @ k = 1
 while ( $k <= $#epi )
-	$FSLDIR/bin/applywarp --ref=$D/$ref.nii --warp=$D/${epi[1]:t}${padded}_warp \
-		--in=$D/${epi[$k]:t}$padded --out=$D/${epi[$k]:t}_on_${ref:t}$padded --interp=spline    || goto FAILED	# xform the EPI frame
-	nifti_4dfp -4 $D/${epi[$k]:t}_on_${ref:t}$padded $D/${epi[$k]:t}_on_${ref:t}$padded > /dev/null || goto FAILED
-	maskimg_4dfp  $D/${epi[$k]:t}_on_${ref:t}$padded ${blank}_on_${ref:t}$padded ${D}/${epi[$k]:t}_on_${ref:t}${padded}_defined \
+        mkdir -p $D/k$k
+	$FSLDIR/bin/applywarp --ref=$D/$ref.nii --warp=$D/j$j/${epi[1]:t}${padded}_warp \
+		--in=$D/${epi[$k]:t}$padded --out=$D/k$k/${epi[$k]:t}_on_${ref:t}$padded --interp=spline    || goto FAILED	# xform the EPI frame
+	nifti_4dfp -4 $D/k$k/${epi[$k]:t}_on_${ref:t}$padded $D/k$k/${epi[$k]:t}_on_${ref:t}$padded > /dev/null || goto FAILED
+	maskimg_4dfp  $D/k$k/${epi[$k]:t}_on_${ref:t}$padded ${blank}_on_${ref:t}$padded ${D}/${epi[$k]:t}_on_${ref:t}${padded}_defined \
 		-t0.8 -ER > /dev/null || goto FAILED
 #####################################################################
 # create a movie of xformed EPI images with 1e-37 in undefined voxels
 #####################################################################
-	set rmlst = ( $rmlst $D/${epi[$k]:t}_on_${ref:t}$padded.* )
+	# set rmlst = ( $rmlst $D/${epi[$k]:t}_on_${ref:t}$padded.* )
+        /bin/rm -rf $D/$k
 	@ k++
 end
 /bin/rm -f $rmlst
