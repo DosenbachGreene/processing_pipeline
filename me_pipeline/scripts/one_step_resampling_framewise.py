@@ -412,7 +412,3 @@ def main():
         sys.stdout.flush()
     except BlockingIOError:
         pass
-
-
-if __name__ == "__main__":
-    main()
