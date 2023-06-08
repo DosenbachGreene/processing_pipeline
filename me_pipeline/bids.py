@@ -273,11 +273,11 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
             # Initialize an empty dictionary for fieldmap files for this session
             fmap_session_dict = {}
 
-            # Get all functional runs for this session
-            func_runs = layout.get_runs(subject=subject, session=session, suffix="bold", extension="nii.gz")
-
             # Loop through all tasks for this session
             for task in layout.get_tasks(subject=subject, session=session):
+                # Get all functional runs for this session
+                func_runs = layout.get_runs(subject=subject, session=session, task=task, suffix="bold", extension="nii.gz")
+
                 # Loop through all functional runs for this session
                 for run in func_runs:
                     # get the first echo functional image for the run
