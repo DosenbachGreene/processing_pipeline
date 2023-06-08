@@ -218,12 +218,14 @@ def main():
     ref_nii = PathMan(args.ref).repath(ref_tmp_path.name).append_suffix(".nii").path 
     subprocess_run(["nifti_4dfp", "-n", args.ref, ref_nii], check=True)
 
+    # create a tmp path for bias field
+    tmp_bias_dir = PathMan(tmp_dir.name) / "bias"
+    tmp_bias_dir.mkdir(exist_ok=True)
+
     # if no bias field is provided, use all ones
     if args.bias is None:
         reference_img = nib.load(ref_nii)
         ones = np.ones(reference_img.shape)
-        tmp_bias_dir = PathMan(tmp_dir.name) / "bias"
-        tmp_bias_dir.mkdir(exist_ok=True)
         nib.Nifti1Image(ones, reference_img.affine, reference_img.header).to_filename(
             PathMan(tmp_bias_dir.name) / "bias.nii"
         )
