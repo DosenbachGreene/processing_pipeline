@@ -15,6 +15,7 @@ from typing import List
 import nibabel as nib
 import numpy as np
 from memori.pathman import PathManager as PathMan
+from memori.helpers import create_symlink_to_path
 
 
 def check_consistency(data: List) -> None:
@@ -215,7 +216,7 @@ def main():
         shutil.copy2(str(ref_nii), str(ref_tmp))
 
     # convert ref to nifti
-    ref_nii = PathMan(args.ref).repath(ref_tmp_path.path).append_suffix(".nii").path 
+    ref_nii = PathMan(args.ref).repath(ref_tmp_path.path).append_suffix(".nii").path
     subprocess_run(["nifti_4dfp", "-n", args.ref, ref_nii], check=True)
 
     # create a tmp path for bias field
@@ -253,7 +254,9 @@ def main():
             except BlockingIOError:
                 pass
 
-            bias_field = PathMan(bias_nii).repath(tmp_bias_dir.path).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
+            bias_field = (
+                PathMan(bias_nii).repath(tmp_bias_dir.path).get_path_and_prefix().append_suffix(f"_{i:04d}.nii")
+            )
             with open(framesout_bias, "a") as f:
                 f.write(f"{bias_field.get_path_and_prefix()}\n")
             futures[
@@ -301,12 +304,15 @@ def main():
     # create tmp directory for resampled EPIs
     tmp_epi_path = PathMan(tmp_dir.name) / "resampled_epis"
     tmp_epi_path.mkdir(exist_ok=True)
+
     try:
         sys.stdout.flush()
     except BlockingIOError:
         pass
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {}
+        # symlink ref to tmp epi dir
+        create_symlink_to_path(ref.path + ".nii", tmp_epi_path.path)
         for i in range(n_frames):
             print(f"Submitting job for: Resampling EPI frame {i}")
             try:
@@ -339,6 +345,11 @@ def main():
                 frameout_list.append(frameout)
                 with open(frameout, "a") as f:
                     f.write(f"{name}\n")
+
+                # symlink split volumes to the resampled path
+                epi_prefix = PathMan(tmp_dir.name) / "split_volumes" / epi_basename
+                epi_split_vol = epi_prefix.append_suffix(f"{padded}.nii")
+                create_symlink_to_path(epi_split_vol.path, tmp_epi_path.path)
 
             # run resampling script
             epi_list = " ".join([str(epi.get_path_and_prefix()) for epi in epis])
