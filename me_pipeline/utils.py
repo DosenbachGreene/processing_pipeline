@@ -142,8 +142,8 @@ def batch_wb_image_capture_volreg(
     shutil.copy(rwhite, rwhite_path)
 
     # Run wb command
-    height = "800"
-    width = "2450"
+    height = "2450"
+    width = "800"
     png_output_name = str(outname) + ".png"
     if (
         run_process(
