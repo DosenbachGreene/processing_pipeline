@@ -25,6 +25,7 @@ if [[ $MATLAB_VERSION == "R2023a" ||
         # change into repo
         pushd NORDIC_Raw > /dev/null
             mkdir -p NORDIC_MCR
+            chmod -R 777 NORDIC_MCR
             matlab -nojvm -r 'compile_nordic_to_mcr; quit;'
             rm -rf $tools_dir/pkg/nordic
             mv NORDIC_MCR $tools_dir/pkg/nordic
