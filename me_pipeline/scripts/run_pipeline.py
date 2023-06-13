@@ -59,6 +59,7 @@ FUNCTIONAL_MODULES = [
 # See lines 256 - 267 in ME_cross_bold_pp_2019.sh
 FMRI_PP_MODULES = [
     "regtest",
+    "DISTORT",
     "BOLD",
     "NORDIC",
     "BOLD1",
@@ -421,6 +422,7 @@ def main():
 
                 # skip if dry run
                 if not args.dry_run:
+                    print(os.environ['PATH'])
                     # change to session directory
                     with working_directory(str(func_out)):
                         # run the functional pipeline

@@ -1,6 +1,16 @@
 #!/bin/csh -f
-#$Header: /data/petsun4/data1/solaris/csh_scripts/RCS/ME_cross_bold_pp_2019.csh,v 1.9 2022/11/30 21:41:43 avi Exp $
+#$Header: /data/petsun4/data1/solaris/csh_scripts/RCS/ME_cross_bold_pp_2019.csh,v 1.12 2023/06/10 07:50:34 avi Exp $
 #$Log: ME_cross_bold_pp_2019.csh,v $
+#Revision 1.12  2023/06/10 07:50:34  avi
+#slice-time correction / motion correction order sorted
+#
+#Revision 1.11  2023/06/06 22:32:45  avi
+#Reconfigure anatomy section of code to accommodate data in which the T1w data is processed throught the longitudial FreeSurfer pipeline
+#If there is no prior day1 data, there must be at least one T2w image
+#
+#Revision 1.10  2022/12/16 20:54:12  avi
+#call MEfmri_4dfp from $RELEASE
+#
 #Revision 1.9  2022/11/30 21:41:43  avi
 #$isnordic ->  $runnordic conditional in compute SNR section of code
 #
@@ -34,7 +44,8 @@
 #Revision 1.1  2021/08/26 21:39:03  avi
 #Initial revision
 #
-set idstr = '$Id: ME_cross_bold_pp_2019.csh,v 1.9 2022/11/30 21:41:43 avi Exp $'
+
+set idstr = '$Id: ME_cross_bold_pp_2019.csh,v 1.12 2023/06/10 07:50:34 avi Exp $'
 echo $idstr
 set program = $0; set program = $program:t
 echo $program $argv[1-]
@@ -133,6 +144,7 @@ while ($i <= ${#argv})
 	case echo:
 		set echo;		breaksw;
 	case regtest:
+	case DISTORT
 	case MODEL:
 	case BOLD*:
 	case NORDIC:
@@ -160,7 +172,7 @@ else
 	set patid1 = $day1_patid
 	if ( $?day1_path ) then
 		set day1_path = `realpath $day1_path`
-		/bin/rm -rf atlas; ln -s $day1_path atlas
+		/bin/rm -rf atlas; ln -s $day1_path atlas || exit -1
 	endif
 	if (-e atlas/${patid1}_t2w.4dfp.img) set t2wimg = ${patid1}_t2w
 endif
@@ -186,10 +198,11 @@ else
 	set outspacestr = ""
 endif
 
+@ distort = 0			 # prevents unintentionally running fnirt
 if ( $medic == 1 ) then  # Use multi-echo susceptibility distortion correction
 	set distort = 4
 	set FMAP = MEDIC/${patid}_medic_Grp
-else if ( $?sefm ) then				# spin echo distortion correction
+else if ( $?sefm ) then			# spin echo distortion correction
 	set distort = 1
 	if ( ${#sefm} != ${#BOLDgrps} ) then
 		echo $program": mismatch between BOLD groups and sefm (spin echo field map) groups"
@@ -252,13 +265,6 @@ switch ( $outspace_flag )	# dependency on mat files in $REFDIR
 endsw
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
-set BOLDruns = ( `echo $BOLDgrps | sed 's|,| |g'` )
-@ runs = ${#runID}
-if ($runs != ${#BOLDruns}) then
-	echo $program": runID and BOLDruns mismatch - edit "$prmfile
-	exit -1
-endif
-
 if (! ${?E4dfp}) @ E4dfp = 0
 if (! $?refframe) @ refframe = $skip + 1
 if (! $?useold) set useold = 0	# when set extant transforms are not re-computed
@@ -274,9 +280,10 @@ if ($runnordic) then
 	endif
 endif
 
-if ( ! ${?regtest} ) @ regtest = 0	# debugging flag
+if ( ! ${?regtest} ) @ regtest = 0	# structural image processing only flag
 if ($enter == regtest)	@ regtest++;
-if ($enter == BOLD)	    goto BOLD;
+if ($enter == DISTORT)	goto DISTORT;
+if ($enter == BOLD)		goto BOLD;
 if ($enter == BOLD1)	goto BOLD1;
 if ($enter == BOLD2)	goto BOLD2;
 if ($enter == BOLD3)	goto BOLD3;
@@ -291,39 +298,51 @@ if ($enter == CLEANUP)	goto CLEANUP;
 # set up structural
 ###################
 if ( $isday1 ) then # this session is day1
+	echo "FSdir="$FSdir
+	echo $program": begin anatomical processing"
 	if (! -e $FSdir/mri/nu.mgz || ! -e $FSdir/mri/aparc+aseg.mgz ) then 
 		echo $program":" nu.mgz or aparc+aseg.mgz not found in $FSdir/mri
 		exit -1
 	endif
 	if (! -e atlas) mkdir atlas;
 	pushd atlas		# into atlas
+	ln -s ${target}.4dfp.* .
 	if ( ! -e ${mpr}_on_${target:t}_111.4dfp.img ) then		# mpr atlas registration conditional
 		#######################################################################
 		# retrieve nu.mgz(mprage) and aparc+aseg.mgz from the freesurfer folder
 		#######################################################################
+		if (-e $FSdir/mri/rawavg.mgz) then
 		mri_vol2vol --mov $FSdir/mri/nu.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
-			--o nu.mgz --no-save-reg || exit -1	# resample nu onto mpr
+			--o nu.mgz --no-save-reg || exit -1			# resample nu onto mpr
+			mri_vol2vol --mov $FSdir/mri/aparc+aseg.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
+			--o aparc+aseg.mgz --no-save-reg --nearest || exit -1	# aparc+aseg now is on mpr
+		else
+			cp $FSdir/mri/nu.mgz $FSdir/mri/aparc+aseg.mgz $cwd
+		endif
 		mri_convert -it mgz -ot nii nu.mgz nu.nii || exit -1
 		nifti_4dfp -4 nu.nii $mpr -N || exit $status # passage through NIfTI enforces axial orientation
 		nifti_4dfp -n $mpr $mpr || exit $status
-		mri_vol2vol --mov $FSdir/mri/aparc+aseg.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
-			--o aparc+aseg.mgz --no-save-reg --nearest || exit -1	# aparc+aseg now is on mpr
+
 		mri_convert -it mgz -ot nii  aparc+aseg.mgz aparc+aseg.nii || exit $status
 		nifti_4dfp -4 aparc+aseg.nii ${patid}_aparc+aseg -N || exit $status
 		nifti_4dfp -n ${patid}_aparc+aseg ${patid}_aparc+aseg || exit $status
-		/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii	# ${mpr} now is nu (GF corrected mpr) resampled on mpr
+		/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii	# ${mpr} now is nu (GF corrected mpr)
+
 		###################################
 		# register nu to 711-2B atlas space
 		###################################
+		foreach x (${target}.4dfp.*)
+			ln -s $x .
+		end
 		if (1) then	# use mpr2atl_4dfp
 			set log = ${mpr}_to_${target:t}.log
+			date >! $log
 			mpr2atl_4dfp ${mpr} -T$target  || exit -1
-			/bin/rm -f ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
 			scale_4dfp   ${mpr} 0 -b10 -aten
 			maskimg_4dfp ${mpr}_ten ${patid}_aparc+aseg ${patid}_FSWB
 			imgblur_4dfp   ${patid}_FSWB 3
 			zero_lt_4dfp 1 ${patid}_FSWB_b30	# create slightly blurred FS-derived WB mask
-			set t4file = ${mpr}_to_${target:t}_t4 
+			set t4file = ${mpr}_to_${target:t}_t4	# provisional $t4file created by mpr2atl_4dfp
 			set refmask = $REFDIR/711-2B_mask_g5_111z
 			@ mode = 2048 + 256 + 7
 			@ k = 1
@@ -332,6 +351,8 @@ if ( $isday1 ) then # this session is day1
 				imgreg_4dfp $target $refmask $mpr ${patid}_FSWB_b30z $t4file $mode >> $log
 				@ k++
 			end
+			/bin/rm ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
+			/bin/rm ${mpr}_ten* ${patid}_FSWB_b30*
 		else
 			set modes = (0 0 0 0 0)
 			@ modes[1] = 1024 + 256 + 3; @ modes[2]	= $modes[1]; @ modes[3] = 3072 + 256 + 7;
@@ -349,25 +370,28 @@ if ( $isday1 ) then # this session is day1
 		endif	# mpr2atl_4dfp alternative
 		t4img_4dfp ${mpr}_to_${target:t}_t4 $mpr ${mpr}_on_${target:t}_111 -O111 || exit -1
 	endif	# mpr atlas registration conditional
-
-	###################
-	# create brain mask
-	###################
+	#######################
+	# create t1w brain mask
+	#######################
 	nifti_4dfp -n ${mpr} ${mpr}
 	blur_n_thresh_4dfp ${patid}_aparc+aseg .6 0.3 ${mpr}_1 || exit $status	# create initial brain mask
 	nifti_4dfp -n ${mpr}_1 ${mpr}_1
 	fslmaths ${mpr}_1 -fillh ${mpr}_brain_mask || exit $status
 	nifti_4dfp -4 ${mpr}_brain_mask ${mpr}_brain_mask || exit $status	# will be used in t2w->mpr registration
-	/bin/rm -f ${mpr}_1.*
-	if ( $#t2w ) then
+	/bin/rm ${mpr}_1.*
+
+	#############
+	# process t2w
+	#############
+	if (! -e ${t2wimg}.4dfp.img && $#t2w > 0) then
 		set nt2w = $#t2w
 		set t2wlst = ()
-		if ( ! $useold || ! -e ${t2wimg}.4dfp.img ) then	# ${t2wimg} creation conditional
+		if (! -e ${t2wimg}.4dfp.img ) then	# ${t2wimg} creation conditional
 			@ i = 1
 			while ( $i <= $#t2w )
-				dcm2niix -o . -f study${t2w[$i]} -z n -w 1 $inpath/study${t2w[$i]} || exit $status
+				dcm2niix -o . -f study${t2w[$i]} -z n $inpath/study${t2w[$i]} || exit $status
 				nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
-				/bin/rm -f study${t2w[$i]}.nii
+				/bin/rm  study${t2w[$i]}.nii
 				nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
 				if ( $BiasFieldT2 ) then
 					bet ${patid}_t2w${i} ${patid}_t2w${i}_brain -R || exit $status
@@ -376,7 +400,7 @@ if ( $isday1 ) then # this session is day1
 					nifti_4dfp -4 ${patid}_t2w${i}_brain_restore ${patid}_t2w${i}_brain_restore || exit $status
 					extend_fast_4dfp ${patid}_t2w${i} ${patid}_t2w${i}_brain_restore \
 									 ${patid}_t2w${i}_BC || exit $status
-					/bin/rm -f ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
+					/bin/rm ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
 					set t2wlst = ($t2wlst ${patid}_t2w${i}_BC)
 				else
 					set t2wlst = ($t2wlst ${patid}_t2w${i})
@@ -392,6 +416,12 @@ if ( $isday1 ) then # this session is day1
 			endif
 			nifti_4dfp -n $t2wimg $t2wimg || exit -1
 		endif	# ${t2wimg} creation conditional
+		if (! -e ${t2wimg}.4dfp.img && ! $#t2w) then
+			echo $program": ${t2wimg} not in atlas directory and cannot be made"
+			exit -1
+		endif
+	endif
+
 		#########################
 		# register t2w to MP-RAGE
 		#########################
@@ -399,16 +429,17 @@ if ( $isday1 ) then # this session is day1
 		set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
 		set t4file = ${t2wimg}_to_${mpr}_t4
 		if ( ! -e $t4file || ! $useold ) then
-			if (-e $t4file) /bin/rm -f $t4file
-			set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm -f $log
+		if (-e $t4file) /bin/rm $t4file
+		set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm $log
 			@ i = 1
 			while ( $i <= $#modes )
 			echo	imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $modes[$i] >> $log 
 				imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $modes[$i] >> $log || exit $status
 				@ i++
 			end
-		endif
+	endif	# t2w->t1w registration conditional
 		t4_mul ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${target:t}_t4 ${t2wimg}_to_${target:t}_t4  || exit $status
+
 		#########################################################################
 		# compute brain mask from $t2wimg to be used for BOLD -> t2w registration
 		#########################################################################
@@ -428,20 +459,18 @@ if ( $isday1 ) then # this session is day1
 		zero_lt_4dfp 1 ${t2wimg}_meandiv2_brainnorm ${t2wimg}_meandiv2_brainnorm_thresh || exit $status
 		gauss_4dfp ${patid1}_aparc+aseg_on_${t2wimg}_msk 0.4 \
 				   ${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
-		imgopr_4dfp -p${t2wimg}_meandiv2_brainnorm_thresh_2 \
-				      ${t2wimg}_meandiv2_brainnorm_thresh \
+	imgopr_4dfp -p${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_meandiv2_brainnorm_thresh \
 				${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
 		nifti_4dfp -n ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_meandiv2_brainnorm_thresh_2 || exit $status
 		maskimg_4dfp ${t2wimg} ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_tmp_masked -t.1 -v1 || exit $status
 		cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
 		zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
 		blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
-		/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
-	endif	# t2w existence conditional
+	/bin/rm ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked*	
 
-	#############################
-	# compute nonlinear alignment
-	#############################
+	######################################
+	# compute nonlinear atlas registration
+	######################################
 	if ($nlalign || $distort == 3) then
 		if ( ! -d fnirt ) mkdir fnirt
 		pushd fnirt	# must have .mat file from target 111 711-2B to the reference
@@ -455,14 +484,12 @@ if ( $isday1 ) then # this session is day1
 				--cout=$fnwarp --iout=${mpr}_on_fn_MNI152_T1_2mm >! ${patid}_mpr_fnirt.log || exit $status
 		endif
 		popd	# out of fnirt
-		if ( $nlalign ) then
 			applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat \
 				--out=${mpr}_on_${outspacestr} || exit $status
 			applywarp --ref=$outspace --in=${patid1}_aparc+aseg -w $fnwarp --postmat=$postmat  \
 				--interp=nn --out=${patid1}_aparc+aseg_on_${outspacestr} || exit $status
 			nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr}
 			nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}
-		endif
 		if ( -e ${t2wimg}.4dfp.img) then
 			nifti_4dfp -n ${t2wimg} ${t2wimg}
 			aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 \
@@ -477,6 +504,10 @@ if ( $isday1 ) then # this session is day1
 				    -o fnirt/${t2wimg}_on_${outspacestr}  || exit $status
 		endif
 	endif	# end fnirt code
+
+	################################################################
+	# generate aparc+seg in outspace using affine atlas registration
+	################################################################
 	if (! $nlalign ) then	# affine $mpr atlas registration
 		aff_conv 4f ${mpr} $REFDIR/711-2B_111 ${mpr}_to_${target:t}_t4 \
 			    ${mpr} $REFDIR/711-2B_111 ${mpr}_to_${target:t}_111.mat || exit $status
@@ -506,10 +537,12 @@ if ( $isday1 ) then # this session is day1
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
 	maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
 				  ${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
-	/bin/rm -f ${patid1}_GM_on_${outspacestr}_comp*
+	/bin/rm ${patid1}_GM_on_${outspacestr}_comp*
 popd	# out of atlas
 endif	# $isday1 conditional
+if ($regtest) exit
 
+DISTORT:
 #######################
 # distortion correction
 #######################
@@ -595,13 +628,16 @@ else if ( $distort == 2 ) then # GRE measured field map
 		@ k++
 	end
 endif
-if ($regtest) exit
 
 BOLD:
-if ( ! $?BOLDgrps ) then
-	echo $program": BOLDgrps not defined"
-	exit -1; 		# $BOLDgrps must be defined to process BOLD data
+if ( ! $?BOLDgrps )  exit	# no BOLD data
+set BOLDruns = ( `echo $BOLDgrps | sed 's|,| |g'` )
+@ runs = ${#runID}
+if ($runs != ${#BOLDruns}) then
+	echo $program": runID and BOLDruns mismatch - edit "$prmfile
+	exit -1
 endif
+
 ######################################
 # convert fMRI data from DICOM to 4dfp
 ######################################
@@ -781,16 +817,15 @@ BOLD1:
 # verify BOLD runs were set up identically
 ##########################################
 @ k = 1
-while ($k <= $runs)
+while ($k <= $#runID)
 	source  bold$runID[$k]/$patid"_b"$runID[$k].params
 	fslinfo bold$runID[$k]/$patid"_b"$runID[$k]_echo1.nii | sed '/dim4/d' | sed '/cal_max/d' | sed '/cal_min/d' >! $$fslinfo_run$k
 	@ k++
 end
 if (-e ConsistencyCheck.txt) /bin/rm -f ConsistencyCheck.txt; touch ConsistencyCheck.txt
 @ k = 2
-while ($k <= $runs)
+while ($k <= $#runID)
 	diff bold$runID[1]/$patid"_b"$runID[1].params bold$runID[$k]/$patid"_b"$runID[$k].params >> ConsistencyCheck.txt
-	echo `diff $$fslinfo_run1 $$fslinfo_run$k`
 	if `diff $$fslinfo_run1 $$fslinfo_run$k` then
 		echo $program":" inconsistent fMRI image dimensions across runs
 		exit -1
@@ -803,68 +838,79 @@ if (! -z ConsistencyCheck.txt) then
 	cat ConsistencyCheck.txt
 endif
 
-#############################
-# compute movement parameters
-#############################
-if ( -e $$bold.lst ) /bin/rm -f $$bold.lst
-touch $$bold.lst
+##############################################################
+# compute movement parameters for later use in frame censoring
+##############################################################
+echo | gawk '{printf("")}' >! ${patid}_bold.lst	# create zero length file
 @ k = 1
-while ($k <= $runs)
-	# always delete existing movement parameters
-	rm -f bold$runID[$k]/${patid}_b${runID[$k]}_xr3d*
-	echo bold$runID[$k]/$patid"_b"$runID[$k] >> $$bold.lst
+while ($k <= $#runID)
+	rm   bold$runID[$k]/${patid}"_b"${runID[$k]}_xr3d.mat	# force cross_realign3d_4dfp to recompute
+	echo bold$runID[$k]/${patid}"_b"${runID[$k]} >> ${patid}_bold.lst
 	@ k++
 end
-echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst # -R disables resampling
-cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst|| exit $status
-/bin/rm -f $$bold.lst
+echo "first cross_realign3d_4dfp to obtain movement data"
+echo	cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst >! ${patid}_xr3d.log	# -R disables resampling
+	cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst >  ${patid}_xr3d.log	|| exit $status
 if (! -d movement) mkdir movement
 @ k = 1
-while ($k <= $runs)
+while ($k <= $#runID)
 	mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip || exit $status
 	/bin/mv bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.*dat movement
 	@ k++
 end
 
 BOLD2:
-#########################
-# slice timing correction
-#########################
+############################################################
+# slice timing correction (ignoring prior motion correction)
+############################################################
 @ k = 1
-while ($k <= $runs)
+while ($k <= $#runID)
 	pushd  bold$runID[$k]
 	source $patid"_b"$runID[$k].params
 	set falnSTR = "-seqstr $seqstr"
 		@ i = 1
 		while ($i <= $necho)
-			echo frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
+		echo	frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
 			frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 			@ i++
 		end
-		frame_align_4dfp $patid"_b"$runID[$k] $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+			frame_align_4dfp $patid"_b"$runID[$k]        $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 	popd
 	@ k++
 end
 
 BOLD3:
 source bold$runID[1]/$patid"_b"$runID[1].params
-#########################
-# apply motion correction
-#########################
+###########################################################
+# recompute motion correction after slice timing correction
+###########################################################
+echo | gawk '{printf("")}' >! ${patid}_faln_bold.lst	# create zero length file
 @ k = 1
-while ($k <= $runs)
-	if (-e $patid"_b"$runID[$k]"_xr3d".lst) /bin/rm -f $patid"_b"$runID[$k]"_xr3d".lst; touch $patid"_b"$runID[$k]"_xr3d".lst
-	echo bold$runID[$k]/$patid"_b"$runID[$k]_faln mat=bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat \
-		>> $patid"_b"$runID[$k]"_xr3d".lst
+while ($k <= $#runID)
+	rm   bold$runID[$k]/$patid"_b"$runID[$k]_faln_xr3d.mat	# force cross_realign3d_4dfp to recompute
+	echo bold$runID[$k]/$patid"_b"$runID[$k]_faln >> ${patid}_faln_bold.lst
+	@ k++
+end
+echo "second cross_realign3d_4dfp following slice timing correction"
+echo	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >! ${patid}_faln_xr3d.log	# resampling enabled
+	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >> ${patid}_faln_xr3d.log	|| exit $status
+######################################
+# apply motion correction to each echo
+######################################
+@ k = 1
+while ($k <= $#runID)
+	pushd  bold$runID[$k]
+	source $patid"_b"$runID[$k].params
+	echo | gawk '{printf("")}' >! ${patid}"_b"$runID[$k]_faln_xr3d.lst	# create zero length file
 	@ i = 1
 	while ($i <= $necho)
-		echo bold$runID[$k]/$patid"_b"$runID[$k]_echo${i}_faln mat=bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat \
-			>> $patid"_b"$runID[$k]"_xr3d".lst
+		echo $patid"_b"$runID[$k]_echo${i}_faln mat=$patid"_b"$runID[$k]_faln_xr3d.mat \
+			>> $patid"_b"$runID[$k]_faln_xr3d.lst
 		@ i++
 	end
-	
-	echo cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst
-	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]"_xr3d".lst  >> /dev/null || exit $status
+	echo	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst # realignment computation disabled
+		cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst  >> /dev/null || exit $status
+	popd
 	@ k++
 end
 
@@ -879,7 +925,7 @@ if ($BiasField) then
 	# compute bias field using first echo
 	#####################################
 	@ k = 1
-	while ($k <= $runs)
+	while ($k <= $#runID)
 		pushd bold$runID[$k]	# for each run
 			@ nframe = `cat $patid"_b"$runID[$k]_echo1_faln_xr3d.4dfp.ifh | gawk '/matrix size \[4\]/{print $NF}'`
 			@ j = $nframe - $skip
@@ -925,9 +971,6 @@ if ($BiasField) then
 			@ k++
 		popd
 	end
-	set BC = "_BC"
-else
-	set BC = ""
 endif
 
 BOLD5:
@@ -1123,7 +1166,7 @@ while ( $i <= $#BOLDgrps )
 
 	@ j = 1
 	while ( $j <= $#groupruns )
-		set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
+		set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_faln_xr3d.mat
 		if ($BiasField) set strwarp = "$strwarp -bias bold$runID[$k]/${patid}_b$runID[$k]_invBF"
 		if ( $distort == 4 ) then
 			echo bold$runID[$k]/$patid"_b"$runID[$k]_echo?_faln.4dfp.img
@@ -1153,15 +1196,14 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 ###############################
 # model multi-echo BOLD signals
 ###############################
-set C = MEfmri_4dfp
 if (! ${?ME_reg}) @ ME_reg = 1
 @ k = 1
-while ($k <= $runs)
+while ($k <= $#runID)
 	pushd bold$runID[$k]
 	source  ${patid}"_b"$runID[$k].params
-	echo    $C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
+	echo    MEfmri_4dfp -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30
-			$C -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
+			MEfmri_4dfp -E${necho} -T $TE ${patid}"_b"$runID[$k]_echo[1-9]_faln_xr3d_uwrp_on_${outspacestr}.4dfp.img -r$ME_reg \
 				-o${patid}"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr} -e30	|| exit $status
 	@ k++
 	popd
@@ -1173,7 +1215,7 @@ NORM:
 ###########################################
 if (! ${?norm2020}) @ norm2020 = 0
 @ k = 1
-while ( $k <= $runs )
+while ($k <= $#runID)
 	pushd bold$runID[$k]
 	source $patid"_b"$runID[$k].params	# define $necho $nframe $fullframe
 	set file =			$patid"_b"$runID[$k]_faln_xr3d_uwrp_on_${outspacestr}_Swgt.4dfp.ifh	|| exit $status
