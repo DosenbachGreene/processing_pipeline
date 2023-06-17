@@ -326,7 +326,7 @@ if ( $isday1 ) then # this session is day1
 		mri_convert -it mgz -ot nii  aparc+aseg.mgz aparc+aseg.nii || exit $status
 		nifti_4dfp -4 aparc+aseg.nii ${patid}_aparc+aseg -N || exit $status
 		nifti_4dfp -n ${patid}_aparc+aseg ${patid}_aparc+aseg || exit $status
-		/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii	# ${mpr} now is nu (GF corrected mpr)
+		/bin/rm -f aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii	# ${mpr} now is nu (GF corrected mpr)
 
 		###################################
 		# register nu to 711-2B atlas space
@@ -351,8 +351,8 @@ if ( $isday1 ) then # this session is day1
 				imgreg_4dfp $target $refmask $mpr ${patid}_FSWB_b30z $t4file $mode >> $log
 				@ k++
 			end
-			/bin/rm ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
-			/bin/rm ${mpr}_ten* ${patid}_FSWB_b30*
+			/bin/rm -f ${mpr}_g11*	# blurred $mpr made by mpr2atl_4dfp
+			/bin/rm -f ${mpr}_ten* ${patid}_FSWB_b30*
 		else
 			set modes = (0 0 0 0 0)
 			@ modes[1] = 1024 + 256 + 3; @ modes[2]	= $modes[1]; @ modes[3] = 3072 + 256 + 7;
@@ -378,7 +378,7 @@ if ( $isday1 ) then # this session is day1
 	nifti_4dfp -n ${mpr}_1 ${mpr}_1
 	fslmaths ${mpr}_1 -fillh ${mpr}_brain_mask || exit $status
 	nifti_4dfp -4 ${mpr}_brain_mask ${mpr}_brain_mask || exit $status	# will be used in t2w->mpr registration
-	/bin/rm ${mpr}_1.*
+	/bin/rm -f ${mpr}_1.*
 
 	#############
 	# process t2w
@@ -391,7 +391,7 @@ if ( $isday1 ) then # this session is day1
 			while ( $i <= $#t2w )
 				dcm2niix -o . -f study${t2w[$i]} -z n $inpath/study${t2w[$i]} || exit $status
 				nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
-				/bin/rm  study${t2w[$i]}.nii
+				/bin/rm -f study${t2w[$i]}.nii
 				nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
 				if ( $BiasFieldT2 ) then
 					bet ${patid}_t2w${i} ${patid}_t2w${i}_brain -R || exit $status
@@ -400,7 +400,7 @@ if ( $isday1 ) then # this session is day1
 					nifti_4dfp -4 ${patid}_t2w${i}_brain_restore ${patid}_t2w${i}_brain_restore || exit $status
 					extend_fast_4dfp ${patid}_t2w${i} ${patid}_t2w${i}_brain_restore \
 									 ${patid}_t2w${i}_BC || exit $status
-					/bin/rm ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
+					/bin/rm -f ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
 					set t2wlst = ($t2wlst ${patid}_t2w${i}_BC)
 				else
 					set t2wlst = ($t2wlst ${patid}_t2w${i})
@@ -429,8 +429,8 @@ if ( $isday1 ) then # this session is day1
 		set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
 		set t4file = ${t2wimg}_to_${mpr}_t4
 		if ( ! -e $t4file || ! $useold ) then
-		if (-e $t4file) /bin/rm $t4file
-		set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm $log
+		if (-e $t4file) /bin/rm -f $t4file
+		set log = ${t2wimg}_to_${mpr}.log; if ( -e $log ) /bin/rm -f $log
 			@ i = 1
 			while ( $i <= $#modes )
 			echo	imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $modes[$i] >> $log 
@@ -466,7 +466,7 @@ if ( $isday1 ) then # this session is day1
 		cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
 		zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
 		blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
-	/bin/rm ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked*	
+	/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked*	
 
 	######################################
 	# compute nonlinear atlas registration
@@ -537,7 +537,7 @@ if ( $isday1 ) then # this session is day1
 	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
 	maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
 				  ${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
-	/bin/rm ${patid1}_GM_on_${outspacestr}_comp*
+	/bin/rm -f ${patid1}_GM_on_${outspacestr}_comp*
 popd	# out of atlas
 endif	# $isday1 conditional
 if ($regtest) exit
@@ -620,7 +620,7 @@ else if ( $distort == 2 ) then # GRE measured field map
 			endif
 			nifti_4dfp -4 $f GRE/${patid}_phaGrp${k} -N || exit -1
 			mv $f.json GRE/${patid}_phaGrp${k}.json
-			/bin/rm $f.nii
+			/bin/rm -f $f.nii
 		endif			# now have mag and pha gre images in 4dfp
 		pushd GRE		# GRE_pp_AT.csh converts phase image to field map
 			GRE_pp_AT.csh ${patid}_GRE_Grp${k}_mag ${patid}_phaGrp${k} $delta ${patid}_GRE_Grp${k} || exit -1
@@ -844,7 +844,7 @@ endif
 echo | gawk '{printf("")}' >! ${patid}_bold.lst	# create zero length file
 @ k = 1
 while ($k <= $#runID)
-	rm   bold$runID[$k]/${patid}"_b"${runID[$k]}_xr3d.mat	# force cross_realign3d_4dfp to recompute
+	rm -f bold$runID[$k]/${patid}"_b"${runID[$k]}_xr3d.mat	# force cross_realign3d_4dfp to recompute
 	echo bold$runID[$k]/${patid}"_b"${runID[$k]} >> ${patid}_bold.lst
 	@ k++
 end
@@ -887,7 +887,7 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 echo | gawk '{printf("")}' >! ${patid}_faln_bold.lst	# create zero length file
 @ k = 1
 while ($k <= $#runID)
-	rm   bold$runID[$k]/$patid"_b"$runID[$k]_faln_xr3d.mat	# force cross_realign3d_4dfp to recompute
+	rm -f bold$runID[$k]/$patid"_b"$runID[$k]_faln_xr3d.mat	# force cross_realign3d_4dfp to recompute
 	echo bold$runID[$k]/$patid"_b"$runID[$k]_faln >> ${patid}_faln_bold.lst
 	@ k++
 end
