@@ -849,12 +849,23 @@ while ($k <= $#runID)
 	@ k++
 end
 echo "first cross_realign3d_4dfp to obtain movement data"
-echo	cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst >! ${patid}_xr3d.log	# -R disables resampling
-	cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst >  ${patid}_xr3d.log	|| exit $status
+echo cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst >! ${patid}_xr3d.log	# -R disables resampling
+cross_realign3d_4dfp -n$skip -Rqv$normode -l${patid}_bold.lst > ${patid}_xr3d.log || exit $status
 if (! -d movement) mkdir movement
 @ k = 1
 while ($k <= $#runID)
-	mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip || exit $status
+	# mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip || exit $status
+	# for some reason mat2dat sometimes fails in this version, so just try again until we succeed
+	# Maybe because the buffer is written out too quickly?
+	# try up to 10 times
+	@ attempt = 0
+	while ($attempt < 10)
+		mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip
+		if (! $status) break
+		@ attempt++
+		echo "mat2dat failed, trying again, attempt = $attempt"
+		sleep 1
+	end
 	/bin/mv bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.*dat movement
 	@ k++
 end

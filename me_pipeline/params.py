@@ -514,7 +514,10 @@ class Instructions(Params):
     WM_svdt: float = 0.15
     # limit on number of nuisance regressors
     nRegress: int = 20
+    # this should technically be max_frames, since it sets the maximum number of high motion frames allowed in the data
     min_frames: int = 50
+    # this parameter sets the minimum number of frames required for the pipeline to consider running the data
+    min_frames_run: int = 50
 
     # seed correl
     ROIdir: str = "$REFDIR/CanonicalROIsNP705"

@@ -374,7 +374,7 @@ def main():
 
                 # initialize runs map
                 runs_map = RunsMap(
-                    func_runs, fieldmaps[subject_id][session_id], instructions.medic, instructions.min_frames
+                    func_runs, fieldmaps[subject_id][session_id], instructions.medic, instructions.min_frames_run
                 )
 
                 # check if subject/session in user_runs_dict
