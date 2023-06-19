@@ -860,8 +860,11 @@ while ($k <= $#runID)
 	# try up to 10 times
 	@ attempt = 0
 	while ($attempt < 10)
-		mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip
-		if (! $status) break
+		@ SUCCESS = 0
+        echo mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip
+        mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip >! /dev/null || @ SUCCESS = 1
+		sleep 1
+        if (! $SUCCESS) break
 		@ attempt++
 		echo "mat2dat failed, trying again, attempt = $attempt"
 		sleep 1
