@@ -176,9 +176,9 @@ if (-e ${patid}_xr3d.FD) /bin/rm -f ${patid}_xr3d.FD; touch ${patid}_xr3d.FD
 @ k = 1
 while ($k <= $runs)
 	rm -f $patid*.mat
-	ln -s   ../bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat .			|| exit -1
+	ln -s   ../bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat . || exit -1
 	echo mat2dat -D -n$skip   $patid"_b"$runID[$k]_xr3d.mat $lmstr
-	mat2dat -D -n$skip        $patid"_b"$runID[$k]_xr3d.mat $lmstr			|| exit -1
+	mat2dat -D -n$skip        $patid"_b"$runID[$k]_xr3d.mat $lmstr >! /dev/null || exit -1
 	gawk -f $RELEASE/FD.awk   $patid"_b"$runID[$k]_xr3d.ddat >> ${patid}_xr3d.FD	|| exit -1
 	rm -f $patid*.mat $patid"_b"$runID[$k]_xr3d.dat $patid*.ddat
 	@ k++
@@ -249,7 +249,7 @@ touch s$$.lst
 @ k = 1
 while ($k <= $runs)
 	set root = ../bold$runID[$k]/${patid}_b$runID[$k]_xr3d
-	mat2dat    $root -I
+	mat2dat $root -I >! /dev/null
 	set file = ${root}_dat			
 	echo $file >> s$$.lst
 	@ k++
