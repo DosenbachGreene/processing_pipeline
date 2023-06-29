@@ -826,7 +826,9 @@ if (-e ConsistencyCheck.txt) /bin/rm -f ConsistencyCheck.txt; touch ConsistencyC
 @ k = 2
 while ($k <= $#runID)
 	diff bold$runID[1]/$patid"_b"$runID[1].params bold$runID[$k]/$patid"_b"$runID[$k].params >> ConsistencyCheck.txt
-	if `diff $$fslinfo_run1 $$fslinfo_run$k` then
+	echo diff $$fslinfo_run1 $$fslinfo_run$k
+	diff $$fslinfo_run1 $$fslinfo_run$k
+	if ( $status == 1 ) then
 		echo $program":" inconsistent fMRI image dimensions across runs
 		exit -1
 	endif

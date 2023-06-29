@@ -68,7 +68,6 @@ def main():
             n_cpus=args.n_cpus,
             border_filt=(1000, 1000),
             svd_filt=1000,
-            critical_freq=None,
             debug=True,
         )
     else:
@@ -80,7 +79,6 @@ def main():
             phase_encoding_direction,
             n_cpus=args.n_cpus,
             svd_filt=10,
-            critical_freq=None,
         )
 
     # save the fmaps and dmaps to file

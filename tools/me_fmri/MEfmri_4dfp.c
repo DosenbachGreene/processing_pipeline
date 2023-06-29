@@ -1,5 +1,14 @@
-/*$Header: /home/usr/shimonyj/me_fmri/RCS/MEfmri_4dfp.c,v 1.19 2021/07/24 03:54:41 avi Exp $*/
+/*$Header: /home/usr/shimonyj/me_fmri/RCS/MEfmri_4dfp.c,v 1.22 2023/05/04 10:04:50 avi Exp $*/
 /*$Log: MEfmri_4dfp.c,v $
+ *Revision 1.22  2023/05/04 10:04:50  avi
+ *hist.h is needed here; hist.c and hist.o now found in JSSutil
+ *
+ *Revision 1.21  2023/05/04 09:14:42  avi
+ *#include hist.h not needed here
+ *
+ *Revision 1.20  2022/12/14 19:37:40  avi
+ *dimensions of sum[] and ssum[] increased from 4 to 9 to accommodate up to 9 TEs
+ *
  *Revision 1.19  2021/07/24 03:54:41  avi
  *revise pointer arithmetic to accommodate giant-sized input data
  *
@@ -86,7 +95,6 @@
 #define BFRMFRAC 0.40 /* threshold for number of bad frames */
 #define NSMOOTH 20    /* number of smoothing iterations for s0 regularization */
 #define NVOL1 6       /* number of output volumes in imgQA QC1 4dfp */
-#define CLOSE 1e-6    /* value to check if floating-point is close */
 
 /* output contents of img1: S0 */
 /* output contents of img2: R2star */
@@ -106,7 +114,7 @@ void mrqpcof(float x[], float y[], int ndata, float a[], int ia[], float aavg[],
 void r2sfunc(float x, float a[], float *y, float dyda[], int na);
 int gaussj_chk(float **a, int n, float **b, int m);
 void fitreg(float x[], float y[], int ndata, float sig[], int mwt, float a, float *b);
-float mode(float* s, int ndata, float *std);
+float mode(float s[], int ndata, float *std);
 
 /*
 ** Generate fake R2* curves
@@ -142,7 +150,7 @@ void r2sfunc(float x, float a[], float *y, float dyda[], int na) {
 /***********/
 /* globals */
 /***********/
-static char rcsid[] = "$Id: MEfmri_4dfp.c,v 1.19 2021/07/24 03:54:41 avi Exp $";
+static char rcsid[] = "$Id: MEfmri_4dfp.c,v 1.22 2023/05/04 10:04:50 avi Exp $";
 static float TE[9];
 /* Original Kundu values	12   28   44  60 */
 /* WashU MEDEX values		15   28,  42, 55 */
@@ -267,8 +275,7 @@ int main(int argc, char **argv) {
                    float *asig, float *amin, float *amax, float **covar, float **alpha);
 
     int NTE = 0; /* number of TEs must be set on input */
-    int npix, npix0, npix1, npix2, nparam;
-    int *lista; //, npix, npix0, npix1, npix2, nparam;
+    int *lista, npix, npix0, npix1, npix2, nparam;
     float *x, *y, **covar, **alpha, logp, *sig, *lny, *y2, *xb, tefit = 0.;
     float *avgte, *stdte, *avgs0, *stds0;
     float avgt, stdt, ss0, s2s0, sr2, s2r2, sx, sxx, sxy;
@@ -304,7 +311,7 @@ int main(int argc, char **argv) {
     char *str, program[MAXL], command[MAXL], *srgv[MAXL];
     int c, xc, nx, ii, il, i1, j1, k1, i2, j2, k2;
     unsigned int i, j, k, l, m, jndex, jndex1, ndata, navg;
-    float sum[10], ssum[10], tsum, temp;
+    float sum[9], ssum[9], tsum, temp;
     char *parnames[MAXP] = {"S0", "R2*"};
     char *vollabels1[NVOL1] = {"orig mask", "mask minus bad pix", "bad pixels", "bad pix after cleanup", "N", "N"};
     float a, b, siga, sigb, chi2, q, lcc;
@@ -461,7 +468,7 @@ int main(int argc, char **argv) {
     }
 
     /* allocate input data array */
-    printf("input data size in bytes = %lld\n", (uint64_t)NTE * tedim);
+    printf("input data size in bytes = %ld\n", (uint64_t)NTE * tedim);
     if (!(imgtn = (float *)calloc((uint64_t)NTE * tedim, sizeof(float)))) errm(program);
     /* read input data */
     for (j = 0; j < NTE; j++) {
@@ -571,8 +578,8 @@ int main(int argc, char **argv) {
             for (ii = 1; ii <= NTE; ii++) {
                 y[ii] = 0.0;
                 for (l = 0; l < nframe; l++) {
-                    // assert (imgsn[m][l][ii-1] == (imgtn + (ii-1)*tedim + l*vdim)[i]);
-                    // y[ii] += (imgtn + (ii-1)*tedim + l*vdim)[i];
+                    /*	assert (imgsn[m][l][ii-1] == (imgtn + (ii-1)*tedim + l*vdim)[i]);
+                            y[ii] += (imgtn + (ii-1)*tedim + l*vdim)[i];	*/
                     y[ii] += imgsn[m][l][ii - 1];
                 }
                 y[ii] /= nframe;
@@ -608,7 +615,6 @@ int main(int argc, char **argv) {
                 fit(x, lny, NTE, sig, 1, &a, &b, &siga, &sigb, &chi2, &q, &lcc);
                 imgS0[i] = exp(a);
                 imgR2[i] = -b;
-
                 for (ii = 1; ii <= NTE; ii++) {
                     imgwn[i + (ii - 1) * vdim] = x[ii] * exp(x[ii] * b);
                 }
@@ -618,8 +624,8 @@ int main(int argc, char **argv) {
                     img5[i + l * vdim] = 0;
                     tsum = 0;
                     for (ii = 1; ii <= NTE; ii++) {
-                        // assert (imgsn[m][l][ii-1] == (imgtn + (ii-1)*tedim + l*vdim)[i]);
-                        // img5[i + l*vdim] += imgwn[i + (ii-1)*vdim]*(imgtn + (ii-1)*tedim + l*vdim)[i];
+                        /*	assert (imgsn[m][l][ii-1] ==               (imgtn + (ii-1)*tedim + l*vdim)[i]);
+                                img5[i + l*vdim] += imgwn[i + (ii-1)*vdim]*(imgtn + (ii-1)*tedim + l*vdim)[i];	*/
                         img5[i + l * vdim] += imgwn[i + (ii - 1) * vdim] * imgsn[m][l][ii - 1];
                         tsum += imgwn[i + (ii - 1) * vdim];
                     }
@@ -697,7 +703,6 @@ int main(int argc, char **argv) {
 
         /* do nonlinear analysis */
         logp = pixelr2s(nparam, NTE, x, y, aopt, aostd, lista, aavg, asig, amin, amax, covar, alpha);
-        printf("sqrt(sum(res^2)/N) = %f\n", sqrt(sumr2));
 
         for (i = 1; i <= nparam; i++) {
             printf("nonlin param %d = %f (%f)\n", i, aopt[i], aostd[i]);
@@ -729,6 +734,7 @@ int main(int argc, char **argv) {
         if (fseek(imgsnfp, (long)k * sdim * nframe * NTE * sizeof(float), SEEK_SET) ||
             fread(&imgsn[0][0][0], sizeof(float), sdim * nframe * NTE, imgsnfp) < sdim * nframe * NTE)
             errr(program, tmpfile);
+
         for (j = 0; j < sdim; j++) { /* loop pixel within each slice */
             jndex = k * sdim + j;
 
@@ -783,8 +789,8 @@ int main(int argc, char **argv) {
                             lny[i] = log(y[i]);
                             sig[i] = 1.0 / lny[i];
                         }
-
                         fit(x, lny, NTE, sig, 1, &a, &b, &siga, &sigb, &chi2, &q, &lcc);
+
                         aopt[1] = exp(a);
                         aopt[2] = -b;
                     }
@@ -802,7 +808,7 @@ int main(int argc, char **argv) {
                                 i1++;
                                 xb[i1] = x[i];
                                 lny[i1] = log(y[i]);
-                                sig[i1] = 1.0 / lny[i1];
+                                sig[il] = 1.0 / lny[il];
                             }
                         }
                         fit(xb, lny, i1, sig, 1, &a, &b, &siga, &sigb, &chi2, &q, &lcc);
@@ -1234,9 +1240,6 @@ float pixelr2s(int nparam, int ndata, float *x, float *y, float *aopt, float *ao
                 if (lista[i] == 0) a[i] = aavg[i];
                 if (lista[i] != 0) do {
                         a[i] = aavg[i] + asig[i] * gasdev(&seed);
-                        // sleep(1);
-                        // printf("%f %f\n", amin[1], amax[i]);
-                        // printf("%f %f %f\n", a[i], aavg[i], asig[i]);
                     } while (a[i] >= amax[i] || a[i] <= amin[i]);
             }
             if (w1 > 100) printf("Warning(pixelr2s): too many iteration to make valid param %d\n", w1);
@@ -1611,7 +1614,7 @@ void fitreg(float x[], float y[], int ndata, float sig[], int mwt, float a, floa
 /* Mode finding program */
 /* input array s of values and ndata number of values */
 /* function returns mode and std as a separate parameter */
-float mode(float *s, int ndata, float *std) {
+float mode(float s[], int ndata, float *std) {
     int i, imax, imin;
     int h, nbin;
     float mode1, smax = -1.0e9, smin = 1.0e9;
@@ -1637,11 +1640,7 @@ float mode(float *s, int ndata, float *std) {
     h = def_hist("hist1", nbin, smin - 1, smax + 1);
 
     for (i = 0; i < ndata; i++) {
-        // check if s[i] is finite if, simply add a 0.0 to the histogram
-        if (!isfinite(s[i]))
-            add_hist(h, 0.0, 0.001);
-        else
-            add_hist(h, s[i], 1.0);
+        add_hist(h, s[i], 1.0);
     }
 
     calc_hist_noprt(h);

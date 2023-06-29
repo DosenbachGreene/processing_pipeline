@@ -42,7 +42,6 @@ if ( $nlalign ) then				# nonlinear atlas alignment will be computed
 	set tres = MNI152_T1;			# string used to construct the postmat filename
 	set outspacestr = "nl_"
 	echo "nonlinear alignment not yet vetted"
-	exit
 else
 	set tres = 711-2B_111;
 	set outspacestr = ""

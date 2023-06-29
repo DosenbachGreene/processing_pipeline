@@ -328,7 +328,10 @@ if ( $nlalign ) then
 	
 	applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat \
 		--out=${mpr}_on_${outspacestr} || exit $status
-	niftigz_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}	
+	niftigz_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}
+
+	# copy linear transform to outspace
+	cp -f ${mpr}_to_MNI152_T1.mat ${mpr}_to_${outspace:t}.mat
 endif
 
 if (! $nlalign ) then
