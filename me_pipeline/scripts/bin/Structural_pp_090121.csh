@@ -17,6 +17,7 @@ if (${#argv} < 1) then
 	exit 1
 endif
 
+set workdir = $cwd
 set prmfile = $1
 echo "prmfile="$prmfile
 
@@ -35,6 +36,7 @@ if (${#argv} > 1) then
 	cat $instructions
 	source $instructions
 endif
+
 set basedir = $cwd
 set subdir = $studydir/$patid
 set T1dir  = $subdir/T1
@@ -76,14 +78,17 @@ endif
 switch ( $outspace_flag )	# dependency on mat files in $REFDIR
 	case "333":
 		set outspace = $REFDIR/711-2B_333
+		set outspace_111 = $REFDIR/711-2B_111
 		set atlasdir = 711-2B
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_711-2B_333.mat; breaksw;
 	case "222":
 		set outspace = $REFDIR/711-2B_222
+		set outspace_111 = $REFDIR/711-2B_111
 		set atlasdir = 711-2B
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_711-2B_222.mat; breaksw;
 	case "222AT":
 		set outspace = $REFDIR/711-2B_222AT
+		set outspace_111 = $REFDIR/711-2B_111
 		set atlasdir = 711-2B
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_711-2B_222AT.mat; breaksw;
 	case "111":
@@ -93,10 +98,12 @@ switch ( $outspace_flag )	# dependency on mat files in $REFDIR
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_711-2B_111.mat; breaksw;
 	case "mni3mm":
 		set outspace = $REFDIR/MNI152/MNI152_T1_3mm
+		set outspace_111 = $REFDIR/MNI152/MNI152_T1_1mm
 		set atlasdir = MNI
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_MNI152_T1.mat; breaksw;
 	case "mni2mm":
 		set outspace = $REFDIR/MNI152/MNI152_T1_2mm
+		set outspace_111 = $REFDIR/MNI152/MNI152_T1_1mm
 		set atlasdir = MNI
 		set postmat =  $REFDIR/FSLTransforms/${tres}_to_MNI152_T1.mat; breaksw;
 	case "mni1mm":
@@ -111,6 +118,11 @@ switch ( $outspace_flag )	# dependency on mat files in $REFDIR
 			exit -1;
 		endif
 endsw
+if ( $nlalign ) then
+	set atlasdir = ${atlasdir}_nonlinear
+else
+	set atlasdir = ${atlasdir}
+endif
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
 ###############
@@ -318,20 +330,26 @@ if ( $nlalign ) then
 		t4_mul ../${mpr}_to_${target:t}_t4 $REFDIR/MNI152/711-2B_to_MNI152lin_T1_t4 ${mpr}_to_MNI152_T1_t4 || exit 1 
 		aff_conv 4f ../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1_t4 ../${mpr} \
 			$REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1.mat || exit $status
+		echo "fnirt --in=../${mpr} --config=T1_2_MNI152_2mm \
+			--aff=${mpr}_to_MNI152_T1.mat \
+			--cout=$fnwarp \
+			--iout=${mpr}_on_fn_MNI152_T1_2mm \
+			--fout=${mpr}_to_fn_MNI152_T1_2mm_warpfield"
 		fnirt --in=../${mpr} --config=T1_2_MNI152_2mm \
 			--aff=${mpr}_to_MNI152_T1.mat \
 			--cout=$fnwarp \
-			--iout=${mpr}_on_fn_MNI152_T1_2mm || exit $status
-		gzip -f ../${mpr}.nii
+			--iout=${mpr}_on_fn_MNI152_T1_2mm \
+			--fout=${mpr}_to_fn_MNI152_T1_2mm_warpfield || exit $status
+		gzip -f ../${mpr}.nii		
+
 	endif
 	popd	# out of fnirt
 	
-	applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat \
-		--out=${mpr}_on_${outspacestr} || exit $status
-	niftigz_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}
-
-	# copy linear transform to outspace
-	cp -f ${mpr}_to_MNI152_T1.mat ${mpr}_to_${outspace:t}.mat
+	# Apply final transform to atlas space warpfield if needed. Will be identity matrix if target is MNI.
+	convertwarp --ref=${outspace} --warp1=$fnwarp --postmat=${postmat} --out=${mpr}_to_${outspacestr}_warpfield  || exit $status
+	applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat --out=${mpr}_on_${outspacestr} || exit $status
+	invwarp -w ${mpr}_to_${outspacestr}_warpfield.nii.gz -o ${mpr}_to_${outspacestr}_warpfield_inv.nii.gz -r ${mpr} || exit $status
+	niftigz_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}	
 endif
 
 if (! $nlalign ) then
@@ -395,13 +413,14 @@ if ( $nlalign ) then
 	gunzip -f ${mpr}.nii.gz
 	aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}.mat || exit $status
 	convertwarp --ref=fnirt/${mpr}_on_fn_MNI152_T1_2mm --premat=${t2wimg}_to_${mpr}.mat \
-		--warp1=$fnwarp --out=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff  || exit $status
-	applywarp --in=${t2wimg}.nii --ref=$REFDIR/MNI152/MNI152_T1_2mm \
-		--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii \
+		--warp1=$fnwarp --out=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff  || exit $status # To MNI_T1_2mm
+	applywarp --in=${t2wimg}.nii --ref=$REFDIR/MNI152/MNI152_T1_2mm	--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii \
 		-o fnirt/${t2wimg}_on_fn_MNI152_T1_2mm --interp=nn || exit $status
-	applywarp --in=${t2wimg}.nii --ref=$outspace \
-		--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii --postmat=$postmat \
-		-o fnirt/${t2wimg}_on_${outspacestr}  || exit $status
+	convertwarp --ref=fnirt/${mpr}_on_fn_MNI152_T1_2mm --premat=${t2wimg}_to_${mpr}.mat \
+		--warp1=$fnwarp --postmat=${postmat} --out=${t2wimg}_to_${outspacestr}_warpfield  || exit $status # To final atlas space
+	applywarp --in=${t2wimg}.nii --ref=$outspace --warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii --postmat=$postmat \
+		-o ${t2wimg}_on_${outspacestr}  || exit $status
+	niftigz_4dfp -4 ${t2wimg}_on_${outspacestr} ${t2wimg}_on_${outspacestr}
 	gzip -f ${mpr}.nii
 	gzip -f ${t2wimg}.nii
 endif
@@ -450,21 +469,25 @@ cp ${PostFSdir}/${structid}/NativeVol/aparc+aseg.nii.gz ./${structid}_aparc+aseg
 cp ${PostFSdir}/${structid}/NativeVol/wmparc.nii.gz ./${structid}_wmparc.nii.gz
 niftigz_4dfp -4 ${structid}_aparc+aseg ${structid}_aparc+aseg
 niftigz_4dfp -4 ${structid}_wmparc ${structid}_wmparc
-flirt -ref $outspace -in ${structid}_aparc+aseg -applyxfm -init ${mpr}_to_${outspace:t}.mat -interp nearestneighbour -out \
-	${structid}_aparc+aseg_on_${outspace:t} || exit $status
-flirt -ref $outspace -in ${structid}_wmparc -applyxfm -init ${mpr}_to_${outspace:t}.mat -interp nearestneighbour -out \
-	${structid}_wmparc_on_${outspace:t} || exit $status
-niftigz_4dfp -4 ${structid}_aparc+aseg_on_${outspace:t} ${structid}_aparc+aseg_on_${outspace:t} || exit $status
-niftigz_4dfp -4 ${structid}_wmparc_on_${outspace:t} ${structid}_wmparc_on_${outspace:t} || exit $status
 
+if ( ! $nlalign ) then
+	flirt -ref $outspace -in ${structid}_aparc+aseg -applyxfm -init ${mpr}_to_${outspace:t}.mat -interp nearestneighbour -out \
+	${structid}_aparc+aseg_on_${outspace:t} || exit $status
+	flirt -ref $outspace -in ${structid}_wmparc -applyxfm -init ${mpr}_to_${outspace:t}.mat -interp nearestneighbour -out \
+	${structid}_wmparc_on_${outspace:t} || exit $status
+	niftigz_4dfp -4 ${structid}_aparc+aseg_on_${outspace:t} ${structid}_aparc+aseg_on_${outspace:t} || exit $status
+	niftigz_4dfp -4 ${structid}_wmparc_on_${outspace:t} ${structid}_wmparc_on_${outspace:t} || exit $status		
+endif
 ###############################################
 # Perform non-linear registration if flagged
 ###############################################
 if ( $nlalign ) then
-	pushd fnirt
-	applywarp --ref=$outspace --in=../${structid}_aparc+aseg -w $fnwarp --postmat=$postmat  \
+	applywarp --ref=$outspace --in=${structid}_aparc+aseg -w $fnwarp --postmat=$postmat  \
 		--interp=nn --out=${structid}_aparc+aseg_on_${outspacestr} || exit $status
-	niftigz_4dfp -4 ${structid}_aparc+aseg_on_${outspacestr} ${structid}_aparc+aseg_on_${outspacestr}	
+	niftigz_4dfp -4 ${structid}_aparc+aseg_on_${outspacestr} ${structid}_aparc+aseg_on_${outspacestr}
+	applywarp --ref=$outspace --in=${structid}_wmparc -w $fnwarp --postmat=$postmat  \
+		--interp=nn --out=${structid}_wmparc_on_${outspacestr} || exit $status
+	niftigz_4dfp -4 ${structid}_wmparc_on_${outspacestr} ${structid}_wmparc_on_${outspacestr}	
 endif
 
 ##################
@@ -486,7 +509,7 @@ maskimg_4dfp  ${structid}_WM_on_${outspacestr} ${structid}_GM_on_${outspacestr}_
 ROI2mask_4dfp ${structid}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${structid}_VENT_on_${outspacestr}  || exit $status
 maskimg_4dfp  ${structid}_VENT_on_${outspacestr} ${structid}_GM_on_${outspacestr}_comp_b60 ${structid}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
 /bin/rm -f ${structid}_GM_on_${outspacestr}_comp*
-if ( $nlalign ) popd # out of fnirt, if in fnirt
+#if ( $nlalign ) popd # out of fnirt, if in fnirt
 
 #########################################################################
 # compute brain mask from $t2wimg to be used for BOLD -> t2w registration
@@ -536,10 +559,9 @@ POSTFREESURFER2ATL:
 #############################################################################
 echo "############## Transform fsLR Surface to final outspace ##############"
 if ( $nlalign ) then
-	echo "WARNING: postfreesurfer2atl and subsequent steps only work with linear alignment"
-	exit
+	native_to_atlas_resample_surface_090221_nl.csh $1 $2 || exit ${status}
 else
-native_to_atlas_resample_surface_090221.csh $1 $2 || exit ${status}
+	native_to_atlas_resample_surface_090221.csh $1 $2 || exit ${status}
 endif
 if ( $doexit ) exit
 
