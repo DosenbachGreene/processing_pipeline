@@ -403,7 +403,7 @@ def main():
     for k in range(len(epis)):
         # combine split volumes
         temp_out = PathMan(tmp_epi_path.path) / f"temp_out_{k}"
-        print(" ".join(["paste_4dfp", "-a", frameout_list[k], str(temp_out)]))
+        print(" ".join(["paste_4dfp", "-a", str(frameout_list[k]), str(temp_out)]))
         subprocess_run(["paste_4dfp", "-a", frameout_list[k], temp_out], stdout=DEVNULL, check=True)
         subprocess_run(["imgopr_4dfp", f"-p{out[k]}", temp_out, combined_bias, "-R", "-z", "-u"], check=True)
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
