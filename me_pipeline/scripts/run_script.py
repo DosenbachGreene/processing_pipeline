@@ -1,3 +1,4 @@
+import os
 import argparse
 from pathlib import Path
 from memori.logging import setup_logging, run_process
@@ -24,12 +25,19 @@ def main():
     )
     parser.add_argument("script_args", nargs="*", help="Arguments to script.")
     parser.add_argument("--log_file", help="Path to log file")
+    parser.add_argument("--tmp_dir", help="Path to temporary directory.")
 
     # parse arguments
     args, extras = parser.parse_known_args()
 
     # setup logging
     setup_logging(args.log_file)
+
+    # setup TMPDIR
+    if args.tmp_dir is not None:
+        tmpdir = Path(args.tmp_dir).absolute().resolve()
+        tmpdir.mkdir(exist_ok=True, parents=True)
+        os.environ["TMPDIR"] = str(tmpdir)
 
     # run script
     if run_process([args.script, *args.script_args, *extras]) != 0:
