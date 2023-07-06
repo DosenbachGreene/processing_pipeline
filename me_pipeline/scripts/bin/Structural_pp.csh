@@ -545,9 +545,8 @@ pushd ${subdir}
 if (! -d subcortical_mask ) mkdir -p subcortical_mask
 pushd subcortical_mask
 cp ${T1dir}/atlas/${structid}_wmparc_on_${outspacestr}.nii.gz .
-# TODO: make not reliant on Tim's directory
-cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/FreeSurferSubcorticalLabelTableLut* .
-cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/global/templates/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
+cp ${DATA_DIR}/FreeSurferSubcorticalLabelTableLut* .
+cp ${DATA_DIR}/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
 
 switch ( $subcortical_mask )
 	case "Fat_Mask_Individual":

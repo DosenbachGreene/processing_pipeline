@@ -92,21 +92,21 @@ switch ( ${subcortical_mask} )
 			echo "If using atlas for subcortical ROIs, data must be non-linearly registered to MNI space"
 			exit -1
 		endif
-		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
+		set templatedir = ${DATA_DIR}/91282_Greyordinates
 		set subcortical_mask = ${templatedir}/Atlas_ROIs.2.nii.gz
 		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
 		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
 		set subcortoutstr = subcortAtlasROIS
 		breaksw
 	case "Fat_Mask_ABCD":
-		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
-		set subcortical_mask = /data/nil-bluearc/GMT2/Laumann/NEW_MASK/ABCD_FFM_subcortical_mask_LR_MNI_222.nii
+		set templatedir = ${DATA_DIR}/91282_Greyordinates
+		set subcortical_mask = ${DATA_DIR}/NEW_MASK/ABCD_FFM_subcortical_mask_LR_MNI_222.nii
 		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
 		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
 		set subcortoutstr = subcortABCD_FMM
 		breaksw
 	case "Fat_Mask_Individual":
-		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
+		set templatedir = ${DATA_DIR}/91282_Greyordinates
 		set subcortical_mask = ${maskdir}/subcortical_mask_FFM_LR_${outspacestr}_label.nii
 		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
 		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii

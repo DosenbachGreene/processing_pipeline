@@ -77,7 +77,8 @@ set T2dir = ${studydir}/${patid}/T2
 set T2_Nativevol = ${t2wimg}
 
 set nativedir = ${PostFSdir}/${structid}/NativeVol
-set workbenchdir = /data/nil-bluearc/GMT/Laumann/workbench_v1.5/bin_rh_linux64
+set wb_command = `which wb_command`
+set workbenchdir = `dirname $wb_command`
 
 if ( $nlalign ) then
 	set resampledir = ${PostFSdir}/${structid}/${atlasdir}_nonlinear
