@@ -502,7 +502,7 @@ class Instructions(Params):
     # If set to true, will use MNI atlas-based ROIs to define subcortical voxels,
     # otherwise will use subcortical voxels based on individual-subject segmentation.
     # Must have performed FNIRT.
-    Atlas_ROIs: bool = False
+    subcortical_mask: str = "Individual"
     surfsmooth: float = 1.7
     subcortsmooth: float = 1.7
 

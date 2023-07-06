@@ -276,7 +276,9 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
             # Loop through all tasks for this session
             for task in layout.get_tasks(subject=subject, session=session):
                 # Get all functional runs for this session
-                func_runs = layout.get_runs(subject=subject, session=session, task=task, suffix="bold", extension="nii.gz")
+                func_runs = layout.get_runs(
+                    subject=subject, session=session, task=task, suffix="bold", extension="nii.gz"
+                )
 
                 # Loop through all functional runs for this session
                 for run in func_runs:
@@ -316,8 +318,13 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
                         )
                     else:  # else use the field maps we found
                         # get AP/PA
-                        fmap_AP = [Path(f["epi"]) for f in fmap_files if "dir-AP" in f["epi"]][0]
-                        fmap_PA = [Path(f["epi"]) for f in fmap_files if "dir-PA" in f["epi"]][0]
+                        try:
+                            fmap_AP = [Path(f["epi"]) for f in fmap_files if "dir-AP" in f["epi"]][0]
+                            fmap_PA = [Path(f["epi"]) for f in fmap_files if "dir-PA" in f["epi"]][0]
+                        except IndexError as error:
+                            print("Unexpected error: could not find AP/PA fieldmaps for task: {task}, run: {run}")
+                            print("Make sure the field maps exist and have the IntendedFor field set correctly.")
+                            raise error
 
                     # add field maps to the session dictionary
                     fmap_session_dict[f"{task}{run}"] = [fmap_AP, fmap_PA]

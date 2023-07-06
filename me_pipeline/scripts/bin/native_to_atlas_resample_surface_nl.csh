@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 
 source $1 #Subject-specific instructions
 source $2 #Project instructions

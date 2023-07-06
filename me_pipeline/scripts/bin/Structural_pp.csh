@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 ## TOL, Version 1, 08/2021
 set program = $0; set program = $program:t
 
@@ -456,7 +456,7 @@ POSTFREESURFER:
 # Post-Freesurfer pipeline for generating fsLR surfaces in workbench format
 #############################################################################
 echo "############## Run PostFreesurfer Surface pipeline ##############"
-PostFreeSurferPipeline_fsavg2fslr_080921.bat ${structid} ${FSdir} ${mpr} ${PostFSdir} || exit ${status}
+PostFreeSurferPipeline_fsavg2fslr.sh ${structid} ${FSdir} ${mpr} ${PostFSdir} || exit ${status}
 if ( $doexit ) exit
 
 SEG2ATL:
@@ -538,16 +538,57 @@ if ( $doexit ) exit
 
 SUBCORTICAL_MASK:
 ###############################################
-# Apply transform to aparc+aseg
+# Make subcortical mask
 ###############################################
 echo "############## Make subcortical mask ##############"
 pushd ${subdir}
 if (! -d subcortical_mask ) mkdir -p subcortical_mask
 pushd subcortical_mask
-cp ${T1dir}/atlas/${structid}_wmparc_on_${outspace:t}.nii.gz .
-cp ${DATA_DIR}/FreeSurferSubcorticalLabelTableLut* .
-cp ${DATA_DIR}/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
-wb_command -volume-label-import ${structid}_wmparc_on_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut.txt subcortical_mask_LR_${outspace:t}.nii -discard-others -unlabeled-value 0
+cp ${T1dir}/atlas/${structid}_wmparc_on_${outspacestr}.nii.gz .
+# TODO: make not reliant on Tim's directory
+cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/FreeSurferSubcorticalLabelTableLut* .
+cp /data/nil-bluearc/GMT/Laumann/PostFreesurfer_Scripts/global/templates/standard_mesh_atlases/*.atlasroi.32k_fs_LR.shape.gii .
+
+switch ( $subcortical_mask )
+	case "Fat_Mask_Individual":
+		flirt -ref ${outspace_111} -in ${T1dir}/atlas/${structid}_wmparc -applyxfm -init ${T1dir}/atlas/${mpr}_to_${outspace:t}.mat -interp nearestneighbour -out ${structid}_wmparc_on_${outspace_111:t}
+		wb_command -volume-label-import ${structid}_wmparc_on_${outspace_111:t}.nii.gz FreeSurferSubcorticalLabelTableLut_VENTRICLE.txt ventricle_mask_LR_${outspace_111:t}.nii -discard-others -unlabeled-value 0
+		wb_command -volume-label-import ${structid}_wmparc_on_${outspace_111:t}.nii.gz FreeSurferSubcorticalLabelTableLut_GRAY.txt gray_mask_LR_${outspace_111:t}.nii -discard-others -unlabeled-value 0
+		wb_command -volume-label-import ${structid}_wmparc_on_${outspace_111:t}.nii.gz FreeSurferSubcorticalLabelTableLut_FFM.txt subcortical_mask_FFM_LR_${outspace_111:t}.nii -discard-others -unlabeled-value 0
+
+		fslmaths ventricle_mask_LR_${outspace_111:t}.nii -binv ventricle_mask_LR_${outspace_111:t}_binv.nii.gz
+		fslmaths gray_mask_LR_${outspace_111:t}.nii -binv gray_mask_LR_${outspace_111:t}_binv.nii.gz
+
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}.nii -dilD subcortical_mask_FFM_LR_${outspace_111:t}_dilD.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD.nii.gz -mul ventricle_mask_LR_${outspace_111:t}_binv.nii.gz subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv.nii.gz
+
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv.nii.gz -mul gray_mask_LR_${outspace_111:t}_binv.nii.gz subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv.nii.gz
+
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv.nii.gz -dilD subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD.nii.gz -mul ventricle_mask_LR_${outspace_111:t}_binv.nii.gz subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv.nii.gz -mul gray_mask_LR_${outspace_111:t}_binv.nii.gz subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv_graybinv.nii.gz
+
+		##Binarize masks and label adipose
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}.nii -bin subcortical_mask_FFM_LR_${outspace_111:t}_bin.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv_graybinv.nii.gz -bin subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv_graybinv_bin.nii.gz
+
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_dilD_ventbinv_graybinv_dilD_ventbinv_graybinv_bin.nii.gz -sub subcortical_mask_FFM_LR_${outspace_111:t}_bin.nii.gz subcortical_mask_FFM_LR_${outspace_111:t}_adipose_bin.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}_adipose_bin.nii.gz -mul 100 subcortical_mask_FFM_LR_${outspace_111:t}_adipose_bin100.nii.gz
+		fslmaths subcortical_mask_FFM_LR_${outspace_111:t}.nii -add subcortical_mask_FFM_LR_${outspace_111:t}_adipose_bin100.nii.gz subcortical_mask_FFM_LR_and_adipose_${outspace_111:t}.nii.gz
+		wb_command -volume-label-import subcortical_mask_FFM_LR_and_adipose_${outspace_111:t}.nii.gz FreeSurferSubcorticalLabelTableLut_FFM.txt subcortical_mask_FFM_LR_and_adipose_${outspace_111:t}.nii.gz -discard-others -unlabeled-value 0
+		niftigz_4dfp -4 subcortical_mask_FFM_LR_and_adipose_${outspace_111:t}.nii.gz subcortical_mask_FFM_LR_and_adipose_${outspace_111:t}
+		t4img_4dfp none subcortical_mask_FFM_LR_and_adipose_${outspace_111:t} subcortical_mask_FFM_LR_and_adipose_${outspace:t} -O${outspace} -n
+		niftigz_4dfp -n subcortical_mask_FFM_LR_and_adipose_${outspace:t} subcortical_mask_FFM_LR_and_adipose_${outspace:t}
+		wb_command -volume-label-import subcortical_mask_FFM_LR_and_adipose_${outspace:t}.nii.gz FreeSurferSubcorticalLabelTableLut_FFM.txt subcortical_mask_FFM_LR_${outspace:t}_label.nii -discard-others -unlabeled-value 0
+		breaksw
+	case "Individual":
+		wb_command -volume-label-import ${structid}_wmparc_on_${outspacestr}.nii.gz FreeSurferSubcorticalLabelTableLut.txt subcortical_mask_LR_${outspacestr}_label.nii -discard-others -unlabeled-value 0
+		breaksw
+	case "Atlas_ROIs":
+		wb_command -volume-label-import ${structid}_wmparc_on_${outspacestr}.nii.gz FreeSurferSubcorticalLabelTableLut.txt subcortical_mask_LR_${outspacestr}_label.nii -discard-others -unlabeled-value 0
+		breaksw
+endsw
+	
 
 popd
 popd
@@ -559,9 +600,9 @@ POSTFREESURFER2ATL:
 #############################################################################
 echo "############## Transform fsLR Surface to final outspace ##############"
 if ( $nlalign ) then
-	native_to_atlas_resample_surface_090221_nl.csh $1 $2 || exit ${status}
+	native_to_atlas_resample_surface_nl.csh $1 $2 || exit ${status}
 else
-	native_to_atlas_resample_surface_090221.csh $1 $2 || exit ${status}
+	native_to_atlas_resample_surface.csh $1 $2 || exit ${status}
 endif
 if ( $doexit ) exit
 
@@ -570,10 +611,8 @@ CREATE_RIBBON:
 # Create cortical ribbon volume
 #############################################################################
 echo "############## Create Ribbon in final outspace ##############"
-create_ribbon_pp_090221.csh $1 $2
+create_ribbon_pp.csh $1 $2
 if ( $doexit ) exit
-
-
 
 IMAGEREG_CHECK:
 ###############################################

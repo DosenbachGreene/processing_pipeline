@@ -272,7 +272,7 @@ def main():
                     if (
                         run_process(
                             [
-                                "Structural_pp_090121.csh",
+                                "Structural_pp.csh",
                                 str(struct_params),
                                 str(instructions_file),
                                 args.module_start,
@@ -429,7 +429,7 @@ def main():
                         if (
                             run_process(
                                 [
-                                    "Functional_pp_batch_ME_NORDIC_RELEASE_112722.csh",
+                                    "Functional_pp_batch_ME_NORDIC.csh",
                                     str(func_params),
                                     str(instructions_file),
                                     args.module_start,

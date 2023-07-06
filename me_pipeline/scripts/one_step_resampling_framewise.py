@@ -388,7 +388,12 @@ def main():
         sys.stdout.flush()
     except BlockingIOError:
         pass
-    subprocess_run(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_bias_dir.path) / "combined_bias_field"], check=True)
+    print(" ".join(["paste_4dfp", "-a", framesout_bias, PathMan(tmp_bias_dir.path) / "combined_bias_field"]))
+    subprocess_run(
+        ["paste_4dfp", "-a", framesout_bias, PathMan(tmp_bias_dir.path) / "combined_bias_field"],
+        stdout=DEVNULL,
+        check=True,
+    )
     combined_bias = str((PathMan(tmp_bias_dir.path) / "combined_bias_field").with_suffix(".4dfp.img"))
     print("Intensity normalizing EPIs...")
     try:
@@ -398,7 +403,8 @@ def main():
     for k in range(len(epis)):
         # combine split volumes
         temp_out = PathMan(tmp_epi_path.path) / f"temp_out_{k}"
-        subprocess_run(["paste_4dfp", "-a", frameout_list[k], temp_out], check=True)
+        print(" ".join(["paste_4dfp", "-a", frameout_list[k], temp_out]))
+        subprocess_run(["paste_4dfp", "-a", frameout_list[k], temp_out], stdout=DEVNULL, check=True)
         subprocess_run(["imgopr_4dfp", f"-p{out[k]}", temp_out, combined_bias, "-R", "-z", "-u"], check=True)
         subprocess_run(["ifh2hdr", "-r2000", out[k]], check=True, stdout=False)
         with open(f"{os.path.splitext(out[k])[0]}.4dfp.img.rec", "w") as f:

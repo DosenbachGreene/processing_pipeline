@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 ## TOL, Version 1, 08/2021
 
 set program = $0; set program = $program:t
@@ -117,14 +117,14 @@ if ($enter == FMRI_PP && ${#argv} > 4) then
 endif
 
 echo $enter
-if ($enter == FMRI_PP)			goto FMRI_PP;
-if ($enter == NIFTI)			goto NIFTI;
-if ($enter == IMAGEREG_CHECK)		goto IMAGEREG_CHECK;
-if ($enter == GOODVOXELS)		goto GOODVOXELS;
-if ($enter == FCMRI_PP)			goto FCMRI_PP;
-if ($enter == FORMAT_CONVERT)		goto FORMAT_CONVERT;
-if ($enter == FC_QC)			goto FC_QC;
-if ($enter == CIFTI_CREATION)		goto CIFTI_CREATION;
+if ($enter == FMRI_PP)              goto FMRI_PP;
+if ($enter == NIFTI)			    goto NIFTI;
+if ($enter == IMAGEREG_CHECK)       goto IMAGEREG_CHECK;
+if ($enter == GOODVOXELS)           goto GOODVOXELS;
+if ($enter == FCMRI_PP)             goto FCMRI_PP;
+if ($enter == FORMAT_CONVERT)       goto FORMAT_CONVERT;
+if ($enter == FC_QC)                goto FC_QC;
+if ($enter == CIFTI_CREATION)       goto CIFTI_CREATION;
 #goto NIFTI
 
 FMRI_PP:
@@ -132,7 +132,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-ME_cross_bold_pp_2019.csh $1 $2 $fmri_pp_module || exit $status
+ME_cross_bold_pp.csh $1 $2 $fmri_pp_module || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -142,11 +142,8 @@ NIFTI:
 echo "############## 4dfp to NIFTI conversion ##############"
 foreach run ( $runID )
 	pushd bold$run
-	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg
-	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1 $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_sd1
-	rm -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR.nii*
 	niftigz_4dfp -n -f $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR $patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_SNR
 	popd 
 end
@@ -175,7 +172,7 @@ GOODVOXELS:
 ### Create goodvoxels masks
 ##################################
 echo "############## Create goodvoxels mask ##############"
-RibbonVolumetoSurfaceMapping_090821.csh $1 $2 || exit $status
+RibbonVolumetoSurfaceMapping.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 FCMRI_PP:
@@ -184,7 +181,7 @@ FCMRI_PP:
 ##################################
 echo "############## Run fcMRI processing ##############"
 if ( $#FCrunID ) then
-	ME_fcMRI_preproc_2019.csh $1 $2 || exit $status
+	ME_fcMRI_preproc.csh $1 $2 || exit $status
 else
 endif
 if ( $doexit ) exit
@@ -194,17 +191,20 @@ FORMAT_CONVERT:
 ### Convert format files
 ##################################
 echo "############## Convert format files ##############"
-pushd ./FCmaps
-set concroot = ${patid}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
-split_format.csh ${concroot}
-format2lst ${concroot}.format -w > ${concroot}_tmask.txt
-popd
-foreach run ( $FCrunID )
-	pushd bold${run}
-	set formatname = ${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
-	format2lst ${formatname}.format -w > ${formatname}_tmask.txt
+if ( $#FCrunID ) then
+	pushd ./FCmaps
+	set concroot = ${patid}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
+	split_format.csh ${concroot}
+	format2lst ${concroot}.format -w > ${concroot}_tmask.txt
 	popd
-end
+	foreach run ( $FCrunID )
+		pushd bold${run}
+		set formatname = ${patid}_b${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
+		format2lst ${formatname}.format -w > ${formatname}_tmask.txt
+		popd
+	end
+else
+endif
 if ( $doexit ) exit
 
 FC_QC:
@@ -236,6 +236,5 @@ CIFTI_CREATION:
 ### Create cifti files
 ##################################
 echo "############## Create CIFTI timeseries ##############"
-SurfaceMappingCiftiCreation_v3.csh $1 $2 || exit $status
+SurfaceMappingCiftiCreation.csh $1 $2 || exit $status
 if ( $doexit ) exit
-

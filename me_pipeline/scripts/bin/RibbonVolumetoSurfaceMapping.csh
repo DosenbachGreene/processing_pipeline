@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 
 source $1 #Subject-specific instructions
 source $2 #Project instructions
@@ -11,6 +11,7 @@ else
 	set tres = 711-2B_111;
 	set outspacestr = ""
 endif
+
 if ( ! $?outspace_flag ) then 
 	echo "The variable outspace_flag must be defined."
 	exit -1
@@ -49,11 +50,17 @@ switch ( $outspace_flag )
 	default:
 		set outspace = `echo $outspace | sed -E 's/\.4dfp(\.img){0,1}$//'`
 endsw
-set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
+# we need to adjust the ribbon directory path based on nonlinear vs linear alignment
+if ( $nlalign ) then
+	set ribbondir = ${PostFSdir}/${day1_patid}/${atlasdir}_nonlinear/Native/Ribbon
+else
+	set ribbondir = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/Ribbon
+endif
+
+set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 set neighsmooth = 5
 set factor = 0.5
-set ribbondir = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/Ribbon
 
 foreach study ( $runID )
 	pushd bold${study}

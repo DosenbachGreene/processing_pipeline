@@ -74,7 +74,7 @@ lomotil = 0
 # If set to true, will use MNI atlas-based ROIs to define subcortical voxels,
 # otherwise will use subcortical voxels based on individual-subject segmentation.
 # Must have performed FNIRT.
-Atlas_ROIs = false
+subcortical_mask = "Individual"
 surfsmooth = 1.7
 subcortsmooth = 1.7
 

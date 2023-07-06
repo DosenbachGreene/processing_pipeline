@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 
 source $1 #Subject-specific instructions
 source $2 #Project instructions
@@ -42,7 +42,10 @@ if ( ! $?outspace_flag ) then
 	echo "The variable outspace_flag must be defined."
 	exit -1
 endif
-
+echo ${subcortical_mask}
+if ( ! $?subcortical_mask ) then 
+	set subcortical_mask = Individual
+endif
 
 # Outspace for structural data is set as 111 regardless of case
 switch ( $outspace_flag )
@@ -78,29 +81,53 @@ switch ( $outspace_flag )
 		set outspace = `echo $outspace | sed -E 's/\.4dfp(\.img){0,1}$//'`
 endsw
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
-
-if ( $Atlas_ROIs ) then
-	if ( ! $nlalign ) then
-		echo "If using atlas for subcortical ROIs, data must be non-linearly registered to MNI space"
-		exit -1
-	endif
-	set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
-	set subcortical_mask = ${templatedir}/Atlas_ROIs.2.nii.gz
-	set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
-	set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
-else
-	set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}.nii
-	set left_mask = ${maskdir}/L.atlasroi.32k_fs_LR.shape.gii
-	set right_mask = ${maskdir}/R.atlasroi.32k_fs_LR.shape.gii
+# set atlasdir to nonlinear atlas if nlalign is set
+if ( $nlalign ) then
+	set atlasdir = ${atlasdir}_nonlinear
 endif
 
+switch ( ${subcortical_mask} )
+	case "Atlas_ROIs":
+		if ( ! $nlalign ) then
+			echo "If using atlas for subcortical ROIs, data must be non-linearly registered to MNI space"
+			exit -1
+		endif
+		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
+		set subcortical_mask = ${templatedir}/Atlas_ROIs.2.nii.gz
+		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
+		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
+		set subcortoutstr = subcortAtlasROIS
+		breaksw
+	case "Fat_Mask_ABCD":
+		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
+		set subcortical_mask = /data/nil-bluearc/GMT2/Laumann/NEW_MASK/ABCD_FFM_subcortical_mask_LR_MNI_222.nii
+		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
+		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
+		set subcortoutstr = subcortABCD_FMM
+		breaksw
+	case "Fat_Mask_Individual":
+		set templatedir = /data/nil-bluearc/GMT/Laumann/HCP_template/global/templates/91282_Greyordinates
+		set subcortical_mask = ${maskdir}/subcortical_mask_FFM_LR_${outspacestr}_label.nii
+		set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
+		set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
+		set subcortoutstr = subcortFMM
+		breaksw
+	case "Individual":
+		set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}.nii
+		set left_mask = ${maskdir}/L.atlasroi.32k_fs_LR.shape.gii
+		set right_mask = ${maskdir}/R.atlasroi.32k_fs_LR.shape.gii
+		set subcortoutstr = subcort
+		breaksw
+endsw
+echo ${subcortical_mask}
+echo ${subcortoutstr}
 set vol2surfdir = surf_timecourses
 set ciftidir = cifti_timeseries_normalwall_atlas_freesurf
 mkdir -p ${vol2surfdir}
 mkdir -p ${ciftidir}
 
 foreach run ( ${runID} ) 
-	echo "##################  processing session: ${patid} ${run}#######################"
+	echo "##################  processing session: ${patid} ${run} #######################"
     set FCprocessed = 0
     foreach run2 ( ${FCrunID} )
         if $run == $run2 then
@@ -151,10 +178,10 @@ foreach run ( ${runID} )
 
 	if ( $dosubcortsmooth ) then
 		echo "########### Smooth volume within subcortical ROI ######################"
-		#if ( ! -e ${funcvol}.nii.gz ) then
-		#	niftigz_4dfp -n -f ${funcvol} ${funcvol}
-		#	fslorient -forceradiological ${funcvol}.nii.gz
-		#endif
+		# since Atlas_ROIs.2.nii.gz is in radiological orientation, we need to force the funcvol to be radiological else the volume smoothing will fail
+		if ( $subcortical_mask =~ *Atlas_ROIs.2.nii.gz ) then
+			fslorient -forceradiological ${funcvol}.nii.gz
+		endif
 		${workbenchdir}/wb_command -volume-smoothing ${funcvol}.nii.gz ${subcortsmooth} ${funcvol}_brainstem_wROI${subcortsmooth}.nii.gz -roi ${subcortical_mask}
 		set subfuncvol = ${funcvol}_brainstem_wROI${subcortsmooth}
 	else
@@ -169,7 +196,3 @@ foreach run ( ${runID} )
 	rm -f ${funcvol}.nii.gz
 	popd
 end
-	
-
-
-

@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 echo "\n START: CreateRibbon"
 
 source $1 #Subject-specific instructions
