@@ -21,14 +21,14 @@ if (! $?subcortsmooth ) set subcortsmooth = 1.7 # Default smooth 1.7
 set dosubcortsmooth = 0
 if ($subcortsmooth != 0) then
 	set dosubcortsmooth = 1
-        set smoothstr = ${smoothstr}_subcortsmooth${subcortsmooth}
+	set smoothstr = ${smoothstr}_subcortsmooth${subcortsmooth}
 else
-        set smoothstr = ""  
+	set smoothstr = ""  
 endif
 
-echo $surfsmooth
-echo $subcortsmooth
-echo $smoothstr
+echo "surfsmooth: $surfsmooth"
+echo "subcortsmooth: $subcortsmooth"
+echo "suffix: $smoothstr"
 
 if ( ! $?nlalign ) set nlalign = 0
 if ( $nlalign ) then				# nonlinear atlas alignment will be computed
@@ -42,7 +42,7 @@ if ( ! $?outspace_flag ) then
 	echo "The variable outspace_flag must be defined."
 	exit -1
 endif
-echo ${subcortical_mask}
+echo "subcortical_mask ${subcortical_mask}"
 if ( ! $?subcortical_mask ) then 
 	set subcortical_mask = Individual
 endif
@@ -119,15 +119,15 @@ switch ( ${subcortical_mask} )
 		set subcortoutstr = subcort
 		breaksw
 endsw
-echo ${subcortical_mask}
-echo ${subcortoutstr}
+echo "subcortical_mask: ${subcortical_mask}"
+echo "subcortstr: ${subcortoutstr}"
 set vol2surfdir = surf_timecourses
 set ciftidir = cifti_timeseries_normalwall_atlas_freesurf
 mkdir -p ${vol2surfdir}
 mkdir -p ${ciftidir}
 
 foreach run ( ${runID} ) 
-	echo "##################  processing session: ${patid} ${run} #######################"
+	echo "################## Processing session: ${patid} ${run} #######################"
     set FCprocessed = 0
     foreach run2 ( ${FCrunID} )
         if $run == $run2 then
