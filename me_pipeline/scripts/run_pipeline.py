@@ -17,7 +17,7 @@ from me_pipeline.bids import (
     get_fieldmaps,
 )
 from me_pipeline.params import (
-    Instructions,
+    generate_instructions,
     StructuralParams,
     FunctionalParams,
     RunsMap,
@@ -71,31 +71,6 @@ FMRI_PP_MODULES = [
     "NORM",
     "CLEANUP",
 ]
-
-
-def generate_instructions(output_path: Path, config: Union[Path, str, None] = None) -> Tuple[Path, Instructions]:
-    """Generates instructions file.
-
-    Parameters
-    ----------
-    output_path : Path
-        output path for instructions file
-    config : Union[Path, str]
-        path to config file to initialize instructions file with
-
-    Returns
-    -------
-    Path
-        path to instructions file
-    """
-    instructions_file = output_path / "instructions.params"
-    if config is not None:  # load instructions from config file
-        instructions = Instructions.load(config)
-    else:  # generate new instructions
-        instructions = Instructions()
-    # write instructions to file
-    instructions.save_params(instructions_file)
-    return instructions_file, instructions
 
 
 def main():

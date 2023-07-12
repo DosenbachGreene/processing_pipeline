@@ -113,7 +113,7 @@ switch ( ${subcortical_mask} )
 		set subcortoutstr = subcortFMM
 		breaksw
 	case "Individual":
-		set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}.nii
+		set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}_label.nii
 		set left_mask = ${maskdir}/L.atlasroi.32k_fs_LR.shape.gii
 		set right_mask = ${maskdir}/R.atlasroi.32k_fs_LR.shape.gii
 		set subcortoutstr = subcort

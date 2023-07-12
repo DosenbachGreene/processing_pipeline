@@ -714,6 +714,13 @@ while ($k <= $runs)
 			# create medic output directory
 			mkdir -p MEDIC
 			# run medic
+			echo medic \
+				--magnitude $mag_echoes \
+				--phase $phase_echoes \
+				--metadata $echoes_metadata \
+				--out_prefix MEDIC/$patid"_b"${run} \
+				--noiseframes ${noiseframes} \
+				--n_cpus ${num_cpus}
 			medic \
 				--magnitude $mag_echoes \
 				--phase $phase_echoes \

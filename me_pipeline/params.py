@@ -2,7 +2,7 @@ import json
 import numpy as np
 from pathlib import Path
 from dataclasses import asdict, dataclass, field, fields, _MISSING_TYPE
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 import toml
 
 
@@ -522,3 +522,28 @@ class Instructions(Params):
     # seed correl
     ROIdir: str = "$REFDIR/CanonicalROIsNP705"
     ROIimg: str = "CanonicalROIsNP705_on_MNI152_2mm.4dfp.img"
+
+
+def generate_instructions(output_path: Path, config: Union[Path, str, None] = None) -> Tuple[Path, Instructions]:
+    """Generates instructions file.
+
+    Parameters
+    ----------
+    output_path : Path
+        output path for instructions file
+    config : Union[Path, str]
+        path to config file to initialize instructions file with
+
+    Returns
+    -------
+    Path
+        path to instructions file
+    """
+    instructions_file = output_path / "instructions.params"
+    if config is not None:  # load instructions from config file
+        instructions = Instructions.load(config)
+    else:  # generate new instructions
+        instructions = Instructions()
+    # write instructions to file
+    instructions.save_params(instructions_file)
+    return instructions_file, instructions

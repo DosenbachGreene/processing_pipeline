@@ -79,6 +79,7 @@ def main():
             phase_encoding_direction,
             n_cpus=args.n_cpus,
             svd_filt=10,
+            border_size=5,
         )
 
     # save the fmaps and dmaps to file
