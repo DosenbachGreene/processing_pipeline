@@ -66,9 +66,9 @@ RUN /opt/tools/install_4dfp.sh
 
 # get and install Julia
 FROM base as julia
-RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.5-linux-x86_64.tar.gz && \
-    tar -xzf julia-1.8.5-linux-x86_64.tar.gz && \
-    rm julia-1.8.5-linux-x86_64.tar.gz
+RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.9/julia-1.9.2-linux-x86_64.tar.gz && \
+    tar -xzf julia-1.9.2-linux-x86_64.tar.gz && \
+    rm julia-1.9.2-linux-x86_64.tar.gz
 
 # setup final image
 FROM base as final
@@ -192,7 +192,7 @@ ENV RELEASE=/opt/4dfp/bin
 ENV PATH=${RELEASE}:${PATH}
 
 # copy over julia
-COPY --from=julia /opt/julia-1.8.5/ /opt/julia/
+COPY --from=julia /opt/julia-1.9.2/ /opt/julia/
 ENV PATH=/opt/julia/bin:${PATH}
 # add libjulia to ldconfig
 RUN echo "/opt/julia/lib" >> /etc/ld.so.conf.d/julia.conf && ldconfig
