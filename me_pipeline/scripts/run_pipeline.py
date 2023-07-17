@@ -124,6 +124,7 @@ def main():
         "--save_func_config", help="Save functional config files to path. Use with --dry_run option."
     )
     functional.add_argument("--load_func_config", nargs="+", help="Load functional config file(s).")
+    functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
 
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
@@ -329,6 +330,12 @@ def main():
                 continue
 
             for session_id, func_runs in func_sessions.items():
+                # if session_filter is set
+                if args.session_filter is not None:
+                    # skip if not in session filter
+                    if session_id not in args.session_filter:
+                        continue
+
                 # set output directory
                 suffix = "" if args.ses_label is None else f"w{args.ses_label}"
                 func_out = output_path / f"sub-{subject_id}" / f"ses-{session_id}{suffix}"
@@ -397,7 +404,6 @@ def main():
 
                 # skip if dry run
                 if not args.dry_run:
-                    print(os.environ['PATH'])
                     # change to session directory
                     with working_directory(str(func_out)):
                         # run the functional pipeline

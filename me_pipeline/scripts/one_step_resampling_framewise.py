@@ -291,8 +291,10 @@ def main():
     tmp_blank_path = PathMan(tmp_dir.name) / "blank_tmp"
     tmp_blank_path.mkdir(exist_ok=True)
     blank = PathMan(tmp_blank_path.path) / "blank"
-    subprocess_run(["extract_frame_4dfp", str(epis[1]), str(1), f"-o{str(blank)}"], check=True)
-    subprocess_run(["scale_4dfp", str(blank), str(0), "-b1"], check=True)
+    print(" ".join(["extract_frame_4dfp", str(epis[1]), str(1), f"-o{str(blank)}"]))
+    subprocess_run(["extract_frame_4dfp", str(epis[1]), str(1), f"-o{str(blank)}"], stdout=DEVNULL, check=True)
+    print(" ".join(["scale_4dfp", str(blank), str(0), "-b1"]))
+    subprocess_run(["scale_4dfp", str(blank), str(0), "-b1"], stdout=DEVNULL, check=True)
     subprocess_run(["nifti_4dfp", "-n", str(blank), str(blank)], check=True)
     blank = blank.append_suffix(".nii").path
 

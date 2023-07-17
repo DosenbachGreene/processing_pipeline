@@ -406,7 +406,7 @@ class Instructions(Params):
     bids: bool = True
 
     # Delete intermediary files for significant data storage improvement
-    cleanup: bool = False
+    cleanup: bool = True
 
     # controls saving of intermediary files
     economy: int = 0

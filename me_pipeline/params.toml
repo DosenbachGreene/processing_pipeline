@@ -2,7 +2,7 @@
 bids = true
 
 # Delete intermediary files for significant data storage improvement
-cleanup = false
+cleanup = true
 
 # controls saving of intermediary files
 economy = 0
