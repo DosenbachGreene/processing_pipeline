@@ -1,4 +1,5 @@
 import os
+import re
 import argparse
 import shutil
 import json
@@ -125,7 +126,7 @@ def main():
     )
     functional.add_argument("--load_func_config", nargs="+", help="Load functional config file(s).")
     functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
-
+    functional.add_argument("--regex_filter", help="Only process data whose filenames matches this regex.")
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
@@ -221,6 +222,7 @@ def main():
                 FSdir=output_path / "fs",
                 PostFSdir=output_path / "FREESURFER_fs_LR",
             )
+            logging.info(sp)
 
             # load user config if any
             if args.load_struct_config:
@@ -354,6 +356,22 @@ def main():
                                 # resave instructions file
                                 instructions.save_params(instructions_file)
 
+                # filter the func_runs by regex
+                if args.regex_filter is not None:
+                    reg_exp = re.compile(args.regex_filter)
+                    # loop through each key in func_runs
+                    for key in func_runs:
+                        # test the regex against each filename in the list for the key
+                        for i, f in enumerate(func_runs[key]):
+                            # if the regex does not match, remove the file from the list
+                            if not reg_exp.search(f.filename):
+                                # set the file to None
+                                func_runs[key][i] = None
+                        # remove None from list
+                        func_runs[key] = [f for f in func_runs[key] if f is not None]
+                    # loop through each key in func_runs and remove empty lists
+                    func_runs = {k: v for k, v in func_runs.items() if len(v) > 0}
+
                 # initialize runs map
                 runs_map = RunsMap(
                     func_runs, fieldmaps[subject_id][session_id], instructions.medic, instructions.min_frames_run
@@ -372,7 +390,7 @@ def main():
 
                 # construct functional params
                 func_params = func_out / "func.params"
-                FunctionalParams(
+                fp = FunctionalParams(
                     day1_patid=f"sub-{subject_id}",
                     day1_path=t1_dir / "atlas",
                     patid=f"sub-{subject_id}",
@@ -385,7 +403,9 @@ def main():
                     FSdir=output_path / "fs",
                     PostFSdir=output_path / "FREESURFER_fs_LR",
                     maskdir=output_path / f"sub-{subject_id}" / "subcortical_mask",
-                ).save_params(func_params)
+                )
+                logging.info(fp)
+                fp.save_params(func_params)
 
                 # if session has no runs, skip
                 if len(runs_map.runIDs) == 0:
