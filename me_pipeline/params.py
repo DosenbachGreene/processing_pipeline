@@ -68,7 +68,7 @@ class RunsMap:
         }
 
         # in single echo data, the above will return empty lists
-        # try to readd the data to the runs_dict if we found an empty list
+        # try to read the data to the runs_dict if we found an empty list
         for k, v in self.runs_dict["mag"].items():
             if len(v) == 0:
                 self.runs_dict["mag"][k] = [r.path for r in self.runs[self.run_int_to_key_dict[k]]]
