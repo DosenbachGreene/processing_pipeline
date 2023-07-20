@@ -439,7 +439,18 @@ input files to each `boldX` folder:
     }
 }
 ```
-
 Each list of files is split into `"mag"` and `"phase"` keys for magnitude and phase data respectively. The inner key (e.g. `"2"`) corresponds to the index of the boldX folder (e.g. `bold2`). The list of files are the input files for that boldX folder.
 
 It is possible to load a params file to configure the pipeline with the `--config` flag.
+
+The functional pipeline also has a regular expression filter with the `--regex_filter` flag that allows you to subselect files to process in the dataset.
+
+Some examples:
+
+```bash
+# only process files with label "task-restME"
+run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "task-restME"  # <-- the "" are important don't leave them out!
+
+# only process runs 1 and 2
+run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "run-0[1-2]"   # <-- the "" are important don't leave them out!
+```
