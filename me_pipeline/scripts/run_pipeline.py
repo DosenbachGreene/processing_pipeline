@@ -127,6 +127,7 @@ def main():
     functional.add_argument("--load_func_config", nargs="+", help="Load functional config file(s).")
     functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
     functional.add_argument("--regex_filter", help="Only process data whose filenames matches this regex.")
+    functional.add_argument("--wrap_limit", action="store_true", help="Turns off some heuristics for phase unwrapping")
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
@@ -157,6 +158,12 @@ def main():
         args.output_dir = str(bids_path / "derivatives" / "me_pipeline")
     output_path = Path(args.output_dir).absolute().resolve()
     output_path.mkdir(exist_ok=True, parents=True)
+
+    # setup wrap limit variable
+    if args.wrap_limit:
+        os.environ["MEDIC_WRAP_LIMIT"] = "1"
+    else:
+        os.environ["MEDIC_WRAP_LIMIT"] = "0"
 
     # setup TMPDIR
     if args.tmp_dir is not None:

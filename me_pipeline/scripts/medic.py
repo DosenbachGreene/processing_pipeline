@@ -21,6 +21,7 @@ def main():
     parser.add_argument("-f", "--noiseframes", type=int, default=0, help="Number of noise frames")
     parser.add_argument("-n", "--n_cpus", type=int, default=4, help="Number of CPUs to use.")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
+    parser.add_argument("--wrap_limit", action="store_true", help="Turns off some heuristics for phase unwrapping")
 
     # parse arguments
     args = parser.parse_args()
@@ -69,6 +70,7 @@ def main():
             border_filt=(1000, 1000),
             svd_filt=1000,
             debug=True,
+            wrap_limit=args.wrap_limit,
         )
     else:
         fmaps_native, dmaps, fmaps = medic(
@@ -80,6 +82,7 @@ def main():
             n_cpus=args.n_cpus,
             svd_filt=10,
             border_size=5,
+            wrap_limit=args.wrap_limit,
         )
 
     # save the fmaps and dmaps to file

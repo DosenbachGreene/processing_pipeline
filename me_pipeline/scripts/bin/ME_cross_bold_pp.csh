@@ -714,20 +714,42 @@ while ($k <= $runs)
 			# create medic output directory
 			mkdir -p MEDIC
 			# run medic
-			echo medic \
-				--magnitude $mag_echoes \
-				--phase $phase_echoes \
-				--metadata $echoes_metadata \
-				--out_prefix MEDIC/$patid"_b"${run} \
-				--noiseframes ${noiseframes} \
-				--n_cpus ${num_cpus}
-			medic \
-				--magnitude $mag_echoes \
-				--phase $phase_echoes \
-				--metadata $echoes_metadata \
-				--out_prefix MEDIC/$patid"_b"${run} \
-				--noiseframes ${noiseframes} \
-				--n_cpus ${num_cpus} || exit 1
+			if ( ! $?MEDIC_WRAP_LIMIT ) then
+				set MEDIC_WRAP_LIMIT = 0
+			endif
+			if ( $MEDIC_WRAP_LIMIT == 1 ) then
+				echo medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} \
+					--wrap_limit
+				medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} \
+					--wrap_limit || exit 1
+			else
+				echo medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus}
+				medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} || exit 1
+			endif
 			# do a conversion to 4dfp and back to nifti to ensure the images have the expected orientation
 			nifti_4dfp -4 MEDIC/$patid"_b"${run}_fieldmaps_native.nii \
 				MEDIC/$patid"_b"${run}_fieldmaps_native -N || exit $status
