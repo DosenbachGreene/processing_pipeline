@@ -22,7 +22,6 @@ files_exist=1
 
 # if files missing, switch to package directory and download 4dfp
 if [[ $files_exist -eq 0 ]]; then
-    [[ -d pkg ]] && rm -rf pkg
     mkdir -p pkg
     echo "Downloading 4dfp tools..."
     pushd pkg > /dev/null
