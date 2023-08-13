@@ -172,7 +172,8 @@ else
 	set patid1 = $day1_patid
 	if ( $?day1_path ) then
 		set day1_path = `realpath $day1_path`
-		/bin/rm -rf atlas; ln -s $day1_path atlas || exit -1
+		/bin/rm -rf atlas
+		ln -s $day1_path atlas || exit -1
 	endif
 	if (-e atlas/${patid1}_t2w.4dfp.img) set t2wimg = ${patid1}_t2w
 endif
@@ -913,13 +914,18 @@ while ($k <= $#runID)
 	pushd  bold$runID[$k]
 	source $patid"_b"$runID[$k].params
 	set falnSTR = "-seqstr $seqstr"
-		@ i = 1
-		while ($i <= $necho)
-		echo	frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
-			frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
-			@ i++
-		end
-			frame_align_4dfp $patid"_b"$runID[$k]        $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+	@ i = 1
+	while ($i <= $necho)
+		# TODO: REMOVE ME!
+		if (! -e $patid"_b"$runID[$k]_echo$i.4dfp.img) then
+			gunzip -fv $patid"_b"$runID[$k]_echo$i.nii.gz
+			nifti_4dfp -4 $patid"_b"$runID[$k]_echo$i $patid"_b"$runID[$k]_echo$i -N || exit $status
+		endif
+		echo frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
+		frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+		@ i++
+	end
+	frame_align_4dfp $patid"_b"$runID[$k] $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 	popd
 	@ k++
 end
@@ -937,8 +943,8 @@ while ($k <= $#runID)
 	@ k++
 end
 echo "second cross_realign3d_4dfp following slice timing correction"
-echo	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >! ${patid}_faln_xr3d.log	# resampling enabled
-	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >> ${patid}_faln_xr3d.log	|| exit $status
+echo cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >! ${patid}_faln_xr3d.log	# resampling enabled
+cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >> ${patid}_faln_xr3d.log	|| exit $status
 ######################################
 # apply motion correction to each echo
 ######################################
@@ -953,8 +959,8 @@ while ($k <= $#runID)
 			>> $patid"_b"$runID[$k]_faln_xr3d.lst
 		@ i++
 	end
-	echo	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst # realignment computation disabled
-		cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst  >> /dev/null || exit $status
+	echo cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst # realignment computation disabled
+	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst  >> /dev/null || exit $status
 	popd
 	@ k++
 end
@@ -999,7 +1005,8 @@ if ($BiasField) then
 			if ($bc_fail) then
 				echo "*** ========================== ATTENTION! ============================ ***"
 				echo "*** ================================================================== ***"
-				echo "*** ============ Bias field correction failed for ${base} ============ ***"
+				echo "*** ============ Bias field correction failed for: =================== ***"
+				echo "*** ${base} ***"
 				echo "*** ================================================================== ***"
 				exit 1
 			endif
@@ -1089,17 +1096,9 @@ while ( $i <= $#BOLDgrps )
 		# make the MEDIC directory
 		mkdir -p MEDIC
 
-		# convert the format file to tmask
-		format2lst bold${run}/*.format -w > bold${run}/tmp_tmask.txt
-
-		# figure out first non masked frame
-		@ first_frame_1idx `cat tmp_tmask.txt | grep -n 1.0 | awk -F":" '{ print $1 }' | head -n 1`
-		@ first_frame = ($first_frame_1idx - 1)
-		rm -f bold${run}/tmp_tmask.txt
-
 		# just feed a first frame field map for the upcoming step, we will run a custom resampling script
 		# later; we need to do this since the first frame is used as the reference for anatomical correction
-		fslroi $fmaps ${FMAP}${i}_FMAP $first_frame 1
+		fslroi $fmaps ${FMAP}${i}_FMAP 0 1
 
 		# convert to radians
 		fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
@@ -1149,16 +1148,19 @@ while ( $i <= $#BOLDgrps )
 			# convert to nifti
 			nifti_4dfp -n ${struct}_brain_mask ${struct}_brain_mask
 			# convert t4 to mat
-			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain $adir/${anat}_uwrp_to_${struct:t}_t4 \
-				$adir/${anat}_uwrp ${struct}_brain $adir/${anat}_uwrp_to_${struct:t}.mat
+			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4 \
+				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat
 			# run flirt
-			FSLOUTPUTTYPE=NIFTI flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
-				-init $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v
+			setenv OLDFSLOUTPUTTYPE $FSLOUTPUTTYPE
+			setenv FSLOUTPUTTYPE NIFTI
+			flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
+				-init $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v || exit $status
+			setenv FSLOUTPUTTYPE $OLDFSLOUTPUTTYPE
 			# convert back to 4dfp
 			nifti_4dfp -4 $adir/${anat}_uwrp_to_${struct:t} $adir/${anat}_uwrp_to_${struct:t}
 			# convert mat to t4
-			aff_conv f4 $adir/${anat}_uwrp ${struct}_brain $adir/${anat}_uwrp_to_${struct:t}.mat \
-				$adir/${anat}_uwrp ${struct}_brain $adir/${anat}_uwrp_to_${struct:t}_t4
+			aff_conv f4 $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat \
+				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4
 		endif
 		set PHA_on_EPI = $adir/${FMAP:t}${i}_FMAP_on_${anat}_uwrp
 	else	# computed (synthetic) distortion correction
