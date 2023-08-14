@@ -3,6 +3,9 @@ from typing import Callable, Dict, Union
 from pathlib import Path
 
 
+LAYOUT_CACHE = dict()
+
+
 def parse_bids_dataset(
     bids_dir: Union[Path, str], parser: Callable[[BIDSLayout], Dict], reset_database: bool = False
 ) -> Dict:
@@ -27,7 +30,11 @@ def parse_bids_dataset(
         database_path = Path(bids_dir) / "layout_index.sqlite"
         database_path.unlink(missing_ok=True)
     # Create a BIDSLayout object for the dataset
-    layout = BIDSLayout(bids_dir, database_path=bids_dir)
+    if str(bids_dir) in LAYOUT_CACHE:
+        layout = LAYOUT_CACHE[str(bids_dir)]
+    else:
+        layout = BIDSLayout(bids_dir, database_path=bids_dir)
+        LAYOUT_CACHE[str(bids_dir)] = layout
 
     # Call the parser function on the layout and return the result
     return parser(layout)
