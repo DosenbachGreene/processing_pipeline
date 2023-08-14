@@ -916,11 +916,6 @@ while ($k <= $#runID)
 	set falnSTR = "-seqstr $seqstr"
 	@ i = 1
 	while ($i <= $necho)
-		# TODO: REMOVE ME!
-		if (! -e $patid"_b"$runID[$k]_echo$i.4dfp.img) then
-			gunzip -fv $patid"_b"$runID[$k]_echo$i.nii.gz
-			nifti_4dfp -4 $patid"_b"$runID[$k]_echo$i $patid"_b"$runID[$k]_echo$i -N || exit $status
-		endif
 		echo frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
 		frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 		@ i++

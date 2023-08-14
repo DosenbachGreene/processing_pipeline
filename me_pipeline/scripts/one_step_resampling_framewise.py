@@ -184,6 +184,7 @@ def main():
 
     # get the number of frames
     n_frames = dims[0][3]
+    print("Number of frames: ", n_frames)
 
     # add to transform string
     strwarp = ""
