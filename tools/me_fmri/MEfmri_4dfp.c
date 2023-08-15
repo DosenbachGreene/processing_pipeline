@@ -1,4 +1,4 @@
-/*$Header: /home/usr/shimonyj/me_fmri/RCS/MEfmri_4dfp.c,v 1.22 2023/05/04 10:04:50 avi Exp $*/
+/*$Header: /home/usr/shimonyj/me_fmri/RCS/MEfmri_4dfp.c,v 1.24 2023/07/10 09:58:12 avi Exp $*/
 /*$Log: MEfmri_4dfp.c,v $
  *Revision 1.22  2023/05/04 10:04:50  avi
  *hist.h is needed here; hist.c and hist.o now found in JSSutil
@@ -150,7 +150,7 @@ void r2sfunc(float x, float a[], float *y, float dyda[], int na) {
 /***********/
 /* globals */
 /***********/
-static char rcsid[] = "$Id: MEfmri_4dfp.c,v 1.22 2023/05/04 10:04:50 avi Exp $";
+static char rcsid[] = "$Id: MEfmri_4dfp.c,v 1.24 2023/07/10 09:58:12 avi Exp $";
 static float TE[9];
 /* Original Kundu values	12   28   44  60 */
 /* WashU MEDEX values		15   28,  42, 55 */
@@ -179,22 +179,22 @@ void free_float3(float ***a) {
     free(a);
 }
 
-// static int split(char *string, char *srgv[], int maxp) {
-//     int i, m;
-//     char *ptr;
+static int split(char *string, char *srgv[], int maxp) {
+    int i, m;
+    char *ptr;
 
-//     if (ptr = strchr(string, '#')) *ptr = '\0';
-//     i = m = 0;
-//     while (m < maxp) {
-//         while (!isgraph((int)string[i]) && string[i]) i++;
-//         if (!string[i]) break;
-//         srgv[m++] = string + i;
-//         while (isgraph((int)string[i])) i++;
-//         if (!string[i]) break;
-//         string[i++] = '\0';
-//     }
-//     return m;
-// }
+    if (ptr = strchr(string, '#')) *ptr = '\0';
+    i = m = 0;
+    while (m < maxp) {
+        while (!isgraph((int)string[i]) && string[i]) i++;
+        if (!string[i]) break;
+        srgv[m++] = string + i;
+        while (isgraph((int)string[i])) i++;
+        if (!string[i]) break;
+        string[i++] = '\0';
+    }
+    return m;
+}
 
 static void MEfmri_out(char *outroot, float *imag, int size, IFH ifh, char control, int nframe, char *imgroot, int argc,
                        char **argv, char *program) {
@@ -808,7 +808,7 @@ int main(int argc, char **argv) {
                                 i1++;
                                 xb[i1] = x[i];
                                 lny[i1] = log(y[i]);
-                                sig[il] = 1.0 / lny[il];
+                                sig[i1] = 1.0 / lny[i];
                             }
                         }
                         fit(xb, lny, i1, sig, 1, &a, &b, &siga, &sigb, &chi2, &q, &lcc);
@@ -938,7 +938,10 @@ int main(int argc, char **argv) {
                     for (l = 0; l < nframe; l++) {
                         printf("%d s0 %f r2s %f bad %d\n", l, s0[l], r2s[l], badpix[l]);
                     }
-                    exit(-1);
+                	mask1[jndex] = 1; 
+                    imgQA[jndex + 2*vdim] = 1; 
+                    imgQA[jndex + 3*vdim] = 1;
+					continue;
                 }
 
                 /* Smooth s0 if regular_flag == 2 */
@@ -1055,7 +1058,10 @@ int main(int argc, char **argv) {
                     if (!isfinite(aopt[1]) || !isfinite(aopt[2])) {
                         printf("\n 4th pixel %d bad %d s0 r2s %f %f y = %f %f %f %f\n", jndex, badpix[l], aopt[1],
                                aopt[2], y[1], y[2], y[3], y[4]);
-                        exit(-1);
+						mask1[jndex] = 1; 
+                        imgQA[jndex + 2*vdim] = 1; 
+                        imgQA[jndex + 3*vdim] = 1;
+						continue;
                     }
                     /* Final check and repair minor pathology */
                     else if (aopt[1] <= 0.0 || aopt[2] <= 0.0) {
@@ -1151,7 +1157,8 @@ int main(int argc, char **argv) {
                             }
                         }
                         imgQA[jndex + 3 * vdim] = 0;
-                    } else { /* failed fix, remove from mask */
+                    } 
+                    else { /* failed fix, remove from mask */
                         imgQA[jndex + 1 * vdim] = 0;
                     }
                 } /* mask1 */
