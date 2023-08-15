@@ -938,10 +938,10 @@ int main(int argc, char **argv) {
                     for (l = 0; l < nframe; l++) {
                         printf("%d s0 %f r2s %f bad %d\n", l, s0[l], r2s[l], badpix[l]);
                     }
-                	mask1[jndex] = 1; 
-                    imgQA[jndex + 2*vdim] = 1; 
+                    mask1[jndex] = 1;
+                    imgQA[jndex + 2*vdim] = 1;
                     imgQA[jndex + 3*vdim] = 1;
-					continue;
+                    continue;
                 }
 
                 /* Smooth s0 if regular_flag == 2 */
@@ -1058,8 +1058,8 @@ int main(int argc, char **argv) {
                     if (!isfinite(aopt[1]) || !isfinite(aopt[2])) {
                         printf("\n 4th pixel %d bad %d s0 r2s %f %f y = %f %f %f %f\n", jndex, badpix[l], aopt[1],
                                aopt[2], y[1], y[2], y[3], y[4]);
-						mask1[jndex] = 1; 
-                        imgQA[jndex + 2*vdim] = 1; 
+						mask1[jndex] = 1;
+                        imgQA[jndex + 2*vdim] = 1;
                         imgQA[jndex + 3*vdim] = 1;
 						continue;
                     }
