@@ -1058,10 +1058,10 @@ int main(int argc, char **argv) {
                     if (!isfinite(aopt[1]) || !isfinite(aopt[2])) {
                         printf("\n 4th pixel %d bad %d s0 r2s %f %f y = %f %f %f %f\n", jndex, badpix[l], aopt[1],
                                aopt[2], y[1], y[2], y[3], y[4]);
-						mask1[jndex] = 1;
+                        mask1[jndex] = 1;
                         imgQA[jndex + 2*vdim] = 1;
                         imgQA[jndex + 3*vdim] = 1;
-						continue;
+                        continue;
                     }
                     /* Final check and repair minor pathology */
                     else if (aopt[1] <= 0.0 || aopt[2] <= 0.0) {
