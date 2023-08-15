@@ -1029,6 +1029,8 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 @ k = 1		# index of run within session
 while ( $i <= $#BOLDgrps )
 	set adir = anatgrp${i}	# $adir is group-specific atlas-like directory for BOLD registration to structural images
+	# remove old anatgrp${i} directory
+	rm -rf $adir
 	if ( ! -d $adir) mkdir $adir
 	set groupruns = (`echo ${BOLDgrps[$i]} | sed 's|,| |g'` )	# runs within-group are separated by commas in params file
 	set run = $runID[$k]	# first run of the group
@@ -1109,14 +1111,8 @@ while ( $i <= $#BOLDgrps )
 		####################################################
 		# pha2epi.csh registers and applies field map to EPI
 		####################################################
-		if ( $distort == 4 ) then
-			# skips registration
-			echo pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
-			pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
-		else
-			echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
-			pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
-		endif
+		echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+		pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
 			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
@@ -1148,8 +1144,10 @@ while ( $i <= $#BOLDgrps )
 			# run flirt
 			setenv OLDFSLOUTPUTTYPE $FSLOUTPUTTYPE
 			setenv FSLOUTPUTTYPE NIFTI
+			echo flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
+				-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5 || exit $status
 			flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
-				-init $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v || exit $status
+				-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5 || exit $status
 			setenv FSLOUTPUTTYPE $OLDFSLOUTPUTTYPE
 			# convert back to 4dfp
 			nifti_4dfp -4 $adir/${anat}_uwrp_to_${struct:t} $adir/${anat}_uwrp_to_${struct:t}
