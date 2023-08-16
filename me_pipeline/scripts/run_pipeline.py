@@ -128,6 +128,7 @@ def main():
     functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
     functional.add_argument("--regex_filter", help="Only process data whose filenames matches this regex.")
     functional.add_argument("--wrap_limit", action="store_true", help="Turns off some heuristics for phase unwrapping")
+    functional.add_argument("--skip_medic", action="store_true", help="Skip medic step")
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
@@ -164,6 +165,11 @@ def main():
         os.environ["MEDIC_WRAP_LIMIT"] = "1"
     else:
         os.environ["MEDIC_WRAP_LIMIT"] = "0"
+
+    if args.skip_medic:
+        os.environ["MEDIC_SKIP"] = "1"
+    else:
+        os.environ["MEDIC_SKIP"] = "0"
 
     # setup TMPDIR
     if args.tmp_dir is not None:

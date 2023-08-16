@@ -702,7 +702,10 @@ while ($k <= $runs)
 			endif
 		endif
 		# if medic is used, generate field maps off phase information
-		if ( $distort == 4 ) then
+		if ( ! $?MEDIC_SKIP ) then
+			set MEDIC_SKIP = 0
+		endif
+		if ( $distort == 4 && $MEDIC_SKIP == 0 ) then
 			echo "Setting up MEDIC..."
 			# warpkit must be installed, check before running.
 			python3 -c "import warpkit" || exit 1
@@ -764,6 +767,8 @@ while ($k <= $runs)
 				MEDIC/$patid"_b"${run}_displacementmaps.nii || exit $status
 			nifti_4dfp -n MEDIC/$patid"_b"${run}_fieldmaps \
 				MEDIC/$patid"_b"${run}_fieldmaps.nii || exit $status
+		else
+			echo "skipping MEDIC..."
 		endif
 		@ necho = `ls $patid"_b"${run}${nordstr}_echo?.nii | wc -l`
 		@ fullframe = `fslinfo $patid"_b"${run}${nordstr}_echo1.nii | gawk '/^dim4/ {print $NF}'`
