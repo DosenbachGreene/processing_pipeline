@@ -1105,8 +1105,12 @@ while ( $i <= $#BOLDgrps )
 		# convert to radians
 		fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
 
-		# use the same bold image as the magnitude image
+		# use the same bold image for the magnitude image
 		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
+		
+		# unwarp the magnitude image with fugue
+		fugue --loadfmap=${FMAP}${i}_FMAP.nii --dwell=$dwell --unwarpdir=$ped \
+			--in=${FMAP}${i}_mag.nii --unwarp=${FMAP}${i}_mag.nii || exit $status
 
 		# convert things back into 4dfp
 		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
@@ -1121,9 +1125,6 @@ while ( $i <= $#BOLDgrps )
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
 			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
-			if ( $distort == 4 ) then  # the modes set for T2 don't work too well for MEDIC corrected data, swap to the MPR params in MEDIC mode
-				set mode = (4099 4099 3075 2051 2051)
-			endif
 		else
 			set struct = atlas/${mpr}
 			set mode = (4099 4099 3075 2051 2051)
@@ -1140,26 +1141,27 @@ while ( $i <= $#BOLDgrps )
 		end
 		# for some reason sometimes imgreg_4dfp sometimes fails when using MEDIC
 		# just use flirt at end to ensure the functional/anatomical alignment
-		if ( $distort == 4 ) then
-			# convert to nifti
-			nifti_4dfp -n ${struct}_brain_mask ${struct}_brain_mask
-			# convert t4 to mat
-			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4 \
-				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat
-			# run flirt
-			setenv OLDFSLOUTPUTTYPE $FSLOUTPUTTYPE
-			setenv FSLOUTPUTTYPE NIFTI
-			echo flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
-				-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5 || exit $status
-			flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_to_${struct:t} \
-				-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5 || exit $status
-			setenv FSLOUTPUTTYPE $OLDFSLOUTPUTTYPE
-			# convert back to 4dfp
-			nifti_4dfp -4 $adir/${anat}_uwrp_to_${struct:t} $adir/${anat}_uwrp_to_${struct:t}
-			# convert mat to t4
-			aff_conv f4 $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat \
-				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4
-		endif
+		# if ( $distort == 4 ) then
+			# # convert to nifti
+			# nifti_4dfp -n ${struct}_brain_mask ${struct}_brain_mask
+			# # convert t4 to mat
+			# aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4 \
+			# 	$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat
+			# # run flirt
+			# setenv OLDFSLOUTPUTTYPE $FSLOUTPUTTYPE
+			# setenv FSLOUTPUTTYPE NIFTI
+			# # first apply transform to get close
+			# echo flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t} \
+			# 	-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5
+			# flirt -ref ${struct} -refweight ${struct}_brain_mask -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t} \
+			# 	-init $adir/${anat}_uwrp_to_${struct:t}.mat -omat $adir/${anat}_uwrp_to_${struct:t}.mat -dof 6 -interp spline -v -searchrx -5 5 -searchry -5 5 -searchrz -5 5 || exit $status
+			# setenv FSLOUTPUTTYPE $OLDFSLOUTPUTTYPE
+			# # convert back to 4dfp
+			# nifti_4dfp -4 $adir/${anat}_uwrp_on_${struct:t} $adir/${anat}_uwrp_on_${struct:t}
+			# # convert mat to t4
+			# aff_conv f4 $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat \
+			# 	$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4
+		# endif
 		set PHA_on_EPI = $adir/${FMAP:t}${i}_FMAP_on_${anat}_uwrp
 	else	# computed (synthetic) distortion correction
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
@@ -1206,12 +1208,12 @@ while ( $i <= $#BOLDgrps )
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
 		t4_mul $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${struct:t}_t4 $adir/${anat}_to_${struct:t}_t4 || exit $status
 		aff_conv 4f $adir/${anat} ${struct} $adir/${anat}_to_${struct:t}_t4 \
-			    $adir/${anat} ${struct} $adir/${anat}_to_${struct:t}.mat || exit $status
+			$adir/${anat} ${struct} $adir/${anat}_to_${struct:t}.mat || exit $status
 		convertwarp --ref=$outspace --shiftmap=${PHA_on_EPI}_shiftmap --shiftdir=$ped --premat=$adir/${anat}_to_${struct:t}.mat \
-                              --warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
+			--warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status		
 		applywarp --ref=$outspace --in=$adir/${anat}  --warp=$adir/${anat}_to_${outspace:t}_warp \
-                             --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
-	else	# no fnirt
+			--out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
+	else # no fnirt
 		if ( ! -e $target.nii ) then
 			nifti_4dfp -n $target $target:t
 		else
