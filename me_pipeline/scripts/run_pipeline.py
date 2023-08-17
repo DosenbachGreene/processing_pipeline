@@ -196,7 +196,9 @@ def main():
             json.dump(dataset_description, f, indent=4)
 
         # parse the bids directory and grab anatomicals
-        anatomicals = parse_bids_dataset(bids_path, get_anatomicals, args.reset_database)
+        anatomicals = parse_bids_dataset(
+            bids_path, get_anatomicals, args.reset_database, args.participant_label, output_path
+        )
 
         # loop over subjects
         for subject_id, sessions in anatomicals["T1w"].items():
@@ -297,10 +299,18 @@ def main():
                                 user_sessions_dict[sub].update({ses: config[sub][ses]})
 
         # parse the bids directory and grab functionals
-        functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
+        functionals = parse_bids_dataset(
+            bids_path,
+            get_functionals,
+            args.reset_database,
+            participant_label=args.participant_label,
+            output_path=output_path,
+        )
 
         # get fieldmaps
-        fieldmaps = parse_bids_dataset(bids_path, get_fieldmaps)
+        fieldmaps = parse_bids_dataset(
+            bids_path, get_fieldmaps, participant_label=args.participant_label, output_path=output_path
+        )
 
         # loop over subjects
         for subject_id, func_sessions in functionals.items():

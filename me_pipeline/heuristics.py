@@ -79,9 +79,7 @@ def check_add_multi_echo(info: Dict, key: Any, series: Any, dtype: str) -> bool:
             ):
                 info[key].append({"item": series.series_id, "part": "mag"})
                 return True
-            elif _test_image_type(
-                ["ORIGINAL", "PRIMARY", "M", "MB", f"TE{echo}", "NORM", "ND"], series.image_type
-            ):
+            elif _test_image_type(["ORIGINAL", "PRIMARY", "M", "MB", f"TE{echo}", "NORM", "ND"], series.image_type):
                 info[key].append({"item": series.series_id, "part": "mag"})
                 return True
         elif dtype == "phase":

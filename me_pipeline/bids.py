@@ -1,13 +1,18 @@
 from bids import BIDSLayout
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, List, Optional, Union
 from pathlib import Path
+from shutil import rmtree
 
 
 LAYOUT_CACHE = dict()
 
 
 def parse_bids_dataset(
-    bids_dir: Union[Path, str], parser: Callable[[BIDSLayout], Dict], reset_database: bool = False
+    bids_dir: Union[Path, str],
+    parser: Callable[[BIDSLayout], Dict],
+    reset_database: bool = False,
+    participant_label: Optional[List[str]] = None,
+    output_path: Optional[Path] = None,
 ) -> Dict:
     """Parses a bids dataset using the given parser function.
 
@@ -19,15 +24,53 @@ def parse_bids_dataset(
         Parser to apply to dataset.
     reset_database : bool, optional
         Whether to reset the pybids database, by default False
+    participant_label : List[str], optional
+        List of participant labels to include, by default None
 
     Returns
     -------
     Dict
         Parse dataset return as a dictionary.
     """
+    print("Loading BIDS dataset...")
+    # set database path
+    database_path = Path(bids_dir) / "layout_index.sqlite"
+
+    # check the participant labels if it is only a single participant create a symlink to the dataset so
+    # we don't have to search the whole thing... else pybids will be really slow
+    if participant_label and len(participant_label) == 1:
+        # create a copy of the dataset in the output_path
+        dataset_dir = output_path / "dataset"
+        dataset_dir.mkdir(exist_ok=True)
+
+        # create a dataset with just this subject
+        subject_dataset = dataset_dir / f"dataset_sub-{participant_label[0]}"
+
+        # if reset_database is true, delete the existing subject dataset
+        if reset_database:
+            rmtree(subject_dataset, ignore_errors=True)
+
+        # skip symlink create if subject dataset already exists
+        if not subject_dataset.exists():
+            subject_dataset.mkdir(exist_ok=True)
+
+            # now symlink all files from the bids_dir into the subject_dataset
+            # except for the layout_index.sqlite file
+            for f in Path(bids_dir).glob("*"):
+                if f.name != "layout_index.sqlite" and f.is_file():
+                    (subject_dataset / f.name).symlink_to(f)
+            # now symlink the subject folder
+            subject_dir = subject_dataset / f"sub-{participant_label[0]}"
+            (subject_dir).symlink_to(bids_dir / f"sub-{participant_label[0]}")
+
+        # set bids_dir to the subject_dataset
+        bids_dir = subject_dataset
+
+        # set database path
+        database_path = subject_dataset / "layout_index.sqlite"
+
     # delete the existing database if it exists
     if reset_database:
-        database_path = Path(bids_dir) / "layout_index.sqlite"
         database_path.unlink(missing_ok=True)
     # Create a BIDSLayout object for the dataset
     if str(bids_dir) in LAYOUT_CACHE:
@@ -97,6 +140,7 @@ def get_anatomicals(layout: BIDSLayout) -> Dict:
     Dict
         See above description.
     """
+    print("Extracting anatomicals...")
 
     # Initialize empty dictionaries for T1w and T2w files
     t1w_dict = {}
@@ -183,6 +227,8 @@ def get_functionals(layout: BIDSLayout) -> Dict:
     Dict
         See above description.
     """
+    print("Extracting functionals...")
+
     # Initialize an empty dictionary for functional files
     func_dict = {}
 
@@ -261,6 +307,8 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
     Dict
         See above description.
     """
+    print("Extracting fieldmaps...")
+
     # Initialize an empty dictionary for fieldmap files
     fmap_dict = {}
 

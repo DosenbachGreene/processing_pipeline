@@ -29,24 +29,26 @@ def main():
     with ProcessPoolExecutor(max_workers=args.num_threads) as executor:
         futures = []
         for path, subject, session in table:
-            futures.append(executor.submit(
-                convert_to_bids,
-                [
-                    "--files",
-                    path,
-                    "-s",
-                    subject,
-                    "-ss",
-                    session,
-                    "--outdir",
-                    str(Path(args.output_directory) / args.dataset_name),
-                    "--converter",
-                    "dcm2niix",
-                    "-b",
-                    "notop",
-                    "--overwrite",
-                ]
-            ))
+            futures.append(
+                executor.submit(
+                    convert_to_bids,
+                    [
+                        "--files",
+                        path,
+                        "-s",
+                        subject,
+                        "-ss",
+                        session,
+                        "--outdir",
+                        str(Path(args.output_directory) / args.dataset_name),
+                        "--converter",
+                        "dcm2niix",
+                        "-b",
+                        "notop",
+                        "--overwrite",
+                    ],
+                )
+            )
 
         # wait for all futures to complete
         for future in futures:
