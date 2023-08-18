@@ -160,17 +160,6 @@ def main():
     output_path = Path(args.output_dir).absolute().resolve()
     output_path.mkdir(exist_ok=True, parents=True)
 
-    # setup wrap limit variable
-    if args.wrap_limit:
-        os.environ["MEDIC_WRAP_LIMIT"] = "1"
-    else:
-        os.environ["MEDIC_WRAP_LIMIT"] = "0"
-
-    if args.skip_medic:
-        os.environ["MEDIC_SKIP"] = "1"
-    else:
-        os.environ["MEDIC_SKIP"] = "0"
-
     # setup TMPDIR
     if args.tmp_dir is not None:
         tmpdir = Path(args.tmp_dir).absolute().resolve()
@@ -279,6 +268,17 @@ def main():
                 logging.info(f"Dry run: skipping structural pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
+        # setup wrap limit variable
+        if args.wrap_limit:
+            os.environ["MEDIC_WRAP_LIMIT"] = "1"
+        else:
+            os.environ["MEDIC_WRAP_LIMIT"] = "0"
+
+        if args.skip_medic:
+            os.environ["MEDIC_SKIP"] = "1"
+        else:
+            os.environ["MEDIC_SKIP"] = "0"
+
         # if runs maps provided, load them all in
         user_sessions_dict = {}
         if args.load_func_config:
