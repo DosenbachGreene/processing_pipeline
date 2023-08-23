@@ -26,7 +26,6 @@ from me_pipeline.params import (
 )
 from . import epilog
 
-
 # See lines 124 to 137 in Structural_pp_090121.csh
 STRUCTURAL_MODULES = [
     "T1_DCM",
@@ -127,6 +126,7 @@ def main():
     functional.add_argument("--load_func_config", nargs="+", help="Load functional config file(s).")
     functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
     functional.add_argument("--regex_filter", help="Only process data whose filenames matches this regex.")
+    functional.add_argument("--single_echo", action="store_true", help="Input data is single echo.")
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
@@ -422,6 +422,9 @@ def main():
                     runs_map.save_config(subject_id, session_id, runs_map_config)
                     logging.info(f"Saved runs map config to {runs_map_config}")
 
+                # Determine which scripts to run based on single or multi-echo
+                script_to_run = "Functional_pp_batch_SE_NORDIC.csh" if args.single_echo else "Functional_pp_batch_ME_NORDIC.csh"
+
                 # skip if dry run
                 if not args.dry_run:
                     # change to session directory
@@ -430,7 +433,7 @@ def main():
                         if (
                             run_process(
                                 [
-                                    "Functional_pp_batch_ME_NORDIC.csh",
+                                    script_to_run,
                                     str(func_params),
                                     str(instructions_file),
                                     args.module_start,
