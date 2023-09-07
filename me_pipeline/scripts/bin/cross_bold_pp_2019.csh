@@ -1,6 +1,29 @@
 #!/bin/csh -f
-#$Header: /data/petsun4/data1/solaris/csh_scripts/RCS/cross_bold_pp_2019.csh,v 1.17 2021/12/25 07:48:18 avi Exp $
+#$Header: /data/petsun4/data1/solaris/csh_scripts/RCS/cross_bold_pp_2019.csh,v 1.23 2023/06/17 07:37:19 avi Exp $
 #$Log: cross_bold_pp_2019.csh,v $
+#Revision 1.23  2023/06/17 07:37:19  avi
+#second motion correction after slice timing correction
+#old_flan_xr3d flag
+#
+# Revision 1.22  2022/12/14  21:08:30  avi
+# comment out calls to fslorient. Output is 32 bit signed int which is incompatible with NORDIC.
+#
+#Revision 1.21  2022/11/09 16:48:12  tanenbauma
+#changed a git call to remove warning.
+#
+#Revision 1.20  2022/08/05 17:10:32  tanenbauma
+#added variable CheckConsistency giving option to bypass verifying bold runs are collected with the same configuration.
+#check to see if ped was determined, if not it exits.
+#sets the sform of the bold nii to a matrix only including voxel size.
+#
+#Revision 1.19  2022/05/04 18:38:12  tanenbauma
+#make changed to accommodate the correct use of topup
+#
+#Revision 1.18  2022/04/27 19:07:33  tanenbauma
+#fix slice time correction bug
+#added additional input arguments to jump to field map or bold section of the script
+#added nordic functionality
+#
 #Revision 1.17  2021/12/25 07:48:18  avi
 #updated mode-1000 nomalization code
 #
@@ -56,7 +79,7 @@
 # Revision 1.1  2020/08/28  22:14:56  avi
 # Initial revision
 #
-set idstr = '$Id: cross_bold_pp_2019.csh,v 1.17 2021/12/25 07:48:18 avi Exp $'
+set idstr = '$Id: cross_bold_pp_2019.csh,v 1.23 2023/06/17 07:37:19 avi Exp $'
 echo $idstr
 set program = $0; set program = $program:t
 echo $program $argv[1-]
@@ -65,6 +88,7 @@ setenv economy 5
 setenv FSLOUTPUTTYPE NIFTI
 set D = /data/petsun4/data1/solaris/csh_scripts	# development directory (debugging)
 
+echo "INSIDE OF THE RIGHT CROSS BOLD FILE ___________________________________"
 ################
 # Loading params
 ################
@@ -73,7 +97,7 @@ if (${#argv} < 1) then
 	exit 1
 endif
 set prmfile = $1
-echo "prmfile="$prmfile
+echo "prmfile = "$prmfile
 
 if (! -e $prmfile) then
 	echo $program": "$prmfile not found
@@ -82,13 +106,13 @@ endif
 source $prmfile
 set instructions = ""
 if (${#argv} > 1) then
-	set instructions = $2
-	if (! -e $instructions) then
-		echo $program": "$instructions not found
-		exit -1
-	endif
-	cat $instructions
-	source $instructions
+		set instructions = $2
+		if (! -e $instructions) then
+			echo $program": "$instructions not found
+			exit -1
+		endif
+		cat $instructions
+		source $instructions
 endif
 
 ###########################
@@ -150,10 +174,29 @@ if ( ! $?bids ) then
 	set bids = 0
 endif
 
+###############
+# parse options
+###############
+set enter = "";
+
+@ i = 3
+while ($i <= ${#argv})
+	switch ($argv[$i])
+	case echo:
+		set echo;		breaksw;
+	case DISTORT
+	case BOLD
+	@ i++
+end
+echo "enter="$enter;
+
 ##################
 # set up variables
 ##################
-if (! $?t2w) set t2w = ()
+if (! $?t2w) then 
+	set t2w = ()
+endif
+
 if (! $?day1_patid) then
 	@ isday1 = 1			# this session is day1
 	set patid1 = $patid
@@ -172,9 +215,16 @@ else
 	endif
 	if (-e atlas/${patid1}_t2w.4dfp.img) set t2wimg = ${patid1}_t2w
 endif
-if (! $?mpr) set mpr = ${patid1}_mpr
+if (! $?mpr) then 
+	set mpr = ${patid1}_mpr
+endif
 
-if (! $?BiasFieldT2 ) set BiasFieldT2 = 0	# run fsl bet and fast on T2w
+if (! $?t2wimg) then 
+	set t2wimg = ${patid1}_t2w
+endif
+if (! $?BiasFieldT2 ) then
+	set BiasFieldT2 = 0	# run fsl bet and fast on T2w
+endif
 set inpath = `realpath $inpath`
 
 if ( ! $?target) then
@@ -182,7 +232,11 @@ if ( ! $?target) then
 else
 	set target = `echo $target | sed -E 's/\.4dfp\.(img|ifh)$//'`
 endif
-if ( ! $?nlalign ) set nlalign = 0
+
+if ( ! $?nlalign ) then
+	set nlalign = 0
+endif
+
 if ( $nlalign ) then				# nonlinear atlas alignment will be computed
 	set tres = MNI152_T1;			# string used to construct the postmat filename
 	set outspacestr = "nl_"
@@ -191,6 +245,7 @@ else
 	set tres = 711-2B_111;
 	set outspacestr = ""
 endif
+
 if ( $?sefm ) then				# spin echo distortion correction
 	set distort = 1
 	if ( ${#sefm} != ${#BOLDgrps} ) then
@@ -216,7 +271,10 @@ else
 	endif
 endif
 
-if ( $distort == 3 || $nlalign) set fnwarp = $cwd/atlas/fnirt/${mpr}_to_MNI152_T1_2mm_fnirt_coeff
+if ( $distort == 3 || $nlalign) then 
+	set fnwarp = $cwd/atlas/fnirt/${mpr}_to_MNI152_T1_2mm_fnirt_coeff
+endif
+
 if ( ! $?outspace_flag ) then 
 	echo $program": outspace_flag must be defined"
 	exit -1
@@ -253,8 +311,21 @@ switch ( $outspace_flag )	# dependency on mat files in $REFDIR
 endsw
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
+set BOLDruns = ( `echo $BOLDgrps | sed 's|,| |g'` )
+@ runs = ${#runID}
+if ($runs != ${#BOLDruns}) then
+	echo $program": runID and BOLDruns mismatch - edit "$prmfile
+	exit -1
+endif
+
 if (! ${?E4dfp}) @ E4dfp = 0
-if ( ! $?GetBoldConfig ) set GetBoldConfig = 0
+if ( ! $?GetBoldConfig ) then
+	set GetBoldConfig = 0
+endif
+
+if ( ! $?CheckConsistency ) then
+	set CheckConsistency = 1
+endif
 
 if ( ! $GetBoldConfig ) then
 	if ( ! $?dwell) then
@@ -266,238 +337,281 @@ else if ( $E4dfp && $GetBoldConfig ) then
 	echo "E4dfp and GetBoldConfig are mutally exclusive both can not be set at the same time"
 	exit 1
 endif
+if ( ! $?runnordic ) set runnordic = 0
+if ( ! $?isnordic ) set isnordic = 0
+if ( $runnordic ) then
+	if ( ! $?noiseframes ) set noiseframes = 0
+	echo "INSIDE THE RIGHT FILE"
+	#if ( ! $?MATLAB ) then 
+	#	echo "Error: MATLAB must be defined"
+	#		exit 1
+	#	endif
+	#if ( ! $?NORDIClib ) then
+	#	echo "Error: NORDIClib must be defined"
+	#	exit 1
+	#endif
+endif
+
+if ($enter == DISTORT)	goto DISTORT;
+if ($enter == BOLD)		goto BOLD;
+if ($enter == NORDIC)		goto NORDIC;
+
 if (! $?refframe) set refframe = 2
 if ( ! $?useold ) set useold = 0	# when set extant t4 files are not re-computed
 if ( ! $?OneStepResample ) set OneStepResample = 1
-if ($dbnd_flag) then
-	set MBstr = _faln_dbnd
-else
-	set MBstr = _faln
-endif 
-if (! $?MCRROOT ) then
-	echo $program": MCRROOT must be defined and pointed to a MATLAB Compiler Runtime."
-	exit 1
+if ( ! $?OSResample_parallel ) set OSResample_parallel = 1
+set parallelstr = ""
+if ( $OSResample_parallel != 1 ) then
+	set parallelstr = "-parallel $OSResample_parallel"
+endif
+echo "parallelstr="$parallelstr
 
-#goto HERE2
+echo "BEFORE STRUCTURAL"
+
 ###################
 # set up structural
 ###################
 if ( $isday1 ) then
+	echo "WRONGLY ENTERED DAY1"
 	if (! -e atlas) mkdir atlas;
 	pushd atlas		# into atlas
-		if ( $?FSdir) then
-			if (! -e $FSdir/mri/nu.mgz || ! -e $FSdir/mri/aparc+aseg.mgz ) then 
-				echo $program":" nu.mgz or aparc+aseg.mgz not found in $FSdir/mri
-				exit -1
-			endif
-			#######################################################################
-			# retrieve nu.mgz(mprage) and aparc+aseg.mgz from the freesurfer folder
-			#######################################################################
-			mri_vol2vol --mov $FSdir/mri/nu.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
-				--o nu.mgz --no-save-reg || exit -1
-			mri_convert -it mgz -ot nii nu.mgz nu.nii || exit -1
+	if ( $?FSdir) then
+		if (! -e $FSdir/mri/nu.mgz || ! -e $FSdir/mri/aparc+aseg.mgz ) then 
+			echo $program":" nu.mgz or aparc+aseg.mgz not found in $FSdir/mri
+			exit -1
+		endif
+	#######################################################################
+	# retrieve nu.mgz(mprage) and aparc+aseg.mgz from the freesurfer folder
+	#######################################################################
+		mri_vol2vol --mov $FSdir/mri/nu.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
+			--o nu.mgz --no-save-reg || exit -1
+		mri_convert -it mgz -ot nii nu.mgz nu.nii || exit -1
 
-			nifti_4dfp -4 nu.nii ${mpr}  -N || exit $status # passage through NIfTI enforces axial orientation
-			nifti_4dfp -n ${mpr} ${mpr}     || exit $status # ensure position info is identical in nifti and 4dfp
-				
-			#aparc+aseg
-			mri_vol2vol --mov $FSdir/mri/aparc+aseg.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
-					--o aparc+aseg.mgz --no-save-reg --nearest || exit -1
-			mri_convert -it mgz -ot nii  aparc+aseg.mgz aparc+aseg.nii || exit $status
-			nifti_4dfp -4 aparc+aseg.nii ${patid}_aparc+aseg -N || exit $status
-			nifti_4dfp -n ${patid}_aparc+aseg ${patid}_aparc+aseg || exit $status
-			/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii
-		endif
-		if ( ! $useold || ! -e ${mpr}_on_${target:t}_111.4dfp.img ) then
-			mpr2atl1_4dfp ${mpr} -T$target  || exit 1
-			t4img_4dfp ${mpr}_to_${target:t}_t4 $mpr ${mpr}_on_${target:t} -O$target || exit 1
-			/bin/rm ${mpr}_g11*	# blurred MP-RAGE was made by mpr2atl1_4dfp
-		endif
-		###################
-		# create brain mask
-		###################
-		blur_n_thresh_4dfp ${patid}_aparc+aseg .6 0.3 ${mpr}_1 || exit $status	# create initial brain mask
-		nifti_4dfp -n ${mpr}_1 ${mpr}_1
-		fslmaths ${mpr}_1 -fillh ${mpr}_brain_mask || exit $status
-		nifti_4dfp -4 ${mpr}_brain_mask ${mpr}_brain_mask || exit $status	# will be used in t2w->mpr registration
-		/bin/rm -f ${mpr}_1.*
-		###############
-		# processing T2
-		###############
-		if ( $#t2w ) then
-			set nt2w = $#t2w
-			set t2wlst = ''
-			if ( ! $useold ||  ! -e ${t2wimg}.4dfp.img ) then
-				@ i = 1
-				while ( $i <= $#t2w )
-					if (! $E4dfp) then
-						dcm2niix -o . -f study${t2w[$i]} -z n $inpath/study${t2w[$i]} || exit $status
-						nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
-						/bin/rm -f study${t2w[$i]}.nii
-					endif
-					nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
-					if ( $BiasFieldT2 ) then
-						$FSLDIR/bin/bet ${patid}_t2w${i} ${patid}_t2w${i}_brain -R || exit $status
-						$FSLDIR/bin/fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B \
-							-o ${patid}_t2w${i}_brain ${patid}_t2w${i}_brain || exit $status
-						nifti_4dfp -4 ${patid}_t2w${i}_brain_restore ${patid}_t2w${i}_brain_restore || exit $status
-						extend_fast_4dfp ${patid}_t2w${i} ${patid}_t2w${i}_brain_restore \
-							${patid}_t2w${i}_BC || exit $status
-						/bin/rm -f ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
-						set t2wlst = ($t2wlst ${patid}_t2w${i}_BC)
-					else
-						set t2wlst = ($t2wlst ${patid}_t2w${i})
-					endif
-					@ i++
-				end
-				if ( $#t2w > 1 ) then
-					cross_image_resolve_4dfp $t2wimg $t2wlst
+		nifti_4dfp -4 nu.nii ${mpr}  -N || exit $status # passage through NIfTI enforces axial orientation
+		nifti_4dfp -n ${mpr} ${mpr}     || exit $status # ensure position info is identical in nifti and 4dfp
+			
+		#aparc+aseg
+		mri_vol2vol --mov $FSdir/mri/aparc+aseg.mgz --targ $FSdir/mri/rawavg.mgz --regheader \
+				--o aparc+aseg.mgz --no-save-reg --nearest || exit -1
+		mri_convert -it mgz -ot nii  aparc+aseg.mgz aparc+aseg.nii || exit $status
+		nifti_4dfp -4 aparc+aseg.nii ${patid}_aparc+aseg -N || exit $status
+		nifti_4dfp -n ${patid}_aparc+aseg ${patid}_aparc+aseg || exit $status
+		/bin/rm aparc+aseg.mgz aparc+aseg.nii nu.mgz nu.nii
+	endif
+	if ( ! $useold || ! -e ${mpr}_on_${target:t}_111.4dfp.img ) then
+		mpr2atl1_4dfp ${mpr} -T$target  || exit 1
+		t4img_4dfp ${mpr}_to_${target:t}_t4 $mpr ${mpr}_on_${target:t} -O$target || exit 1
+		/bin/rm ${mpr}_g11*	# blurred MP-RAGE was made by mpr2atl1_4dfp
+	endif
+	###################
+	# create brain mask
+	###################
+	echo "CREATING BRAIN MASK"
+	blur_n_thresh_4dfp ${patid}_aparc+aseg .6 0.3 ${mpr}_1 || exit $status	# create initial brain mask
+	nifti_4dfp -n ${mpr}_1 ${mpr}_1
+	fslmaths ${mpr}_1 -fillh ${mpr}_brain_mask || exit $status
+	nifti_4dfp -4 ${mpr}_brain_mask ${mpr}_brain_mask || exit $status	# will be used in t2w->mpr registration
+	/bin/rm -f ${mpr}_1.*
+	###############
+	# processing T2
+	###############
+	echo "PROCESSING T2"
+	if ( $#t2w ) then
+		echo "INSIDE OF t2w"
+		set nt2w = $#t2w
+		set t2wlst = ''
+		if ( ! $useold ||  ! -e ${t2wimg}.4dfp.img ) then
+			@ i = 1
+			while ( $i <= $#t2w )
+				if (! $E4dfp) then
+					echo "yes to E4dfp"
+					dcm2niix -o . -f study${t2w[$i]} -z n $inpath/study${t2w[$i]} || exit $status
+					nifti_4dfp -4    study${t2w[$i]} ${patid}_t2w${i} -N || exit $status
+					/bin/rm -f study${t2w[$i]}.nii
+				endif
+				nifti_4dfp -n ${patid}_t2w${i} ${patid}_t2w${i} || exit $status
+				if ( $BiasFieldT2 ) then
+					$FSLDIR/bin/bet ${patid}_t2w${i} ${patid}_t2w${i}_brain -R || exit $status
+					$FSLDIR/bin/fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B \
+						-o ${patid}_t2w${i}_brain ${patid}_t2w${i}_brain || exit $status
+					nifti_4dfp -4 ${patid}_t2w${i}_brain_restore ${patid}_t2w${i}_brain_restore || exit $status
+					extend_fast_4dfp ${patid}_t2w${i} ${patid}_t2w${i}_brain_restore \
+						${patid}_t2w${i}_BC || exit $status
+					/bin/rm -f ${patid}_t2w${i}_brain_restore.* ${patid}_t2w${i}.*
+					set t2wlst = ($t2wlst ${patid}_t2w${i}_BC)
 				else
-					foreach  e ( ifh img img.rec hdr)
-						ln -sf `pwd`/$t2wlst.4dfp.$e $t2wimg.4dfp.$e
-					end
+					set t2wlst = ($t2wlst ${patid}_t2w${i})
 				endif
-				nifti_4dfp -n $t2wimg $t2wimg || exit 1
-			endif
-#########################
-# register t2w to MP-RAGE
-#########################
-			set mode = (4099 4099 1027 2051 2051 10243)
-			set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
-			set t4file = ${t2wimg}_to_${mpr}_t4
-			if ( ! -e $t4file || ! $useold ) then
-				if (-e $t4file) /bin/rm $t4file
-				set log = ${t2wimg}_to_${mpr}.log
-				if ( -e $log ) /bin/rm $log
-				@ i = 1
-				while ( $i <= $#mode )
-					imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $mode[$i] >> $log || exit $status
-					@ i++
+				@ i++
+			end
+			if ( $#t2w > 1 ) then
+				echo "T2W IS > 1"
+				cross_image_resolve_4dfp $t2wimg $t2wlst
+			else
+				foreach  e ( ifh img img.rec hdr)
+					ln -sf `pwd`/$t2wlst.4dfp.$e $t2wimg.4dfp.$e
 				end
 			endif
-			t4_mul ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${target:t}_t4 ${t2wimg}_to_${target:t}_t4  || exit $status
-#########################################################################
-# compute brain mask from $t2wimg to be used for BOLD -> t2w registration
-#########################################################################
-			t4_inv ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${t2wimg}_t4 || exit $status
-			t4img_4dfp ${mpr}_to_${t2wimg}_t4  ${patid1}_aparc+aseg ${patid1}_aparc+aseg_on_${t2wimg} \
-					-O$wrkdir/atlas/${t2wimg} -n || exit $status
-			maskimg_4dfp  ${patid1}_aparc+aseg_on_${t2wimg} ${patid1}_aparc+aseg_on_${t2wimg} \
-				      ${patid1}_aparc+aseg_on_${t2wimg}_msk -v1
-			ROI2mask_4dfp ${patid1}_aparc+aseg_on_${t2wimg} 4,43 Vents || exit $status
-			set CSFThresh2 = `qnt_4dfp ${t2wimg} Vents | awk '$1~/Mean/{print 2.0/$NF}'` || exit $status
-			scale_4dfp ${t2wimg} $CSFThresh2 -ameandiv2   || exit 1
-			scale_4dfp ${patid1}_aparc+aseg_on_${t2wimg}_msk -1 -b1 -ainvert || exit $status
-			maskimg_4dfp ${t2wimg}_meandiv2 ${patid1}_aparc+aseg_on_${t2wimg}_msk_invert \
-					${t2wimg}_meandiv2_nobrain || exit $status
-			imgopr_4dfp -a${t2wimg}_meandiv2_brainnorm ${t2wimg}_meandiv2_nobrain \
-					${patid1}_aparc+aseg_on_${t2wimg}_msk || exit $status
-			zero_lt_4dfp 1 ${t2wimg}_meandiv2_brainnorm ${t2wimg}_meandiv2_brainnorm_thresh || exit $status
-			gauss_4dfp ${patid1}_aparc+aseg_on_${t2wimg}_msk 0.4 \
-					${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
-			imgopr_4dfp -p${t2wimg}_meandiv2_brainnorm_thresh_2 \
-					${t2wimg}_meandiv2_brainnorm_thresh \
-					${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
-			nifti_4dfp -n ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_meandiv2_brainnorm_thresh_2 || exit $status
-			maskimg_4dfp ${t2wimg} ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_tmp_masked -t.1 -v1 || exit $status
-			cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
-			zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
-			blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
-			/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
+			nifti_4dfp -n $t2wimg $t2wimg || exit 1
 		endif
-#############################
-# compute nonlinear alignment
-#############################
-		if ($nlalign || $distort == 3) then
-			if ( ! -d fnirt ) mkdir fnirt
-			pushd fnirt
-				# must have .mat file from target 111 711-2B to the reference
-				if ( ! -e ${fnwarp}.nii || ! $useold ) then			
-					t4_mul ../${mpr}_to_${target:t}_t4 $REFDIR/MNI152/711-2B_to_MNI152lin_T1_t4 \
-						${mpr}_to_MNI152_T1_t4 || exit 1 
-					nifti_4dfp -n ../${mpr} ../${mpr}
-					aff_conv 4f ../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1_t4 \
-						    ../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1.mat || exit $status
-					fnirt --in=../${mpr} --config=T1_2_MNI152_2mm \
-						--aff=${mpr}_to_MNI152_T1.mat \
-						--cout=$fnwarp \
-						--iout=${mpr}_on_fn_MNI152_T1_2mm || exit $status
-				endif
-			popd	# out of fnirt
-				applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat \
-						--out=${mpr}_on_${outspacestr} || exit $status
-				applywarp --ref=$outspace --in=${patid1}_aparc+aseg -w $fnwarp --postmat=$postmat  \
-						--interp=nn --out=${patid1}_aparc+aseg_on_${outspacestr} || exit $status
-				nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr}
-				nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}
+		#########################
+		# register t2w to MP-RAGE
+		#########################
+		echo "REGISTERING t2w"
+		set mode = (4099 4099 1027 2051 2051 10243)
+		set msk = (none none none ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask ${mpr}_brain_mask )
+		set t4file = ${t2wimg}_to_${mpr}_t4
+		if ( ! -e $t4file || ! $useold ) then
+			if (-e $t4file) /bin/rm $t4file
+			set log = ${t2wimg}_to_${mpr}.log
+			if ( -e $log ) /bin/rm $log
+			@ i = 1
+			while ( $i <= $#mode )
+				imgreg_4dfp ${mpr} ${msk[$i]} $t2wimg none $t4file $mode[$i] >> $log || exit $status
+				@ i++
+			end
+		endif
+		t4_mul ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${target:t}_t4 ${t2wimg}_to_${target:t}_t4  || exit $status
+		#########################################################################
+		# compute brain mask from $t2wimg to be used for BOLD -> t2w registration
+		#########################################################################
+		echo "COMPUTING BRAIN MASK"
+		t4_inv ${t2wimg}_to_${mpr}_t4 ${mpr}_to_${t2wimg}_t4 || exit $status
+		t4img_4dfp ${mpr}_to_${t2wimg}_t4  ${patid1}_aparc+aseg ${patid1}_aparc+aseg_on_${t2wimg} \
+				-O$wrkdir/atlas/${t2wimg} -n || exit $status
+		maskimg_4dfp  ${patid1}_aparc+aseg_on_${t2wimg} ${patid1}_aparc+aseg_on_${t2wimg} \
+					${patid1}_aparc+aseg_on_${t2wimg}_msk -v1
+		ROI2mask_4dfp ${patid1}_aparc+aseg_on_${t2wimg} 4,43 Vents || exit $status
+		set CSFThresh2 = `qnt_4dfp ${t2wimg} Vents | awk '$1~/Mean/{print 2.0/$NF}'` || exit $status
+		scale_4dfp ${t2wimg} $CSFThresh2 -ameandiv2   || exit 1
+		scale_4dfp ${patid1}_aparc+aseg_on_${t2wimg}_msk -1 -b1 -ainvert || exit $status
+		maskimg_4dfp ${t2wimg}_meandiv2 ${patid1}_aparc+aseg_on_${t2wimg}_msk_invert \
+				${t2wimg}_meandiv2_nobrain || exit $status
+		imgopr_4dfp -a${t2wimg}_meandiv2_brainnorm ${t2wimg}_meandiv2_nobrain \
+				${patid1}_aparc+aseg_on_${t2wimg}_msk || exit $status
+		zero_lt_4dfp 1 ${t2wimg}_meandiv2_brainnorm ${t2wimg}_meandiv2_brainnorm_thresh || exit $status
+		gauss_4dfp ${patid1}_aparc+aseg_on_${t2wimg}_msk 0.4 \
+				${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
+		imgopr_4dfp -p${t2wimg}_meandiv2_brainnorm_thresh_2 \
+				${t2wimg}_meandiv2_brainnorm_thresh \
+				${patid1}_aparc+aseg_on_${t2wimg}_msk_smoothed || exit $status
+		nifti_4dfp -n ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_meandiv2_brainnorm_thresh_2 || exit $status
+		maskimg_4dfp ${t2wimg} ${t2wimg}_meandiv2_brainnorm_thresh_2 ${t2wimg}_tmp_masked -t.1 -v1 || exit $status
+		cluster_4dfp ${t2wimg}_tmp_masked -R > /dev/null || exit $status
+		zero_gt_4dfp 2 ${t2wimg}_tmp_masked_ROI || exit $status
+		blur_n_thresh_4dfp ${t2wimg}_tmp_masked_ROIz 0.6 0.15 ${t2wimg}_brain_mask || exit $status
+		/bin/rm -f ${t2wimg}_meandiv2* ${t2wimg}_tmp_masked* ${patid1}_aparc+aseg_on_${t2wimg}*		
+	endif
+	#############################
+	# compute nonlinear alignment
+	#############################
+	if ($nlalign || $distort == 3) then
+		echo "DISTORT AS 3"
+		if ( ! -d fnirt ) mkdir fnirt
+		pushd fnirt
+			# must have .mat file from target 111 711-2B to the reference
+			if ( ! -e ${fnwarp}.nii || ! $useold ) then			
+				t4_mul ../${mpr}_to_${target:t}_t4 $REFDIR/MNI152/711-2B_to_MNI152lin_T1_t4 \
+					${mpr}_to_MNI152_T1_t4 || exit 1 
+				nifti_4dfp -n ../${mpr} ../${mpr}
+				aff_conv 4f ../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1_t4 \
+						../${mpr}  $REFDIR/MNI152/MNI152_T1_2mm ${mpr}_to_MNI152_T1.mat || exit $status
+				fnirt --in=../${mpr} --config=T1_2_MNI152_2mm \
+					--aff=${mpr}_to_MNI152_T1.mat \
+					--cout=$fnwarp \
+					--iout=${mpr}_on_fn_MNI152_T1_2mm || exit $status
+			endif
+		popd	# out of fnirt
+		if ( $nlalign ) then
 
-			if ( ${?t2wimg} || -e ${t2wimg}.4dfp.img ) then
-				aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 \
-					    ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}.mat || exit $status
-				convertwarp --ref=fnirt/${mpr}_on_fn_MNI152_T1_2mm --premat=${t2wimg}_to_${mpr}.mat \
-						--warp1=$fnwarp --out=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff  || exit $status
-				applywarp --in=${t2wimg}.nii --ref=$REFDIR/MNI152/MNI152_T1_2mm \
-						--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii \
-						-o fnirt/${t2wimg}_on_fn_MNI152_T1_2mm --interp=nn || exit $status
-				applywarp --in=${t2wimg}.nii --ref=$outspace \
-						--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii --postmat=$postmat \
-						-o fnirt/${t2wimg}_on_${outspacestr}  || exit $status
-			endif
+			echo "NLALIGN IS TRUE"
+			applywarp --ref=$outspace --in=${mpr} -w $fnwarp --postmat=$postmat \
+					--out=${mpr}_on_${outspacestr} || exit $status
+			applywarp --ref=$outspace --in=${patid1}_aparc+aseg -w $fnwarp --postmat=$postmat  \
+					--interp=nn --out=${patid1}_aparc+aseg_on_${outspacestr} || exit $status
+			nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr}
+			nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}
 		endif
-		if (! $nlalign ) then
-			aff_conv 4f ${mpr}  $REFDIR/711-2B_111 ${mpr}_to_${target:t}_t4 \
-					${mpr}  $REFDIR/711-2B_111 ${mpr}_to_${target:t}_111.mat || exit $status
-			convert_xfm -omat ${mpr}_to_${outspace:t}.mat -concat $postmat ${mpr}_to_${target:t}_111.mat
-			flirt -ref $outspace -in ${patid1}_aparc+aseg -applyxfm -init ${mpr}_to_${outspace:t}.mat \
-					-interp nearestneighbour -out ${patid1}_aparc+aseg_on_${outspacestr} || exit $status
-			flirt -ref $outspace -in  ${mpr} -applyxfm -init ${mpr}_to_${outspace:t}.mat \
-					-out ${mpr}_on_${outspacestr} || exit $status
-			nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr} || exit $status
-				nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}  || exit $status
-			if ( ${?t2wimg}) then 
-				aff_conv 4f ${t2wimg} $REFDIR/711-2B_111 ${t2wimg}_to_${target:t}_t4 \
-					       ${t2wimg} $REFDIR/711-2B_111 ${t2wimg}_to_${target:t}.mat || exit $status
-				convert_xfm -omat ${t2wimg}_to_${outspace:t}.mat -concat $postmat ${t2wimg}_to_${target:t}.mat 
-				flirt -ref $outspace -in  ${t2wimg} -applyxfm -init ${t2wimg}_to_${outspace:t}.mat \
-					-out ${t2wimg}_on_${outspacestr} || exit $status
-				nifti_4dfp -4 ${t2wimg}_on_${outspacestr} ${t2wimg}_on_${outspacestr} || exit $status
-			endif
+		if ( ${?t2wimg} ) then
+			echo "t2img is true, calling aff_conv"
+			aff_conv 4f ${t2wimg} ${mpr} ${t2wimg}_to_${mpr}_t4 \
+					${t2wimg} ${mpr} ${t2wimg}_to_${mpr}.mat || exit $status
+			convertwarp --ref=fnirt/${mpr}_on_fn_MNI152_T1_2mm --premat=${t2wimg}_to_${mpr}.mat \
+					--warp1=$fnwarp --out=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff  || exit $status
+			applywarp --in=${t2wimg}.nii --ref=$REFDIR/MNI152/MNI152_T1_2mm \
+					--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii \
+					-o fnirt/${t2wimg}_on_fn_MNI152_T1_2mm --interp=nn || exit $status
+			applywarp --in=${t2wimg}.nii --ref=$outspace \
+					--warp=fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff.nii --postmat=$postmat \
+					-o fnirt/${t2wimg}_on_${outspacestr}  || exit $status
 		endif
-##################
-# gray matter mask
-##################
-		ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} -f$REFDIR/FS_GM.lst ${patid1}_GM_on_${outspacestr}  || exit $status
-		scale_4dfp    ${patid1}_GM_on_${outspacestr} -1 -b1 -acomp  || exit $status
-		imgblur_4dfp  ${patid1}_GM_on_${outspacestr}_comp 6  || exit $status
-###################
-# white matter mask
-###################
-		ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 2,41,77 ${patid1}_WM_on_${outspacestr} || exit $status
-		maskimg_4dfp  ${patid1}_WM_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
-			      ${patid1}_WM_on_${outspacestr}_erode -t0.9  || exit $status
-################
-# ventricle mask
-################
-		ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
-		maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
-		      ${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
-		/bin/rm -f ${patid1}_GM_on_${outspacestr}_comp*
+	endif
+	if (! $nlalign ) then
+		echo "Not NLALIGN IS TRUE, calling aff_conv"
+		aff_conv 4f ${mpr}  $REFDIR/711-2B_111 ${mpr}_to_${target:t}_t4 \
+				${mpr}  $REFDIR/711-2B_111 ${mpr}_to_${target:t}_111.mat || exit $status
+		convert_xfm -omat ${mpr}_to_${outspace:t}.mat -concat $postmat ${mpr}_to_${target:t}_111.mat
+		flirt -ref $outspace -in ${patid1}_aparc+aseg -applyxfm -init ${mpr}_to_${outspace:t}.mat \
+				-interp nearestneighbour -out ${patid1}_aparc+aseg_on_${outspacestr} || exit $status
+		flirt -ref $outspace -in  ${mpr} -applyxfm -init ${mpr}_to_${outspace:t}.mat \
+				-out ${mpr}_on_${outspacestr} || exit $status
+		nifti_4dfp -4 ${patid1}_aparc+aseg_on_${outspacestr} ${patid1}_aparc+aseg_on_${outspacestr} || exit $status
+			nifti_4dfp -4 ${mpr}_on_${outspacestr} ${mpr}_on_${outspacestr}  || exit $status
+		if ( ${?t2wimg}) then
+			echo "NOT T2WIMG IS TRUE"
+			aff_conv 4f ${t2wimg} $REFDIR/711-2B_111 ${t2wimg}_to_${target:t}_t4 \
+						${t2wimg} $REFDIR/711-2B_111 ${t2wimg}_to_${target:t}.mat || exit $status
+			convert_xfm -omat ${t2wimg}_to_${outspace:t}.mat -concat $postmat ${t2wimg}_to_${target:t}.mat 
+			flirt -ref $outspace -in  ${t2wimg} -applyxfm -init ${t2wimg}_to_${outspace:t}.mat \
+				-out ${t2wimg}_on_${outspacestr} || exit $status
+			nifti_4dfp -4 ${t2wimg}_on_${outspacestr} ${t2wimg}_on_${outspacestr} || exit $status
+		endif
+	endif
+	##################
+	# gray matter mask
+	##################
+	echo "GRAY MATTER MASK"
+	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} -f$REFDIR/FS_GM.lst ${patid1}_GM_on_${outspacestr}  || exit $status
+	scale_4dfp    ${patid1}_GM_on_${outspacestr} -1 -b1 -acomp  || exit $status
+	imgblur_4dfp  ${patid1}_GM_on_${outspacestr}_comp 6  || exit $status
+	###################
+	# white matter mask
+	###################
+	echo "WHITE MATTER MASK"
+	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 2,41,77 ${patid1}_WM_on_${outspacestr} || exit $status
+	maskimg_4dfp  ${patid1}_WM_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
+				${patid1}_WM_on_${outspacestr}_erode -t0.9  || exit $status
+	################
+	# ventricle mask
+	################
+	echo "VENTRICLE MASK"
+	ROI2mask_4dfp ${patid1}_aparc+aseg_on_${outspacestr} 4,14,15,24,43 ${patid1}_VENT_on_${outspacestr}  || exit $status
+	maskimg_4dfp  ${patid1}_VENT_on_${outspacestr} ${patid1}_GM_on_${outspacestr}_comp_b60 \
+			${patid1}_VENT_on_${outspacestr}_erode -t0.9  || exit $status
+	/bin/rm -f ${patid1}_GM_on_${outspacestr}_comp*
 	popd		# out of atlas
 endif
 if ( ! $?regtest ) set regtest = 0	# debuging flag
 if ( $regtest ) exit 0			# if $regtest is set code stops here
+
+DISTORT:
 if ( $distort == 1 ) then		# spin echo distortion correction
+	echo "CHOSE DISTORT AS 1"
 	if ( ! -e SEFM ) mkdir SEFM
 	@ i = 1
 	while ( $i <= $#sefm )
+		echo "INSIDE OF SEFM WHILE"
 		if (-e SEFM/${patid}_sefm_Grp${i}_FMAP.nii) goto NEXTGrp	# skip lengthy topup if done before
 		set study = ( `echo ${sefm[$i]} | sed 's|,| |g'` )
 		set j = 1
 		set SEFMstr = ()
 		while ( $j <= $#study ) 
+			echo "INSIDE OF STUDY"
 			if ($bids == 1) then  # in bids mode we already have converted from dicom to nifti
 				# copy over the field map
+				echo "INSIDE OF BIDS CONVERSION"
 				echo "Copying from BIDS Dataset..."
+				echo $study
 				cp -fv $study[$j] SEFM/${patid}_sefm_Grp${i}_${j}.nii.gz || exit 1
 				# copy over the json sidecar
 				cp -fv `pathman $study[$j] get_path_and_prefix`.json SEFM/${patid}_sefm_Grp${i}_${j}.json || exit 1
@@ -505,30 +619,36 @@ if ( $distort == 1 ) then		# spin echo distortion correction
 				echo "gunziping the file..."
 				gunzip -f SEFM/${patid}_sefm_Grp${i}_${j}.nii.gz || exit 1
 			else
+				echo "BIDS CONVERSION IS NOT OCCURRING"
 				dcm2niix -o SEFM -f ${patid}_sefm_Grp${i}_${j} -w 1 -z n $inpath/study$study[$j] || exit -1
 			endif
+			set file = SEFM/${patid}_sefm_Grp${i}_${j}.json
 
 			set pedindex = `cat $file | jq -r '.PhaseEncodingDirection'`
 			set readout_time_sec = `cat $file | jq -r '.TotalReadoutTime'`
 		
-####################################################
-# passge through NIfTI forces axial sefm orientation 
-####################################################
+			####################################################
+			# passge through NIfTI forces axial sefm orientation 
+			####################################################
+			echo "NIFTI AXIAL SEFM ORIENTATION"
 			nifti_4dfp -4 SEFM/${patid}_sefm_Grp${i}_${j} SEFM/${patid}_sefm_Grp${i}_${j} -N || exit 1;
 			nifti_4dfp -n SEFM/${patid}_sefm_Grp${i}_${j} SEFM/${patid}_sefm_Grp${i}_${j}
-########################################################
-# generate $SEFMstr = argument string for sefm_pp_AT.csh
-########################################################
+			########################################################
+			# generate $SEFMstr = argument string for sefm_pp_AT.csh
+			########################################################
 			set SEFMstr = ( $SEFMstr -i ${patid}_sefm_Grp${i}_${j} $pedindex $readout_time_sec )
 			@ j++
 		end
 		pushd SEFM
+			echo "PUSHED TO SEFM"
 			sefm_pp_AT.csh $SEFMstr -o ${patid}_sefm_Grp${i} || exit -1		# wrapper for topup
 		popd
+		echo "OUT OF SEFM"
 NEXTGrp:
 		@ i++ 
 	end
 else if ( $distort == 2 ) then #GRE measured field map 
+	echo "CHOSE DISTORT AS A2"
 	@ k = 1		# $k indexes gre group (not study); study is always 1 (mag) and 2 (pha)
 	if ( ! -e GRE ) mkdir GRE
 	while ( $k <= $#GRE )
@@ -537,6 +657,7 @@ else if ( $distort == 2 ) then #GRE measured field map
 			set study = (`echo ${GRE[$k]} | sed 's|,| |g'`)
 
 			if ($bids == 1) then
+				echo "CHOSE BOLD AS TRUE INSIDE OF DISTORT 2"
 				if ( -e $inpath/study$study[1]/study$study[1]_e2.nii.gz ) then	# dcm2niix may or may not generate _e2 which corresponds to second echo
 					set f = $$tmp_e2
 					ln -sf $inpath/study$study[1]/study$study[1]_e2.nii.gz $f.nii.gz
@@ -544,12 +665,14 @@ else if ( $distort == 2 ) then #GRE measured field map
 					gunzip -f $f
 				endif
 				if ( -e $inpath/study$study[1]/study$study[1]_e1.nii.gz ) then
+					echo "INSIDE OF e1"
 					set f = $$tmp_e1
 					ln -sf $inpath/study$study[1]/study$study[1]_e1.nii.gz $f.nii.gz
 					cp $inpath/study$study[1]/study$study[1]_e1.json $f.json
 					gunzip -f $f
 				endif
 				if ( -e $inpath/study$study[1]/study$study[1].nii.gz ) then
+					echo "INSIDE OF study 1"
 					set f = $$tmp					# set $f to whatever dcm2niix generated
 					ln -sf $inpath/study$study[1]/study$study[1].nii.gz $f.nii.gz
 					cp $inpath/study$study[1]/study$study[1].json $f.json
@@ -571,6 +694,7 @@ else if ( $distort == 2 ) then #GRE measured field map
 			mv $f.json GRE/${patid}_GRE_Grp${k}_mag.json	# rename json
 			/bin/rm -f $$tmp*
 			if ( $bids == 1) then 
+				echo "CHOSE BIDS AS TRUE DISTORT 2 second time"
 				if ( -e $inpath/study$study[2]/study$study[2]_e2_ph.nii.gz ) then	# dcm2niix may or may not generate _e2 which corresponds to second echo
 					set f = pha_e2_ph
 					ln -sf $inpath/study$study[2]/study$study[2]_e2_ph.nii.gz $f.nii.gz
@@ -584,6 +708,7 @@ else if ( $distort == 2 ) then #GRE measured field map
 					gunzip -f $f
 				endif
 			else
+				echo "CHOSE BIDS AS FALSE IN DISTORT 2"
 				dcm2niix -o . -f pha  -w 1 -z n $inpath/study$study[2] || exit -1
 			endif
 			if ( -e pha_e2_ph.nii ) then
@@ -603,64 +728,183 @@ else if ( $distort == 2 ) then #GRE measured field map
 		@ k++
 	end
 endif
-HERE:
+
+echo "just before BOLD"
+BOLD:
 if ( ! $?BOLDgrps ) exit 0; 		# $BOLDgrps must be defined to process BOLD data
-set BOLDruns = ( `echo $BOLDgrps | sed 's|,| |g'` )
-@ runs = ${#runID}
-if ($runs != ${#BOLDruns}) then
-	echo $program": runID and BOLDruns mismatch - edit "$prmfile
-	exit -1
-endif
 ######################################
 # convert fMRI data from DICOM to 4dfp
 ######################################
 @ err = 0
 @ k = 1
-while ($k <= $runs)
+set nordstr = ""
+if ( $runnordic ) set nordstr = _preNORDIC
+
+echo "RUN ID STRUCT IS"
+set runID = (4 5)
+set runs = 2
+echo $runID
+while ($k <= ${#runID})
+	echo "NUMBER OF RUNS IS"
+	echo $runs
+	echo "INSIDE OF FMRI TO 4dfp"
 	set run = $runID[$k]
-	@ run_ph = ${run} + 1
-	if (! $E4dfp) then
-		if (! -d bold$run) mkdir bold$run
+	if ($run != 4 && $run != 5) then
+		echo "Skipping run"
+		@ k++
+		continue
 	endif
+	if (! -d bold$run) mkdir bold$run
 	pushd bold$run
-		#if (! $E4dfp && ! -e $patid"_b"$run.4dfp.img ) then
-			dcm2niix -o . -f $patid"_b"${run}_preNORDIC -z n -w 1 $inpath/study${run} || exit $status
-			dcm2niix -o . -f $patid"_b"${run}_preNORDIC -z n -w 1 $inpath/study${run_ph} || exit $status
-			nifti_4dfp -4 $patid"_b"${run}_preNORDIC $patid"_b"${run}_preNORDIC -N || exit $status
-			@ nframe = `fslinfo $patid"_b"${run}"_preNORDIC.nii" | gawk '/^dim4/ {print $NF}'`
-			###############################################################################################
-			# get fMRI properties; multiple single run BOLD params files will be consolidated later
-			# MEBIDS2params.awk generates run-specific params file from json: MBfac, TR_vol, $seqstr, dwell
-			###############################################################################################
-			if ( $GetBoldConfig ) then	# BIDS2params.awk generates run-specific params file from json:
-							# TR_vol, TR_slc, $seqstr, echo-spacing, $dbnd_flag
-				gawk -f $RELEASE/BIDS2params.awk ${patid}"_b"${run}"_preNORDIC.json" > ${patid}"_b"${run}.params || exit $status
-				set pedindex = `grep pedindex ${patid}"_b"${run}".params" | gawk '{print $NF}'`
-				echo "fslhd "${patid}"_b"${run}"_preNORDIC.nii" | gawk -f $RELEASE/GetPED_2019.awk PEDindex=$pedindex
-				set ped = `fslhd $patid"_b"${run}"_preNORDIC.nii" | gawk -f $RELEASE/GetPED_2019.awk PEDindex=$pedindex`
-				echo "set ped = ${ped}" >> ${patid}_b${run}.params
+		# NEW BIDS VERSION
+		if ($bids == 1) then
+			@ num_echoes = `jq .mag\[\"$run\"\] ../runs.json | jq '. | length'`
+			echo "NUM ECHOS IS "
+			echo $num_echoes
+			@ e = 0
+			while ($e < $num_echoes)
+				# get the echo file
+				set echo_file = `jq .mag\[\"$run\"\]\[$e\] ../runs.json | sed 's/"//g'`
+				# and copy it to the current directory
+				@ echo_num = $e + 1
+				echo "Copying from BIDS Dataset..."
+				cp -fv $echo_file $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
+				echo "COPIED FILE"
+				echo $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
+				# get the sidecar as well
+				set sidecar = `echo $echo_file | sed 's/.nii.gz/.json/g'`
+				cp -fv $sidecar $patid"_b"${run}${nordstr}_echo${echo_num}.json
+				echo "COPIED SIDECAR"
+				echo $patid"_b"${run}${nordstr}_echo${echo_num}.json
+				# and gunzip it
+				echo "gunziping the file..."
+				gunzip -f $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
+				# and increment the echo counter
+				@ e++
+			end
+			# if nordic is used, get the phase images
+			if ( $runnordic && $isnordic ) then
+				# first read in the number of echoes for this run
+				@ num_echoes = `jq .phase\[\"$run\"\] ../runs.json | jq '. | length'`
+				# now loop over the echoes
+				@ e = 0
+				while ($e < $num_echoes)
+					# get the echo file
+					set echo_file = `jq .phase\[\"$run\"\]\[$e\] ../runs.json | sed 's/"//g'`
+					# and copy it to the current directory
+					@ echo_num = $e + 1
+					echo "Copying from BIDS Dataset..."
+					cp -fv $echo_file $patid"_b"${run}${nordstr}_echo${echo_num}_ph.nii.gz
+					# get the sidecar as well
+					set sidecar = `echo $echo_file | sed 's/.nii.gz/.json/g'`
+					cp -fv $sidecar $patid"_b"${run}${nordstr}_echo${echo_num}_ph.json
+					# and gunzip it
+					echo "gunziping the file..."
+					gunzip -f $patid"_b"${run}${nordstr}_echo${echo_num}_ph.nii.gz
+					# and increment the echo counter
+					@ e++
+				end
 			endif
-			/bin/rm $patid"_b"$run.nii
+		endif
+
+		#######################################################################################
+		# get fMRI properties; multiple single run BOLD params files will be consolidated later 
+		#######################################################################################
+		@ necho = `ls $patid"_b"${run}${nordstr}_echo1.nii | wc -l`
+		@ fullframe = `fslinfo $patid"_b"${run}${nordstr}_echo1.nii | gawk '/^dim4/ {print $NF}'`
+		@ nframe = $fullframe - ${noiseframes}
+		echo "@ nframe = $nframe"			>! $patid"_b"${run}.params
+		echo "@ fullframe = $fullframe"			>> $patid"_b"${run}.params
+		echo "@ necho = $necho"				>> $patid"_b"${run}.params
+		set TE = (`cat $patid"_b"${run}${nordstr}_echo?.json | grep EchoTime | gawk '{sub(/,/,"",$2);print $2}' | \
+			gawk '{printf("%.1f ",1000*$1)}'`)
+		gawk -f $RELEASE/BIDS2params.awk $patid"_b"${run}${nordstr}_echo1.json >> $patid"_b"${run}.params || exit $status
+		echo "set TE = ($TE)"				>> $patid"_b"${run}.params
+		set pedindex = `grep pedindex $patid"_b"${run}.params | gawk '{print $NF}'`
+		echo "Set pedindex as $pedindex"
+		set ped = `fslhd $patid"_b"${run}${nordstr}_echo1.nii | gawk -f $RELEASE/GetPED_2019.awk PEDindex=$pedindex`
+		echo "set ped = $ped"				>> $patid"_b"${run}.params
+
+		if ( $ped == "" ) then 
+			echo unable to determine phase encoding direction
+			exit -1
+		endif
+
+		#if (! $runnordic) then
+		#	foreach F ( $patid"_b"${run}_echo?.nii )
+		#		nifti_4dfp -4 $F:r $F:r -N	|| exit $status
+		#		echo	      $F:r >! $$.lst
+		#		paste_4dfp -p$nframe  $$.lst $$	|| exit $status
+		#		/bin/rm -f $$.lst
+		#		foreach e (img img.rec ifh hdr)
+		#			/bin/mv $$.4dfp.$e $F:r.4dfp.$e
+		#		end
+		#	end
+		#	ls $patid"_b"${run}_echo?.4dfp.img >! $$.lst
+		#	paste_4dfp -p$nframe $$.lst $patid"_b"${run} || exit $status; rm -f $$.lst
+
+		#if ( $runnordic ) then 
+		#	if ( -e runnordic.m ) rm runnordic.m
+		#	set echo_mag = $patid"_b"${run}$nordstr
+		#	set echo_ph = $patid"_b"${run}${nordstr}_ph.nii
+		#	set outname = $patid"_b"${run}
+		#	touch runnordic.m || exit $status
+		#	echo "try"									>> runnordic.m
+		#	echo "	addpath('${NORDIClib}');"						>> runnordic.m
+		#	echo "	ARG.noise_volume_last=${noiseframes};"					>> runnordic.m
+		#	if ( ! $isnordic ) echo "	ARG.magnitude_only = 1"				>> runnordic.m
+		#	if ( $?nordicparams ) then
+		#		cat $nordicparams							>> runnordic.m
+		#	endif
+		#	echo "	NIFTI_NORDIC('${echo_mag}.nii','${echo_ph}','${outname}',ARG);"		>> runnordic.m
+		#	echo "catch"									>> runnordic.m
+		#	echo "	quit(-1)"								>> runnordic.m
+		#	echo "end"									>> runnordic.m
+		#	echo "exit"									>> runnordic.m
+		#	$MATLAB -nosplash -nodesktop -r "run('"runnordic.m"')" || exit $status
+			#"
+		#	if (${noiseframes} != 0) then
+		#		@ nframes = `fslnvols ${outname}` || exit -1; @ nframes = $nframes - 1;
+		#		echo $nframes - ${noiseframes} | bc -l | xargs seq 0 > vol.lst || exit -1
+		#		fslselectvols -i ${outname} -o temp$$ --vols=vol.lst || exit -1
+		#		set vollst = `echo $nframes - ${noiseframes} + 1 | bc -l | xargs -I {} seq --separator=',' {} $nframes` || exit -1
+		#		fslselectvols -i ${outname} -o ${outname}_noise --vols=$vollst || exit -1
+		#		nifti_4dfp -4 temp$$ $patid"_b"${run} -N || exit 1
+		#		/bin/rm temp$$.nii vol.lst || exit -1
+		#	else
+		#		nifti_4dfp -4 $patid"_b"${run} $patid"_b"${run} -N || exit 1
+		#	endif
+		#else
+		#	nifti_4dfp -4 $patid"_b"${run} $patid"_b"${run} -N
 		#endif
+		#/bin/rm $patid"_b"$run.nii
+		
 	popd
 	@ k++
 end
 
-BOLD_NORDIC:
-source bold$runID[1]/$patid"_b"$runID[1].params
-##########################################
-# RUN NORDIC on all echos
-##########################################
+NORDIC:
+#########################
+# run NORDIC on all echos
+#########################
 @ k = 1
-while ($k <= $runs)
+while ($k <= ${#runID})
 	set run = $runID[$k]
-	pushd bold$run
+	#pushd bold$run
+	echo "INSIDE OF NORDIC, CURRENT WORKING DIRECTORY IS"
+	echo $cwd
+	source bold$runID[$k]/$patid"_b"$runID[$k].params
+	set run = $runID[$k]
 	set rundir = $cwd
-	@ fullframe = `fslinfo $patid"_b"${run}"_preNORDIC.nii" | gawk '/^dim4/ {print $NF}'`
-	@ nframe = `echo "$fullframe-${noiseframes}" | bc`
-	set image_mag = ${rundir}/$patid"_b"${run}"_preNORDIC.nii"
-	set image_ph = ${rundir}/$patid"_b"${run}"_preNORDIC_ph.nii"
-	set outname = ${rundir}/$patid"_b"${run}
+	pushd bold$run
+	set log = $patid"_b"${run}${nordstr}_NORDIC.log;
+	#@ fullframe = `fslinfo $patid"_b"${run}"_preNORDIC_echo1.nii" | gawk '/^dim4/ {print $NF}'`
+	#@ nframe = `echo "$fullframe-${noiseframes}" | bc`
+	echo "NOISE FRAMES IS"
+	echo $noiseframes
+	set image_mag = $patid"_b"${run}"_preNORDIC_echo1.nii"
+	set image_ph = $patid"_b"${run}"_preNORDIC_echo1_ph.nii"
+	set outname = $patid"_b"${run}"_echo1"
 	#pushd /data/nil-bluearc/GMT/Laumann/NORDIC_Raw-main
 	#echo matlab -batch "ARG.noise_volume_last=${noiseframes}; NIFTI_NORDIC('${image_mag}','${image_ph}','${outname}',ARG)"
 	#matlab -batch "ARG.noise_volume_last=${noiseframes}; NIFTI_NORDIC('${image_mag}','${image_ph}','${outname}',ARG)" || exit $status
@@ -673,16 +917,42 @@ while ($k <= $runs)
 	echo "status="$status
 	date
 	echo after running nordic
-	nifti_4dfp -4 $patid"_b"${run} $patid"_b"${run} -N
-	echo $patid"_b"${run}.4dfp.img 1 ${nframe} >! $$.lst 
-	echo "paste_4dfp -p$nframe $$.lst temp"
-	paste_4dfp -p$nframe $$.lst temp || exit $status; rm $$.lst
-	foreach ext (img img.rec ifh hdr )
-		mv temp.4dfp.${ext} $patid"_b"${run}".4dfp."${ext}
-	end
+	#nifti_4dfp -4 $patid"_b"${run} $patid"_b"${run} -N
+	#echo $patid"_b"${run}.4dfp.img 1 ${nframe} >! $$.lst 
+	#echo "paste_4dfp -p$nframe $$.lst temp"
+	#paste_4dfp -p$nframe $$.lst $$ || exit $status; rm $$.lst
+	#foreach e (img img.rec ifh hdr )
+	#	/bin/mv $$.4dfp.$e $patid"_b"${run}".4dfp."${e}
+		#mv temp.4dfp.${e} $patid"_b"${run}".4dfp."${ext}
+	#end
+	if (${noiseframes} != 0) then
+		@ nframes = `fslnvols ${outname}` || exit -1; @ nframes = $nframes - 1;
+		echo $nframes - ${noiseframes} | bc -l | xargs seq 0 > vol.lst || exit -1
+		fslselectvols -i ${outname} -o temp$$ --vols=vol.lst || exit -1
+		set vollst = `echo $nframes - ${noiseframes} + 1 | bc -l | xargs -I {} seq --separator=',' {} $nframes` || exit -1
+		fslselectvols -i ${outname} -o ${outname}_noise --vols=$vollst || exit -1
+		nifti_4dfp -4 temp$$ $patid"_b"${run}"_echo1" -N || exit 1
+		/bin/rm temp$$.nii vol.lst || exit -1
+	else
+		foreach F ( $patid"_b"${run}_echo1.nii $patid"_b"${run}${nordstr}_echo1.nii ) 
+			echo "RUNNING 4dfp on file named"
+			echo $F
+			nifti_4dfp -4 $F:r $F:r -N	|| exit $status
+			echo	      $F:r >! $$.lst
+			paste_4dfp -p$nframe  $$.lst $$	|| exit $status
+			foreach e (img img.rec ifh hdr)
+				/bin/mv $$.4dfp.$e $F:r.4dfp.$e
+			end
+		end
+		ls $patid"_b"${run}_echo1.4dfp.img >! $$.lst
+		paste_4dfp -p$nframe $$.lst $patid"_b"${run}		|| exit $status; rm -f $$.lst
+		ls $patid"_b"${run}${nordstr}_echo1.4dfp.img >! $$.lst
+		paste_4dfp -p$nframe $$.lst $patid"_b"${run}${nordstr}	|| exit $status; rm -f $$.lst
+	endif
 	popd
 	@ k++
 end
+
 ##########################################
 # verify BOLD runs were set up identically
 ##########################################
@@ -697,64 +967,40 @@ if ( $GetBoldConfig ) then	# get run-specific frame_align_4dfp arguments from js
 			mv $$BOLDnew ${patid}_CombinedBOLDConfig
 			@ k++
 		end
-		gawk -f $RELEASE/BOLDConsistencyCheck.awk ${patid}_CombinedBOLDConfig || exit 1
+		if ( $CheckConsistency ) then 
+			gawk -f $RELEASE/BOLDConsistencyCheck.awk ${patid}_CombinedBOLDConfig || exit 1
+		endif 
 		/bin/rm $$tmp
 	endif
 	cp bold$runID[1]/$patid"_b"$runID[1].params $patid.Config
 	source $patid.Config	# session-specific BOLD-specific params file
-else				# get get run-specific frame_align_4dfp from params file
-	if (! ${?MBfac}) @ MBfac = 1
-	if ( ${?seqstr} ) then
-		set SLT = ( `echo $seqstr | sed 's|,| |g'` ) 
-		@ k = 3
-		set difftime = `echo $SLT[2] - $SLT[1] | bc -l`
-		set dbnd_flag = 1
-		if ( $difftime != "-2" && $difftime != "2") set dbnd_flag = 0
-		set SWITCH = 0; 
-		while ( $dbnd_flag  && $k <= $#SLT )
-			@ l = $k - 1
-			if ( `echo $SLT[$k] - $SLT[$l] != $difftime | bc -l` && $SWITCH == 1) then
-				 set dbnd_flag = 0
-			else if ( `echo $SLT[$k] - $SLT[$l] != $difftime | bc -l` ) then 
-				set  SWITCH = 1
-			endif
-			@ k++
-		end
-		set falnSTR = "-seqstr $seqstr";
-	else
-		if (! ${?interleave}) set interleave = ""
-		if (${?Siemens_interleave}) then
-			if ($Siemens_interleave) set interleave = "-N"
-		endif
-		if ( "$interleave" == "" || "$interleave" == "-N" ) then
-			set dbnd_flag = 1
-		else if ( "$interleave" == "-S" ) then
-			set dbnd_flag = 0
-		endif
-		set falnSTR = "-d $epidir $interleave" # $epidir is a params file variable (0:Inf->Sup; 1:Sup->Inf) (default=0)
-	endif 
-	if ( ! $?TR_slc ) set TR_slc = 0
-endif
+	set falnSTR = "-seqstr $seqstr"
+
 if ($dbnd_flag) then
 	set MBstr = _faln_dbnd
 else
 	set MBstr = _faln
-endif 
-#############################
-# compute movement parameters
-#############################
-echo | gawk '{printf("")}' >! ${patid}_bold.lst	# create zero length file
+endif
+
+##########################################################
+# compute movement parameters for FD based frame censoring
+##########################################################
+echo "GETS TO COMPUTING MOVEMENT PARAMS"
+if ( -e $$bold.lst ) /bin/rm $$bold.lst
+touch $$bold.lst
 @ k = 1
 while ($k <= $runs)
 	rm -f bold$runID[$k]/${patid}"_b"${runID[$k]}_xr3d.mat	# force cross_realign3d_4dfp to recompute
-	echo bold$runID[$k]/${patid}"_b"${runID[$k]} >> ${patid}_bold.lst
+	echo bold$runID[$k]/$patid"_b"$runID[$k] >> $$bold.lst
 	@ k++
 end
-
-cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log  || exit $status	# -R disables resampling
+echo "BEFORE CROSS REALIGN"
+echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log # -R disables resampling
+cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log || exit $status
 /bin/rm $$bold.lst
 if (! -d movement) mkdir movement
 @ k = 1
+echo "BEFORE MAT2DAT"
 while ($k <= $runs)
 	mat2dat bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.mat -RD -n$skip || exit $status
 	/bin/mv bold$runID[$k]/${patid}_b${runID[$k]}_xr3d.*dat movement
@@ -764,40 +1010,55 @@ end
 #####################################
 # slice time correction and debanding
 #####################################
+echo "BEFORE SLICE TIME CORRECTION"
 if ( ! $?TR_vol ) then
 	echo "TR_vol not set"
 	exit 1
 endif
-
 @ k = 1
 while ($k <= $runs)
 	pushd bold$runID[$k]
 		frame_align_4dfp $patid"_b"$runID[$k] $skip -TR_vol $TR_vol -TR_slc $TR_slc -m $MBfac $falnSTR || exit $status
 		if ( $dbnd_flag ) then 
 			deband_4dfp -n$skip $patid"_b"$runID[$k]"_faln" || exit $status
-			if ($economy > 3 && ! $E4dfp) then
-				/bin/rm $patid"_b"$runID[$k]"_faln".4dfp.*
-			endif
 		endif 
 	popd
 	@ k++
 end
 
+if (! ${?old_faln_xr3d}) @ old_faln_xr3d = 0
+if ($old_faln_xr3d) then
 #########################
 # apply motion correction
 #########################
-if (-e $patid"_xr3d".lst) /bin/rm $patid"_xr3d".lst; touch $patid"_xr3d".lst
-@ k = 1
-while ($k <= $runs)
-	echo bold$runID[$k]/$patid"_b"$runID[$k]${MBstr} mat=bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat >> $patid"_xr3d".lst
-	@ k++
-end
-
-cat $patid"_xr3d".lst
+	if (-e $patid"_xr3d".lst) /bin/rm $patid"_xr3d".lst; touch $patid"_xr3d".lst
+	@ k = 1
+	while ($k <= $runs)
+		echo bold$runID[$k]/$patid"_b"$runID[$k]${MBstr} mat=bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat \
+			>> $patid"_xr3d".lst
+		@ k++
+	end
+	cat $patid"_xr3d".lst
 #######################################
 # resample without recomputing mat (-N)
 #######################################
-cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_xr3d".lst  >> /dev/null || exit $status	
+	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_xr3d".lst  >> /dev/null || exit $status	
+else
+###########################################################
+# recompute motion correction after slice timing correction
+###########################################################
+	echo | gawk '{printf("");}' >! ${patid}_faln_bold.lst	# create zero length file
+	@ k = 1
+	while ($k <= $#runID)
+		rm   bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d.mat	# force cross_realign3d_4dfp to recompute
+		echo bold$runID[$k]/$patid"_b"$runID[$k]${MBstr} >> ${patid}_faln_bold.lst
+		@ k++
+	end
+	echo "second cross_realign3d_4dfp following slice timing correction"
+	date										>! ${patid}_faln_xr3d.log
+	echo	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst 	>> ${patid}_faln_xr3d.log	# resampling enabled
+		cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst 	>> ${patid}_faln_xr3d.log	|| exit $status
+endif
 
 #########################################################
 # bias field correction (crucial if no prescan normalize)
@@ -814,22 +1075,22 @@ if ($BiasField) then	# defaults to 1
 			set base = ${patid}"_b"$runID[$k]${MBstr}_xr3d_avg
 			nifti_4dfp -n ${base} ${base} || exit $status
 			$FSLDIR/bin/bet ${base} ${base}_brain -f 0.3 || exit $status
-			######################################
-			# compute bias field within brain mask
-			######################################
+######################################
+# compute bias field within brain mask
+######################################
 			$FSLDIR/bin/fast -t 2 -n 3 -H 0.1 -I 4 -l 20.0 --nopve -B -o ${base}_brain ${base}_brain || exit $status
 			niftigz_4dfp -4 ${base}_brain_restore ${base}_brain_restore || exit $status
-			##########################################
-			# compute extended bias field = ${base}_BF
-			##########################################
+##########################################
+# compute extended bias field = ${base}_BF
+##########################################
 			extend_fast_4dfp -G ${base} ${base}_brain_restore ${base}_BF || exit $status
 			if ( -e ${base}_BF.nii.gz ) rm ${base}_BF.nii.gz
 			niftigz_4dfp -n ${base}_BF ${base}_BF || exit $status
 			imgopr_4dfp -p$patid"_b"$runID[$k]${MBstr}_xr3d_BC $patid"_b"$runID[$k]${MBstr}_xr3d \
 				${base}_BF || exit $status
-			###########################################################################
-			# $patid"_b"$runID[$k]${MBstr}_xr3d_BC is the bias field corrected BOLD run
-			###########################################################################
+###########################################################################
+# $patid"_b"$runID[$k]${MBstr}_xr3d_BC is the bias field corrected BOLD run
+###########################################################################
 			/bin/rm ${base}_brain.* ${base}.4dfp.*
 			@ k++
 		popd
@@ -838,7 +1099,7 @@ if ($BiasField) then	# defaults to 1
 else
 	set BC = ""
 endif
-HERE2:
+
 ###########
 # BOLD anat
 ###########
@@ -850,7 +1111,6 @@ while ( $i <= $#BOLDgrps )
 	set runs = (`echo ${BOLDgrps[$i]} | sed 's|,| |g'` )	# runs within-group are separated by commas in params file
 	set run = $runID[$k]	# first run of the group
 	set anat = ${patid}_anat_Grp$i	# first frame of first BOLD run in group
-	source  bold${run}/${patid}"_b"$runID[$k].params
 ######################################
 # tmp affine xform ${patid}_anat_Grp$i
 ######################################
@@ -957,9 +1217,9 @@ while ( $i <= $#BOLDgrps )
 		aff_conv 4f $adir/${anat} $struct $adir/${anat}_to_${struct:t}_t4 \
 			    $adir/${anat} $struct $adir/${anat}_to_${struct:t}.mat || exit $status
 		convertwarp --ref=$outspace --shiftmap=${PHA_on_EPI}_shiftmap --shiftdir=$ped --premat=$adir/${anat}_to_${struct:t}.mat \
-                              --warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
+		            --warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
 		applywarp --ref=$outspace --in=$adir/${anat} --warp=$adir/${anat}_to_${outspace:t}_warp \
-                             --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
+		          --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
 	else	# no fnirt
 		
 		aff_conv 4f $adir/${anat}_uwrp $REFDIR/711-2B_111 $adir/${anat}_xr3d_to_${target:t}_t4 \
@@ -982,7 +1242,11 @@ while ( $i <= $#BOLDgrps )
 	@ j = 1
 	while ( $j <= $#runs )
 		if ( $OneStepResample ) then
-			set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
+			if ($old_faln_xr3d) then
+				set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]_xr3d.mat
+			else
+				set xr3dmat = bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d.mat
+			endif
 			if ($BiasField) then
 				set OneStepstr = "-bias bold$runID[$k]/${patid}"_b"$runID[$k]${MBstr}_xr3d_avg_BF"
 			else
@@ -994,9 +1258,9 @@ while ( $i <= $#BOLDgrps )
 			one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]${MBstr} -xr3dmat $xr3dmat \
 				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp $parallelstr \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d_uwrp_on_${outspacestr} || exit $status
-			#####################
-			# mode 1000 normalize
-			#####################
+#####################
+# mode 1000 normalize
+#####################
 			pushd bold$runID[$k]
 			set FinalOutput = $patid"_b"$runID[$k]${MBstr}_xr3d_uwrp_on_${outspacestr}
 			set format = `gawk '/matrix size \[4\]/{print $NF}' ${FinalOutput}.4dfp.ifh \

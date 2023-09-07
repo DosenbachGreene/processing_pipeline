@@ -427,7 +427,7 @@ class Instructions(Params):
     nlalign: bool = False
 
     # use MEDIC (Multi-Echo DIstortion Correction)
-    medic: bool = True
+    medic: bool = False
 
     # number of threads/processes to use
     num_cpus: int = 8

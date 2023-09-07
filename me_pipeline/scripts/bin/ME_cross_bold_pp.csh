@@ -642,7 +642,7 @@ endif
 # convert fMRI data from DICOM to 4dfp
 ######################################
 @ err = 0
-@ k = 1
+@ k = 4
 while ($k <= $runs)
 	@ std = $BOLDruns[$k]
 	set run = $runID[$k]
@@ -785,14 +785,15 @@ NORDIC:
 while ($k <= ${#runID})
 	source bold$runID[$k]/$patid"_b"$runID[$k].params	# define $necho $nframe $fullframe
 	set run = $runID[$k]
+	set rundir = $cwd
 	pushd bold$run
 	set log = $patid"_b"${run}${nordstr}_NORDIC.log;
 	if (-e $log) /bin/rm -f $log; touch $log;
 	@ e = 1
 	while ( $e <= $necho )
-		set echo_mag = $patid"_b"${run}${nordstr}_echo${e}.nii
-		set echo_ph =  $patid"_b"${run}${nordstr}_echo${e}_ph.nii
-		set outname =  $patid"_b"${run}_echo${e}
+		set echo_mag = ${rundir}/$patid"_b"${run}${nordstr}_echo${e}.nii
+		set echo_ph =  ${rundir}/$patid"_b"${run}${nordstr}_echo${e}_ph.nii
+		set outname =  ${rundir}/$patid"_b"${run}_echo${e}
 		date
 		# use MCR version of nordic
 		echo run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} ${noiseframes} ${num_cpus}

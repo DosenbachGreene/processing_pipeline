@@ -17,7 +17,7 @@ outspace_flag = "mni2mm"
 nlalign = false
 
 # use MEDIC (Multi-Echo DIstortion Correction)
-medic = true
+medic = false
 
 # number of threads/processes to use
 num_cpus = 8

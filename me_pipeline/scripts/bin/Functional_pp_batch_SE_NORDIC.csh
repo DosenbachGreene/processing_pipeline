@@ -129,7 +129,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-cross_bold_pp_2019_NORDIC.csh $1 $2 || exit $status
+cross_bold_pp_2019.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 NIFTI:

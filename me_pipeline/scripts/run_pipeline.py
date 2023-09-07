@@ -438,7 +438,7 @@ def main():
                                     str(instructions_file),
                                     args.module_start,
                                     "1" if args.module_exit else "0",
-                                    args.fmri_pp_module,
+                                    args.fmri_pp_module
                                 ]
                             )
                             != 0
