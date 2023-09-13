@@ -8,29 +8,12 @@ install and invoke the heudiconv command line tool:
         -f heuristics.py -c dcm2niix -b --overwrite -o /path/to/output/directory
 
 """
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 from types import SimpleNamespace
 
 
 # For setting the IntendedFor field in the fieldmap json files
 POPULATE_INTENDED_FOR_OPTS = {"matching_parameters": ["ImagingVolume", "Shims"], "criterion": "First"}
-
-# The below globals search on series description for the given string
-
-# List of resting state
-ME_REST = ["BOLD_NORDIC", "rest_ep2d_bold_ME", "rest_ep2d_bold_4ME"]
-
-# List of tasks
-ME_TASKS = ["VoiceHCPTask"]
-
-# List of AP field maps to check for
-AP_FIELDMAPS = ["SpinEchoFieldMap_AP", "GEFieldMap_AP_forME"]
-
-# List of PA field maps to check for
-PA_FIELDMAPS = ["SpinEchoFieldMap_PA", "GEFieldMap_PA_forME"]
-
-# Dictionary to store extra metadata keyed by series uid
-EXTRA_METADATA = {}
 
 
 def _test_image_type(image_type_pattern: List[str], image_type: List[str]) -> bool:
@@ -117,12 +100,12 @@ def create_key(template: str, outtype=("nii.gz",), annotation_classes: None = No
     return (template, outtype, annotation_classes)
 
 
-def check_in_sequence(items: Any, sequence: List[Any]) -> bool:
+def check_in_sequence(items: Union[List[Any], Any], sequence: List[Any]) -> bool:
     """Check if at least one item in items is in sequence
 
     Parameters
     ----------
-    items : Any
+    items : Union[List[Any], Any]
         items to check
     sequence : List[Any]
         sequence to check
@@ -132,7 +115,13 @@ def check_in_sequence(items: Any, sequence: List[Any]) -> bool:
     bool
         True if at least one item in items is in sequenceS
     """
+    if not isinstance(items, list):
+        items = [items]
     return any(item in sequence for item in items)
+
+
+# Dictionary to store extra metadata keyed by series uid
+EXTRA_METADATA = {}
 
 
 def filter_dicom(dcmdata: Any) -> bool:
@@ -164,6 +153,21 @@ def filter_dicom(dcmdata: Any) -> bool:
 
     # always include the dicom
     return False
+
+
+# The below globals search on series description for the given string
+
+# List of resting state
+ME_REST = ["BOLD_NORDIC", "rest_ep2d_bold_ME", "rest_ep2d_bold_4ME"]
+
+# List of tasks
+ME_TASKS = ["VoiceHCPTask" , "objnam"]
+
+# List of AP field maps to check for
+AP_FIELDMAPS = ["SpinEchoFieldMap_AP", "GEFieldMap_AP_forME"]
+
+# List of PA field maps to check for
+PA_FIELDMAPS = ["SpinEchoFieldMap_PA", "GEFieldMap_PA_forME"]
 
 
 def infotodict(seqinfo):
@@ -214,12 +218,23 @@ def infotodict(seqinfo):
     )
 
     # same but for task data
+    task_keys = []
     me_voicehcp_mag = create_key(
-        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-VoiceHCP_run-{run:02d}_part-mag_bold"
+        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-VoiceHCP_run-{item:02d}_part-mag_bold"
     )
     me_voicehcp_phase = create_key(
-        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-VoiceHCP_run-{run:02d}_part-phase_bold"
+        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-VoiceHCP_run-{item:02d}_part-phase_bold"
     )
+    task_keys.append((me_voicehcp_mag, me_voicehcp_phase))
+
+    # more tasks
+    me_objnam_mag = create_key(
+        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-objnam_run-{item:02d}_part-mag_bold"
+    )
+    me_objnam_phase = create_key(
+        "sub-{subject}/{session}/func/sub-{subject}_{session}_task-objnam_run-{item:02d}_part-phase_bold"
+    )
+    task_keys.append((me_objnam_mag, me_objnam_phase))
 
     # create a key for field maps
     fmap_AP = create_key("sub-{subject}/{session}/fmap/sub-{subject}_{session}_acq-{acq}_dir-AP_run-{item:02d}_epi")
@@ -233,6 +248,8 @@ def infotodict(seqinfo):
         me_rest_phase: [],
         me_voicehcp_mag: [],
         me_voicehcp_phase: [],
+        me_objnam_mag: [],
+        me_objnam_phase: [],
         fmap_AP: [],
         fmap_PA: [],
     }
@@ -246,6 +263,7 @@ def infotodict(seqinfo):
             dcmdata = EXTRA_METADATA[s.series_uid]
             s.sequence_name = dcmdata[0x5200, 0x9230][0][0x0018, 0x9226][0][0x0021, 0x1177].value
             s.image_type = dcmdata[0x5200, 0x9230][0][0x0021, 0x11FE][0][0x0021, 0x1175].value
+        # breakpoint()
 
         # skip all SBRefs
         if "SBRef" in s.series_description:
@@ -279,15 +297,24 @@ def infotodict(seqinfo):
         elif check_in_sequence(ME_REST, s.series_description):
             if check_add_multi_echo(info, me_rest_mag, s, "mag"):
                 continue
-            if check_add_multi_echo(info, me_rest_phase, s, "phase"):
+            elif check_add_multi_echo(info, me_rest_phase, s, "phase"):
                 continue
 
         # ME-task
-        elif check_in_sequence(ME_TASKS, s.series_description):
-            if check_add_multi_echo(info, me_voicehcp_mag, s, "mag"):
-                continue
-            if check_add_multi_echo(info, me_voicehcp_phase, s, "phase"):
-                continue
+        found_task = False
+        for task, keys in zip(ME_TASKS, task_keys):
+            # skip if dim4 not > 50
+            if s.dim4 < 50:
+                break
+            if check_in_sequence(task, s.series_description):
+                if check_add_multi_echo(info, keys[0], s, "mag"):
+                    found_task = True
+                elif check_add_multi_echo(info, keys[1], s, "phase"):
+                    found_task = True
+            if found_task:
+                break
+        if found_task:
+            continue
 
         # Field Maps
         # AP

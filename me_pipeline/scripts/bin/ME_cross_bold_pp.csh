@@ -1109,8 +1109,8 @@ while ( $i <= $#BOLDgrps )
 		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
 		
 		# unwarp the magnitude image with fugue
-		fugue --loadfmap=${FMAP}${i}_FMAP.nii --dwell=$dwell --unwarpdir=$ped \
-			--in=${FMAP}${i}_mag.nii --unwarp=${FMAP}${i}_mag.nii || exit $status
+		# fugue --loadfmap=${FMAP}${i}_FMAP.nii --dwell=$dwell --unwarpdir=$ped \
+		# 	--in=${FMAP}${i}_mag.nii --unwarp=${FMAP}${i}_mag.nii || exit $status
 
 		# convert things back into 4dfp
 		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
@@ -1124,23 +1124,103 @@ while ( $i <= $#BOLDgrps )
 		pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
-			set mode = (4099 4099 1027 3075 2051 2051 10243)	# for imgreg_4dfp loop
-			set msk  = ( none none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
-
+			set mode = (4099 1027 2051 2051 10243) # for imgreg_4dfp loop
 		else
 			set struct = atlas/${mpr}
 			set mode = (4099 4099 3075 2051 2051)
-			set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
 		endif
+		set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
 		set warp = atlas/fnirt/${struct:t}_to_MNI152_T1_2mm_fnirt_coeff	# structural to MNI152 warp
 		if ( -e $adir/${anat}_uwrp_to_${struct:t}_t4  )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_t4
 		if ( -e $adir/${anat}_uwrp_to_${struct:t}.log )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}.log
 		@ j = 1
+		echo $mode
 		while ( $j <= $#mode )	# imgreg_4dfp loop; register ${anat}_uwrp to ${struct:t}_t4
+			echo imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
+			$adir/${anat}_uwrp_to_${struct:t}_t4 $mode[$j]
 			imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
 			$adir/${anat}_uwrp_to_${struct:t}_t4 $mode[$j] >> $adir/${anat}_uwrp_to_${struct:t}.log || exit $status
 			@ j++
 		end
+		# for some reason sometimes imgreg_4dfp sometimes fails to align func to anat properly when using MEDIC
+		# and I have no idea why... just try some other modes until we get one that has the highest correlation
+		# to ensure the functional/anatomical alignment
+		if ( $distort == 4 ) then
+			set mode = (4099 4099 1027 3075 2051 2051 10243)	# for imgreg_4dfp loop
+			set msk  = ( none none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
+			if ( -e $adir/${anat}_uwrp_to_${struct:t}_alt1_t4  )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_alt1_t4
+			if ( -e $adir/${anat}_uwrp_to_${struct:t}_alt1.log )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_alt1.log
+			@ j = 1
+			echo $mode
+			while ( $j <= $#mode )	# imgreg_4dfp loop; register ${anat}_uwrp to ${struct:t}_t4
+				echo imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
+				$adir/${anat}_uwrp_to_${struct:t}_alt1_t4 $mode[$j]
+				imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
+				$adir/${anat}_uwrp_to_${struct:t}_alt1_t4 $mode[$j] >> $adir/${anat}_uwrp_to_${struct:t}_alt1.log || exit $status
+				@ j++
+			end
+
+			# T2
+			set mode = (4099 4099 3075 2051 2051)
+			set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
+			if ( -e $adir/${anat}_uwrp_to_${struct:t}_alt2_t4  )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_alt2_t4
+			if ( -e $adir/${anat}_uwrp_to_${struct:t}_alt2.log )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_alt2.log
+			@ j = 1
+			echo $mode
+			while ( $j <= $#mode )	# imgreg_4dfp loop; register ${anat}_uwrp to ${struct:t}_t4
+				echo imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
+				$adir/${anat}_uwrp_to_${struct:t}_alt2_t4 $mode[$j]
+				imgreg_4dfp ${struct} ${struct}_brain_mask $adir/${anat}_uwrp $msk[$j] \
+				$adir/${anat}_uwrp_to_${struct:t}_alt2_t4 $mode[$j] >> $adir/${anat}_uwrp_to_${struct:t}_alt2.log || exit $status
+				@ j++
+			end
+
+			# convert to nifti
+			nifti_4dfp -n ${struct}_brain_mask ${struct}_brain_mask
+			# convert t4 to mat
+			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_t4 \
+				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}.mat
+			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_alt1_t4 \
+				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_alt1.mat
+			aff_conv 4f $adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_alt2_t4 \
+				$adir/${anat}_uwrp ${struct}_brain_mask $adir/${anat}_uwrp_to_${struct:t}_alt2.mat
+		
+			# run flirt
+			setenv OLDFSLOUTPUTTYPE $FSLOUTPUTTYPE
+			setenv FSLOUTPUTTYPE NIFTI
+			# check if new transform is better
+			# first apply the old transform
+			echo flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t} \
+				-init $adir/${anat}_uwrp_to_${struct:t}.mat -applyxfm -interp sinc -v
+			flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t} \
+				-init $adir/${anat}_uwrp_to_${struct:t}.mat -applyxfm -interp sinc -v
+			# then apply the new transform
+			echo flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t}_alt1 \
+				-init $adir/${anat}_uwrp_to_${struct:t}_alt1.mat -applyxfm -interp sinc -v
+			flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t}_alt1 \
+				-init $adir/${anat}_uwrp_to_${struct:t}_alt1.mat -applyxfm -interp sinc -v
+			# then apply the new transform
+			echo flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t}_alt2 \
+				-init $adir/${anat}_uwrp_to_${struct:t}_alt2.mat -applyxfm -interp sinc -v
+			flirt -ref ${struct} -in $adir/${anat}_uwrp -out $adir/${anat}_uwrp_on_${struct:t}_alt2 \
+				-init $adir/${anat}_uwrp_to_${struct:t}_alt2.mat -applyxfm -interp sinc -v
+			# compute correlation between the two images, getting best transform
+			set best_transform = `python3 -c "import numpy as np; import nibabel as nib; mask = nib.load('${struct}_brain_mask.nii'); struct = nib.load('${struct}.nii.gz'); img1 = nib.load('$adir/${anat}_uwrp_on_${struct:t}.nii'); img2 = nib.load('$adir/${anat}_uwrp_on_${struct:t}_alt1.nii'); img3 = nib.load('$adir/${anat}_uwrp_on_${struct:t}_alt2.nii'); mask_data = mask.get_fdata().ravel().astype(bool); struct_data = struct.get_fdata().ravel(); img1_data = img1.get_fdata().ravel(); img2_data = img2.get_fdata().ravel(); img3_data = img3.get_fdata().ravel(); corr1 = np.corrcoef(struct_data[mask_data], img1_data[mask_data])[0, 1]; corr2 = np.corrcoef(struct_data[mask_data], img2_data[mask_data])[0, 1]; corr3 = np.corrcoef(struct_data[mask_data], img3_data[mask_data])[0, 1]; print(np.argmax([corr1, corr2, corr3]))"`
+			echo "Best transform is $best_transform"
+			if ( $best_transform == 1 ) then
+				# use the new transform
+				mv $adir/${anat}_uwrp_on_${struct:t}_alt1.nii $adir/${anat}_uwrp_on_${struct:t}.nii
+				mv $adir/${anat}_uwrp_to_${struct:t}_alt1.mat $adir/${anat}_uwrp_to_${struct:t}.mat
+				mv $adir/${anat}_uwrp_to_${struct:t}_alt1_t4 $adir/${anat}_uwrp_to_${struct:t}_t4
+			endif
+			if ( $best_transform == 2 ) then
+				mv $adir/${anat}_uwrp_on_${struct:t}_alt2.nii $adir/${anat}_uwrp_on_${struct:t}.nii
+				mv $adir/${anat}_uwrp_to_${struct:t}_alt2.mat $adir/${anat}_uwrp_to_${struct:t}.mat
+				mv $adir/${anat}_uwrp_to_${struct:t}_alt2_t4 $adir/${anat}_uwrp_to_${struct:t}_t4
+			endif
+			rm -f $adir/${anat}_uwrp_on_${struct:t}_alt*
+			setenv FSLOUTPUTTYPE $OLDFSLOUTPUTTYPE
+		endif
 		set PHA_on_EPI = $adir/${FMAP:t}${i}_FMAP_on_${anat}_uwrp
 	else	# computed (synthetic) distortion correction
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
