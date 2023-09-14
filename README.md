@@ -456,7 +456,7 @@ run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "task-r
 run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "run-0[1-2]"   # <-- the "" are important don't leave them out!
 ```
 
-# Apptainer
+## Apptainer
 
 When running the pipeline with Apptainer (specifically on high performance clusters), it is recommended to run this pipeline in sandbox mode. This will allow you to emulate docker behavior more accurately.
 
