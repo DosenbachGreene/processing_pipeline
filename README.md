@@ -22,6 +22,7 @@
       - [Configuring the Pipeline](#configuring-the-pipeline)
       - [Structural Pipeline](#structural-pipeline)
       - [Functional Pipeline](#functional-pipeline)
+- [Apptainer](#apptainer)
 
 ## Dependencies for Local Install
 
@@ -454,3 +455,25 @@ run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "task-r
 # only process runs 1 and 2
 run_pipeline functional /path/to/bids --config /blah/blah --regex_filter "run-0[1-2]"   # <-- the "" are important don't leave them out!
 ```
+
+# Apptainer
+
+When running the pipeline with Apptainer (specifically on high performance clusters), it is recommended to run this pipeline in sandbox mode. This will allow you to emulate docker behavior more accurately.
+
+To do this, first pull the image, then build a sandbox directory with Apptainer's `build` command:
+
+```bash
+# first download the image
+apptainer pull docker://vanandrew/me_pipeline:[version]
+
+# now build the sandbox
+apptainer build --sandbox me_pipeline_[version] me_pipeline_[version].sif
+```
+
+Once the sandbox has been made, `run` it with the following flags:
+
+```bash
+apptainer run --writable --containall --no-init --no-umask --no-eval --fakeroot --workdir /some/dir/with/lots/of/space -B /your/bind/mount:/mnt me_pipeline_[version] [-h/functional/structural/params]
+```
+
+`workdir` should be pointed to a directory on a storage system with lots of space.
