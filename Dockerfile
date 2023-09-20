@@ -66,9 +66,9 @@ RUN /opt/tools/install_4dfp.sh
 
 # get and install Julia
 FROM base as julia
-RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.9/julia-1.9.2-linux-x86_64.tar.gz && \
-    tar -xzf julia-1.9.2-linux-x86_64.tar.gz && \
-    rm julia-1.9.2-linux-x86_64.tar.gz
+RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.3-linux-x86_64.tar.gz && \
+    tar -xzf julia-1.8.3-linux-x86_64.tar.gz && \
+    rm julia-1.8.3-linux-x86_64.tar.gz
 
 # setup final image
 FROM base as final
@@ -192,7 +192,7 @@ ENV RELEASE=/opt/4dfp/bin
 ENV PATH=${RELEASE}:${PATH}
 
 # copy over julia
-COPY --from=julia /opt/julia-1.9.2/ /opt/julia/
+COPY --from=julia /opt/julia-1.8.3/ /opt/julia/
 ENV PATH=/opt/julia/bin:${PATH}
 # add libjulia to ldconfig
 RUN echo "/opt/julia/lib" >> /etc/ld.so.conf.d/julia.conf && ldconfig
@@ -217,6 +217,11 @@ ENV PATH=${NORDIC}:${PATH}
 RUN chmod 755 ${NORDIC}/run_NORDIC_main.sh
 RUN chmod 755 ${NORDIC}/NORDIC_main
 
+# set JULIA_DEPOT_PATH, just in-case the -u flag is used and force permissions to 777
+RUN mkdir -p /.julia
+ENV JULIA_DEPOT_PATH=/.julia
+RUN chmod -R 777 /.julia
+
 # and install pipeline and warpkit
 RUN cd /opt/processing_pipeline && \
     # upgrade pip before install
@@ -224,10 +229,6 @@ RUN cd /opt/processing_pipeline && \
     python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
     python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
 
-# set JULIA_DEPOT_PATH and HOME to root, just in-case the -u flag is used and force permissions to 777
-ENV HOME=/root
-ENV JULIA_DEPOT_PATH=/root/.julia
-RUN chmod -R 777 /root
 # and for refdir make sure data is readable for all users
 RUN chmod -R 755 ${REFDIR}
 

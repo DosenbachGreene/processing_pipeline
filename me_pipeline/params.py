@@ -132,7 +132,13 @@ class RunsMap:
     @property
     def sefms(self) -> List[List[str]]:
         """A list of PEPolar fieldmaps"""
-        return [list(g) for g in self.BOLDmap.keys()]
+        sefms = list()
+        for g in self.BOLDmap.keys():
+            if g is str:
+                sefms.append([[p] for p in g])
+            else:
+                sefms.append(list(g))
+        return sefms
 
     def write(self, output_path: Union[Path, str]):
         """Write the runs map to a json file."""

@@ -172,7 +172,8 @@ else
 	set patid1 = $day1_patid
 	if ( $?day1_path ) then
 		set day1_path = `realpath $day1_path`
-		/bin/rm -rf atlas; ln -s $day1_path atlas || exit -1
+		/bin/rm -rf atlas
+		ln -s $day1_path atlas || exit -1
 	endif
 	if (-e atlas/${patid1}_t2w.4dfp.img) set t2wimg = ${patid1}_t2w
 endif
@@ -701,7 +702,10 @@ while ($k <= $runs)
 			endif
 		endif
 		# if medic is used, generate field maps off phase information
-		if ( $distort == 4 ) then
+		if ( ! $?MEDIC_SKIP ) then
+			set MEDIC_SKIP = 0
+		endif
+		if ( $distort == 4 && $MEDIC_SKIP == 0 ) then
 			echo "Setting up MEDIC..."
 			# warpkit must be installed, check before running.
 			python3 -c "import warpkit" || exit 1
@@ -714,20 +718,42 @@ while ($k <= $runs)
 			# create medic output directory
 			mkdir -p MEDIC
 			# run medic
-			echo medic \
-				--magnitude $mag_echoes \
-				--phase $phase_echoes \
-				--metadata $echoes_metadata \
-				--out_prefix MEDIC/$patid"_b"${run} \
-				--noiseframes ${noiseframes} \
-				--n_cpus ${num_cpus}
-			medic \
-				--magnitude $mag_echoes \
-				--phase $phase_echoes \
-				--metadata $echoes_metadata \
-				--out_prefix MEDIC/$patid"_b"${run} \
-				--noiseframes ${noiseframes} \
-				--n_cpus ${num_cpus} || exit 1
+			if ( ! $?MEDIC_WRAP_LIMIT ) then
+				set MEDIC_WRAP_LIMIT = 0
+			endif
+			if ( $MEDIC_WRAP_LIMIT == 1 ) then
+				echo medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} \
+					--wrap_limit
+				medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} \
+					--wrap_limit || exit 1
+			else
+				echo medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus}
+				medic \
+					--magnitude $mag_echoes \
+					--phase $phase_echoes \
+					--metadata $echoes_metadata \
+					--out_prefix MEDIC/$patid"_b"${run} \
+					--noiseframes ${noiseframes} \
+					--n_cpus ${num_cpus} || exit 1
+			endif
 			# do a conversion to 4dfp and back to nifti to ensure the images have the expected orientation
 			nifti_4dfp -4 MEDIC/$patid"_b"${run}_fieldmaps_native.nii \
 				MEDIC/$patid"_b"${run}_fieldmaps_native -N || exit $status
@@ -741,6 +767,8 @@ while ($k <= $runs)
 				MEDIC/$patid"_b"${run}_displacementmaps.nii || exit $status
 			nifti_4dfp -n MEDIC/$patid"_b"${run}_fieldmaps \
 				MEDIC/$patid"_b"${run}_fieldmaps.nii || exit $status
+		else
+			echo "skipping MEDIC..."
 		endif
 		@ necho = `ls $patid"_b"${run}${nordstr}_echo?.nii | wc -l`
 		@ fullframe = `fslinfo $patid"_b"${run}${nordstr}_echo1.nii | gawk '/^dim4/ {print $NF}'`
@@ -892,13 +920,13 @@ while ($k <= $#runID)
 	pushd  bold$runID[$k]
 	source $patid"_b"$runID[$k].params
 	set falnSTR = "-seqstr $seqstr"
-		@ i = 1
-		while ($i <= $necho)
-		echo	frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
-			frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
-			@ i++
-		end
-			frame_align_4dfp $patid"_b"$runID[$k]        $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+	@ i = 1
+	while ($i <= $necho)
+		echo frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR 
+		frame_align_4dfp $patid"_b"$runID[$k]_echo$i $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
+		@ i++
+	end
+	frame_align_4dfp $patid"_b"$runID[$k] $skip -TR_vol $TR_vol -TR_slc 0. -m $MBfac $falnSTR || exit $status
 	popd
 	@ k++
 end
@@ -916,8 +944,8 @@ while ($k <= $#runID)
 	@ k++
 end
 echo "second cross_realign3d_4dfp following slice timing correction"
-echo	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >! ${patid}_faln_xr3d.log	# resampling enabled
-	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >> ${patid}_faln_xr3d.log	|| exit $status
+echo cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >! ${patid}_faln_xr3d.log	# resampling enabled
+cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst >> ${patid}_faln_xr3d.log	|| exit $status
 ######################################
 # apply motion correction to each echo
 ######################################
@@ -932,8 +960,8 @@ while ($k <= $#runID)
 			>> $patid"_b"$runID[$k]_faln_xr3d.lst
 		@ i++
 	end
-	echo	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst # realignment computation disabled
-		cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst  >> /dev/null || exit $status
+	echo cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst # realignment computation disabled
+	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_b"$runID[$k]_faln_xr3d.lst  >> /dev/null || exit $status
 	popd
 	@ k++
 end
@@ -978,7 +1006,8 @@ if ($BiasField) then
 			if ($bc_fail) then
 				echo "*** ========================== ATTENTION! ============================ ***"
 				echo "*** ================================================================== ***"
-				echo "*** ============ Bias field correction failed for ${base} ============ ***"
+				echo "*** ============ Bias field correction failed for: =================== ***"
+				echo "*** ${base} ***"
 				echo "*** ================================================================== ***"
 				exit 1
 			endif
@@ -1006,6 +1035,8 @@ source bold$runID[1]/$patid"_b"$runID[1].params
 @ k = 1		# index of run within session
 while ( $i <= $#BOLDgrps )
 	set adir = anatgrp${i}	# $adir is group-specific atlas-like directory for BOLD registration to structural images
+	# remove old anatgrp${i} directory
+	rm -rf $adir
 	if ( ! -d $adir) mkdir $adir
 	set groupruns = (`echo ${BOLDgrps[$i]} | sed 's|,| |g'` )	# runs within-group are separated by commas in params file
 	set run = $runID[$k]	# first run of the group
@@ -1075,8 +1106,12 @@ while ( $i <= $#BOLDgrps )
 		# convert to radians
 		fslmaths ${FMAP}${i}_FMAP -mul 6.283185307 ${FMAP}${i}_FMAP
 
-		# use the same bold image as the magnitude image
+		# use the same bold image for the magnitude image
 		cp $adir/$anat.nii ${FMAP}${i}_mag.nii
+		
+		# unwarp the magnitude image with fugue
+		fugue --loadfmap=${FMAP}${i}_FMAP.nii --dwell=$dwell --unwarpdir=$ped \
+			--in=${FMAP}${i}_mag.nii --unwarp=${FMAP}${i}_mag.nii || exit $status
 
 		# convert things back into 4dfp
 		nifti_4dfp -4 ${FMAP}${i}_FMAP.nii ${FMAP}${i}_FMAP || exit $status
@@ -1086,26 +1121,19 @@ while ( $i <= $#BOLDgrps )
 		####################################################
 		# pha2epi.csh registers and applies field map to EPI
 		####################################################
-		if ( $distort == 4 ) then
-			# skips registration
-			echo pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
-			pha2epi_medic.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
-		else
-			echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
-			pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
-		endif
+		echo pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+		pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir || exit $status
 		if ( -e atlas/${t2wimg}.4dfp.img ) then
 			set struct = atlas/${t2wimg}
-			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
-			if ( $distort == 4 ) then  # the modes set for T2 don't work too well for MEDIC corrected data, swap to the MPR params in MEDIC mode
-				set mode = (4099 4099 3075 2051 2051)
-			endif
+			set mode = (4099 4099 1027 3075 2051 2051 10243)	# for imgreg_4dfp loop
+			set msk  = ( none none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
+
 		else
 			set struct = atlas/${mpr}
 			set mode = (4099 4099 3075 2051 2051)
+			set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
 		endif
 		set warp = atlas/fnirt/${struct:t}_to_MNI152_T1_2mm_fnirt_coeff	# structural to MNI152 warp
-		set msk  = ( none none $adir/${anat}_brain_mask $adir/${anat}_brain_mask $adir/${anat}_brain_mask )
 		if ( -e $adir/${anat}_uwrp_to_${struct:t}_t4  )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}_t4
 		if ( -e $adir/${anat}_uwrp_to_${struct:t}.log )  /bin/rm -f $adir/${anat}_uwrp_to_${struct:t}.log
 		@ j = 1
@@ -1160,12 +1188,12 @@ while ( $i <= $#BOLDgrps )
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
 		t4_mul $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${struct:t}_t4 $adir/${anat}_to_${struct:t}_t4 || exit $status
 		aff_conv 4f $adir/${anat} ${struct} $adir/${anat}_to_${struct:t}_t4 \
-			    $adir/${anat} ${struct} $adir/${anat}_to_${struct:t}.mat || exit $status
+			$adir/${anat} ${struct} $adir/${anat}_to_${struct:t}.mat || exit $status
 		convertwarp --ref=$outspace --shiftmap=${PHA_on_EPI}_shiftmap --shiftdir=$ped --premat=$adir/${anat}_to_${struct:t}.mat \
-                              --warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
+			--warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status		
 		applywarp --ref=$outspace --in=$adir/${anat}  --warp=$adir/${anat}_to_${outspace:t}_warp \
-                             --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
-	else	# no fnirt
+			--out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
+	else # no fnirt
 		if ( ! -e $target.nii ) then
 			nifti_4dfp -n $target $target:t
 		else

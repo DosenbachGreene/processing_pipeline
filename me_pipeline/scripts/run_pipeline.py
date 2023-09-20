@@ -127,6 +127,8 @@ def main():
     functional.add_argument("--session_filter", nargs="+", help="Only process these sessions.")
     functional.add_argument("--regex_filter", help="Only process data whose filenames matches this regex.")
     functional.add_argument("--single_echo", action="store_true", help="Input data is single echo.")
+    functional.add_argument("--wrap_limit", action="store_true", help="Turns off some heuristics for phase unwrapping")
+    functional.add_argument("--skip_medic", action="store_true", help="Skip medic step")
     params = subparser.add_parser("params", help="Generate params file")
     params.add_argument("params_file", help="Path to write params file to (e.g. /path/to/params.toml)")
 
@@ -183,7 +185,9 @@ def main():
             json.dump(dataset_description, f, indent=4)
 
         # parse the bids directory and grab anatomicals
-        anatomicals = parse_bids_dataset(bids_path, get_anatomicals, args.reset_database)
+        anatomicals = parse_bids_dataset(
+            bids_path, get_anatomicals, args.reset_database, args.participant_label, output_path
+        )
 
         # loop over subjects
         for subject_id, sessions in anatomicals["T1w"].items():
@@ -264,6 +268,17 @@ def main():
                 logging.info(f"Dry run: skipping structural pipeline for {subject_id}.")
 
     elif args.pipeline == "functional":
+        # setup wrap limit variable
+        if args.wrap_limit:
+            os.environ["MEDIC_WRAP_LIMIT"] = "1"
+        else:
+            os.environ["MEDIC_WRAP_LIMIT"] = "0"
+
+        if args.skip_medic:
+            os.environ["MEDIC_SKIP"] = "1"
+        else:
+            os.environ["MEDIC_SKIP"] = "0"
+
         # if runs maps provided, load them all in
         user_sessions_dict = {}
         if args.load_func_config:
@@ -284,10 +299,18 @@ def main():
                                 user_sessions_dict[sub].update({ses: config[sub][ses]})
 
         # parse the bids directory and grab functionals
-        functionals = parse_bids_dataset(bids_path, get_functionals, args.reset_database)
+        functionals = parse_bids_dataset(
+            bids_path,
+            get_functionals,
+            args.reset_database,
+            participant_label=args.participant_label,
+            output_path=output_path,
+        )
 
         # get fieldmaps
-        fieldmaps = parse_bids_dataset(bids_path, get_fieldmaps)
+        fieldmaps = parse_bids_dataset(
+            bids_path, get_fieldmaps, participant_label=args.participant_label, output_path=output_path
+        )
 
         # loop over subjects
         for subject_id, func_sessions in functionals.items():
