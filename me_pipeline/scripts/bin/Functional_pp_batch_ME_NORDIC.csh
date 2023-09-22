@@ -163,6 +163,7 @@ foreach run ( $runID )
 	set outname = "${wrkdir}/atlas/$patid"_b"${run}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm_avg_regcheck"	
 echo batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhite} ${outname}
 batch_wb_image_capture_volreg ${volume} ${Lpial} ${Lwhite} ${Rpial} ${Rwhite} ${outname}
+cp ${outname}.png ${wrkdir}/bold${run}/
 # eog ${outname}.png &
 end
 if ( $doexit ) exit
