@@ -130,6 +130,11 @@ class RunsMap:
         return [self.run_key_to_int_dict[run] for run in self.runs]
 
     @property
+    def FCrunIDs(self) -> List[int]:
+        """A list of runIDs for rsfc processing (resting state data only)"""
+        return [self.run_key_to_int_dict[run] for run in self.runs if "rest" in run]
+
+    @property
     def sefms(self) -> List[List[str]]:
         """A list of PEPolar fieldmaps"""
         sefms = list()

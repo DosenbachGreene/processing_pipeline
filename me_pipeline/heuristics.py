@@ -263,7 +263,6 @@ def infotodict(seqinfo):
             dcmdata = EXTRA_METADATA[s.series_uid]
             s.sequence_name = dcmdata[0x5200, 0x9230][0][0x0018, 0x9226][0][0x0021, 0x1177].value
             s.image_type = dcmdata[0x5200, 0x9230][0][0x0021, 0x11FE][0][0x0021, 0x1175].value
-        # breakpoint()
 
         # skip all SBRefs
         if "SBRef" in s.series_description:
@@ -303,8 +302,8 @@ def infotodict(seqinfo):
         # ME-task
         found_task = False
         for task, keys in zip(ME_TASKS, task_keys):
-            # skip if dim4 not > 50
-            if s.dim4 < 50:
+            # skip if number of files < 50
+            if s.series_files < 200:
                 break
             if check_in_sequence(task, s.series_description):
                 if check_add_multi_echo(info, keys[0], s, "mag"):

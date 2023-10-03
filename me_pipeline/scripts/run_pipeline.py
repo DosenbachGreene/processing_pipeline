@@ -421,7 +421,7 @@ def main():
                     t2wimg=t2wimg.get_prefix().path,
                     BOLDgrps=runs_map.BOLDgrps,
                     runID=runs_map.runIDs,
-                    FCrunID=runs_map.runIDs,
+                    FCrunID=runs_map.FCrunIDs,
                     sefm=runs_map.sefms,
                     FSdir=output_path / "fs",
                     PostFSdir=output_path / "FREESURFER_fs_LR",
