@@ -173,6 +173,31 @@ if ( ! $?bids ) then
 	set bids = 0
 endif
 
+
+# TODO: ADD BREAKS IN CODE
+###############
+# parse options
+###############
+set enter = "";
+
+@ i = 3
+while ($i <= ${#argv})
+	switch ($argv[$i])
+	case echo:
+		set echo;		breaksw;
+	case regtest:
+	case DISTORT
+	case MODEL:
+	case BOLD*:
+	case NORDIC:
+	case NORM:
+	case CLEANUP:
+		set enter = $argv[$i];	breaksw;
+	endsw
+	@ i++
+end
+echo "enter="$enter;
+
 ##################
 # set up variables
 ##################
@@ -329,17 +354,6 @@ endif
 if (! $?refframe) set refframe = 2
 if ( ! $?useold ) set useold = 0	# when set extant t4 files are not re-computed
 if ( ! $?OneStepResample ) set OneStepResample = 1
-if ( ! $?OSResample_parallel ) set OSResample_parallel = 1
-set parallelstr = ""
-if ( $OSResample_parallel != 1 ) then
-	set parallelstr = "-parallel $OSResample_parallel"
-endif
-
-if ($enter == DISTORT)	goto DISTORT;
-if ($enter == BOLD)		goto BOLD;
-if ($enter == NORDIC)		goto NORDIC;
-if ($enter == VERIFY_BOLD) goto VERIFY_BOLD;
-if ($enter == BOLD_ANAT) goto BOLD_ANAT;
 
 ###################
 # set up structural
@@ -695,11 +709,9 @@ while ($k <= ${#runID})
 				@ echo_num = $e + 1
 				echo "Copying from BIDS Dataset..."
 				cp -fv $echo_file $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
-				echo $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
 				# get the sidecar as well
 				set sidecar = `echo $echo_file | sed 's/.nii.gz/.json/g'`
 				cp -fv $sidecar $patid"_b"${run}${nordstr}_echo${echo_num}.json
-				echo $patid"_b"${run}${nordstr}_echo${echo_num}.json
 				# and gunzip it
 				echo "gunziping the file..."
 				gunzip -f $patid"_b"${run}${nordstr}_echo${echo_num}.nii.gz
@@ -751,6 +763,8 @@ while ($k <= ${#runID})
 		if ( $ped == "" ) then 
 			echo unable to determine phase encoding direction
 			exit -1
+		
+		#TODO: CHECK IF LINES 790 from ME_cross_bold.pp needs to be here
 		endif
 	popd
 	@ k++
@@ -1122,10 +1136,10 @@ while ( $i <= $#BOLDgrps )
 			set strwarp = "-postmat $adir/${anat}_xr3d_to_${outspace:t}.mat"
 			
 			echo	one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp $parallelstr \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp ${num_cpus} \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr}_xr3d_uwrp_on_${outspacestr}
 			one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp $parallelstr \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp ${} \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d_uwrp_on_${outspacestr} || exit $status
 
 			#####################

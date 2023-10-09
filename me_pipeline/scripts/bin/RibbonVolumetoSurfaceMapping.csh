@@ -65,7 +65,7 @@ set factor = 0.5
 foreach study ( $runID )
 	pushd bold${study}
 
-	set preproc_runfunc = ${patid}_b${study}_faln_xr3d_uwrp_on_${outspacestr}_Swgt_norm
+	set preproc_runfunc = ${patid}_b${study}_faln_dbnd_xr3d_uwrp_on_${outspacestr}
         set outputdir = goodvoxels
 	mkdir -p ${outputdir} 
 

@@ -31,7 +31,7 @@ dbnd_flag = true
 # if NORDIC collected
 isnordic = true
 # if running NORDIC
-runnordic = true
+runnordic = false
 # if using NORDIC, set number of noise frames used
 noiseframes = 3
 

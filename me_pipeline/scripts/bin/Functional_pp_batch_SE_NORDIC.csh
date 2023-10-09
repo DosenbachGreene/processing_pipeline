@@ -122,14 +122,14 @@ if ($enter == FCMRI_PP)                 goto FCMRI_PP;
 if ($enter == FORMAT_CONVERT)           goto FORMAT_CONVERT;
 if ($enter == FC_QC)                    goto FC_QC;
 if ($enter == CIFTI_CREATION)           goto CIFTI_CREATION;
-#goto NIFTI
+
 
 FMRI_PP:
 ##################################
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-cross_bold_pp_2019.csh $1 $2 || exit $status
+SE_cross_bold_pp.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -137,6 +137,7 @@ NIFTI:
 ### Convert 4dfp to nii
 ##################################
 echo "############## 4dfp to NIFTI conversion ##############"
+echo $cwd
 foreach run ( $runID )
         pushd bold${run}
         set procstring = faln_dbnd_xr3d_uwrp
@@ -145,7 +146,7 @@ foreach run ( $runID )
         set format = `echo $skip $nframe | gawk '{printf("%dx%d+", $1, $2-$1)}'`
         actmapf_4dfp ${format} $patid"_b"${run}_${procstring}_on_${outspacestr} -aavg
         var_4dfp -s $patid"_b"${run}_${procstring}_on_${outspacestr}
-        imgopr_4dfp -r$patid"_b"${run}_${procstring}_on_${outspacestr}_SNR ${patid}"_b"${run}_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1 -u
+        imgopr_4dfp -r$patid"_b"${run}_${procstring}_on_${outspacestr}_SNR ${patid}"_b"${run}_echo1_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_echo1_${procstring}_on_${outspacestr}_sd1 -u
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_${procstring}_on_${outspacestr}_avg
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1 $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_SNR $patid"_b"${run}_${procstring}_on_${outspacestr}_SNR

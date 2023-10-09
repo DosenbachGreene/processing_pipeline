@@ -192,6 +192,8 @@ endif
 # setup EPI
 ###########
 @ k = 1 # iterate through input EPIs
+echo "epi inside of one step resample is"
+echo $epi
 while ( $k <= $#epi )
 	set epi[$k] = `echo $epi[$k] | sed -E 's/\.4dfp(\.img){0,1}$//'`
 	if ( ! -e ${epi[$k]}.4dfp.img ) then

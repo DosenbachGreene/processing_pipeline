@@ -80,6 +80,7 @@ switch ( $outspace_flag )
 endsw
 set outspacestr = ${outspacestr}${outspace:t}	# e.g., "nl_711-2B_333"
 
+if ( ! $?Atlas_ROIs ) set Atlas_ROIs = 0
 if ( $Atlas_ROIs ) then
 	if ( ! $nlalign ) then
 		echo "If using atlas for subcortical ROIs, data must be non-linearly registered to MNI space"
@@ -95,7 +96,6 @@ else
 	set right_mask = ${maskdir}/R.atlasroi.32k_fs_LR.shape.gii
 endif
 
-echo "subcortical_mask: ${subcortical_mask}"
 set vol2surfdir = surf_timecourses
 set ciftidir = cifti_timeseries_normalwall_atlas_freesurf
 mkdir -p ${vol2surfdir}
@@ -128,11 +128,11 @@ foreach run ( ${runID} )
         
 		set midsurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.midthickness.native.surf.gii
 	        set midsurf_LR32k = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.midthickness.32k_fs_LR.surf.gii 
-		set whitesurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.white.native.surf.gii 
+			set whitesurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.white.native.surf.gii 
 	        set pialsurf = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.pial.native.surf.gii
 	        set nativedefsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/Native/${day1_patid}.${hem}.sphere.reg.reg_LR.native.surf.gii
 	        set outsphere = ${PostFSdir}/${day1_patid}/${atlasdir}/fsaverage_LR32k/${day1_patid}.${hem}.sphere.32k_fs_LR.surf.gii
-
+         
 		set surfname = ${patid}_b${run}_${outspacestr}${FCprocaddstring}_${hem}
         	echo "########### Mapping volume to surface, hem ${hem} #####################"
         	${workbenchdir}/wb_command -volume-to-surface-mapping ${funcvol}.nii.gz ${midsurf} ../${vol2surfdir}/${surfname}.func.gii -ribbon-constrained ${whitesurf} ${pialsurf} -volume-roi ${goodvoxels}.nii.gz
@@ -164,15 +164,16 @@ foreach run ( ${runID} )
 		set subfuncvol = ${funcvol}
 	endif
     
-		echo "########### Create Cifti Timeseries ###################################"	
-    	set timename_L = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_L_dil10_32k_fs_LR${surfsmoothstr}
-        set timename_R = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_R_dil10_32k_fs_LR${surfsmoothstr}
-    	set outname = ${patid}_b${run}_${outspacestr}${FCprocaddstring}_LR_surf_subcort_32k_fsLR_brainstem${smoothstr}
-   	${workbenchdir}/wb_command -cifti-create-dense-timeseries ../${ciftidir}/${outname}.dtseries.nii -volume ${subfuncvol}.nii.gz ${subcortical_mask} -left-metric ../${timename_L}.func.gii -roi-left ${left_mask} -right-metric ../${timename_R}.func.gii -roi-right ${right_mask} -timestep ${TR_vol} -timestart 0
+	echo "########### Create Cifti Timeseries ###################################"	
+	echo "before timename_L"
+	set timename_L = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_L_dil10_32k_fs_LR${surfsmoothstr}
+	echo "before timename_R"
+	set timename_R = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_R_dil10_32k_fs_LR${surfsmoothstr}
+	echo "before outname"
+	set outname = ${patid}_b${run}_${outspacestr}${FCprocaddstring}_LR_surf_subcort_32k_fsLR_brainstem${smoothstr}
+   	echo "before wb command"
+	${workbenchdir}/wb_command -cifti-create-dense-timeseries ../${ciftidir}/${outname}.dtseries.nii -volume ${subfuncvol}.nii.gz ${subcortical_mask} -left-metric ../${timename_L}.func.gii -roi-left ${left_mask} -right-metric ../${timename_R}.func.gii -roi-right ${right_mask} -timestep ${TR_vol} -timestart 0
+	echo "before rm"
 	rm -f ${funcvol}.nii.gz
 	popd
 end
-	
-
-
-
