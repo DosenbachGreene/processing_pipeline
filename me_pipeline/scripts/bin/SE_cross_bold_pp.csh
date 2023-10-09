@@ -588,6 +588,7 @@ if ( $distort == 1 ) then		# spin echo distortion correction
 			set file = SEFM/${patid}_sefm_Grp${i}_${j}.json
 
 			set pedindex = `cat $file | jq -r '.PhaseEncodingDirection'`
+			echo "pedindex = $pedindex"
 			set readout_time_sec = `cat $file | jq -r '.TotalReadoutTime'`
 		
 			####################################################
@@ -1139,7 +1140,7 @@ while ( $i <= $#BOLDgrps )
 				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp ${num_cpus} \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr}_xr3d_uwrp_on_${outspacestr}
 			one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
-				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp ${} \
+				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp ${num_cpus} \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d_uwrp_on_${outspacestr} || exit $status
 
 			#####################
