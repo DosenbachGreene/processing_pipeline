@@ -96,6 +96,7 @@ def main():
     structural.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     structural.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
     structural.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
+    structural.add_argument("--fs_license", help="Path to freesurfer license file.")
     structural.add_argument(
         "--save_struct_config",
         help="Save struct config files to path. Use with --dry_run option.",
@@ -120,6 +121,7 @@ def main():
     functional.add_argument("--reset_database", action="store_true", help="Reset database on BIDS dataset.")
     functional.add_argument("--dry_run", action="store_true", help="Creates params files, but don't run pipeline.")
     functional.add_argument("--tmp_dir", help="Path to temporary directory. Default: $output_dir/tmp")
+    functional.add_argument("--fs_license", help="Path to freesurfer license file.")
     functional.add_argument("--ses_label", help="For paper, will likely be removed later.")
     functional.add_argument(
         "--save_func_config", help="Save functional config files to path. Use with --dry_run option."
@@ -148,6 +150,10 @@ def main():
 
     # setup logging
     setup_logging(args.log_file)
+
+    # setup the FS_LICENSE environment variable
+    if args.fs_license is not None:
+        os.environ["FS_LICENSE"] = args.fs_license
 
     # make bids path absolute
     bids_path = Path(args.bids_dir).absolute().resolve()

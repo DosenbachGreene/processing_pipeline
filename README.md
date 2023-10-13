@@ -28,10 +28,6 @@
 
 This pipeline requires 4dfp, fsl, freesurfer, and connectome workbench.
 
-> **__NOTE:__** This repo contains some licenses and install scripts for these dependencies. Because of this,
-> we may need to redo them to comply with the license agreements. For now, we are using the install scripts
-> in a private repo so we should be fine for now.
-
 To install the dependencies, you can use the `install_` scripts found in the `tools` folder of this repo. If you
 already have these dependencies installed, you can skip this step.
 
@@ -59,6 +55,8 @@ The fsl install script is located in `tools/install_fsl.sh`. This script will do
 `tools/pkg/fsl`.
 
 ### FreeSurfer
+
+> **__NOTE:__**: You need a freesurfer `license.txt` in the `tools` directory before running the install script.
 
 The freesurfer install script is located in `tools/install_freesurfer.sh`. This script will download and install
 freesurfer under `tools/pkg/freesurfer`.

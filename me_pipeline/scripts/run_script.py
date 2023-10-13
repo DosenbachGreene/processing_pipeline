@@ -24,6 +24,7 @@ def main():
         choices=SCRIPTS,
     )
     parser.add_argument("script_args", nargs="*", help="Arguments to script.")
+    parser.add_argument("--fs_license", help="Path to freesurfer license file.")
     parser.add_argument("--log_file", help="Path to log file")
     parser.add_argument("--tmp_dir", help="Path to temporary directory.")
 
@@ -32,6 +33,10 @@ def main():
 
     # setup logging
     setup_logging(args.log_file)
+
+    # set the FS_LICENSE environment variable
+    if args.fs_license is not None:
+        os.environ["FS_LICENSE"] = args.fs_license
 
     # setup TMPDIR
     if args.tmp_dir is not None:
