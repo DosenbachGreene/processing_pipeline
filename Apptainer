@@ -1,0 +1,209 @@
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: base
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+
+%post
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y build-essential ftp tcsh wget git jq \
+    python3 python3-pip gfortran tcl wish unzip dc bc \
+    libglu1-mesa libglib2.0-0
+    wget https://ftp.gnu.org/gnu/gawk/gawk-4.2.1.tar.gz && \
+    tar -xzf gawk-4.2.1.tar.gz && \
+    cd gawk-4.2.1 && \
+    ./configure && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf gawk-4.2.1.tar.gz gawk-4.2.1
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: fsl
+
+%files from base
+    / /
+
+%post
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y libgl1-mesa-dev && \
+    wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py && \
+    python3 fslinstaller.py -d /opt/fsl
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: freesurfer
+
+%files from base
+    / /
+
+%post
+    export DEBIAN_FRONTEND=noninteractive && \
+    wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer_ubuntu22-7.3.2_amd64.deb && \
+    apt install -y ./freesurfer_ubuntu22-7.3.2_amd64.deb && \
+    rm freesurfer_ubuntu22-7.3.2_amd64.deb
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: connectome_workbench
+
+%files from base
+    / /
+
+%post
+    cd /opt && \
+    wget https://www.humanconnectome.org/storage/app/media/workbench/workbench-linux64-v1.5.0.zip && \
+    unzip workbench-linux64-v1.5.0.zip && \
+    rm workbench-linux64-v1.5.0.zip
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: matlab_compiler_runtime
+
+%files from base
+    / /
+
+%files
+    tools/install_mcr.sh /opt/tools/
+
+%post
+    export MATLAB_VERSION=R2022a
+    /opt/tools/install_mcr.sh
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: fdfp
+
+%files from base
+    / /
+
+%files
+    tools/FSLTransforms /opt/tools/
+    tools/me_fmri /opt/tools/
+    tools/refdir_extras /opt/tools/
+    tools/updated_4dfp_scripts /opt/tools/
+    tools/get_4dfp.sh /opt/tools/
+    tools/install_4dfp.sh /opt/tools/
+
+%post
+    /opt/tools/install_4dfp.sh
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: julia
+
+%files from base
+    / /
+
+%post
+    cd /opt && \
+    wget https://julialang-s3.julialang.org/bin/linux/x64/1.9/julia-1.9.3-linux-x86_64.tar.gz && \
+    tar -xzf julia-1.9.3-linux-x86_64.tar.gz && \
+    rm julia-1.9.3-linux-x86_64.tar.gz
+
+Bootstrap: docker
+From: ubuntu:22.04
+Stage: final
+
+%environment
+    export MATLAB_VERSION=R2022a
+    export DEBIAN_FRONTEND=noninteractive
+    # fsl
+    export FSLDIR=/opt/fsl
+    export FSL_DIR=/opt/fsl
+    export FSLOUTPUTTYPE=NIFTI_GZ
+    export FSLMULTIFILEQUIT=TRUE
+    export FSLTCLSH=${FSLDIR}/bin/tclsh
+    export FSLWISH=${FSLDIR}/bin/wish
+    export FSLGECUDAQ=cuda.q
+    export FSL_LOAD_NIFTI_EXTENSIONS=0
+    export FSL_SKIP_GLOBAL=0
+    export PATH=${FSLDIR}/share/fsl/bin:${PATH}
+    # freesurfer
+    export FREESURFER_HOME=/usr/local/freesurfer/7.3.2
+    export MNI_DIR=${FREESURFER_HOME}/mni
+    export FSFAST_HOME=${FREESURFER_HOME}/fsfast
+    export SUBJECTS_DIR=${FREESURFER_HOME}/user_subjects
+    export PATH=${MNI_DIR}/bin:${PATH}
+    export PATH=${FREESURFER_HOME}/tktools:${PATH}
+    export PATH=${FSFAST_HOME}/bin:${PATH}
+    export PATH=${FREESURFER_HOME}/bin:${PATH}
+    # connectome workbench
+    export WORKBENCH=/opt/workbench/bin_linux64
+    export PATH=${WORKBENCH}:${PATH}
+    # matlab compiler runtime
+    export MCRROOT=/opt/mcr_runtime/v912
+    # 4dfp
+    export REFDIR=/opt/4dfp/refdir
+    export RELEASE=/opt/4dfp/bin
+    export PATH=${RELEASE}:${PATH}
+    # julia
+    export PATH=/opt/julia/bin:${PATH}
+    # NORDIC
+    export NORDIC=/opt/nordic
+    export PATH=${NORDIC}:${PATH}
+
+
+%setup
+    ./tools/install_nordic.sh
+
+%files from base
+    / /
+
+%files from fsl
+    /opt/fsl /opt/
+
+%files from freesurfer
+    /usr/local/freesurfer /usr/local/
+
+%files from connectome_workbench
+    /opt/workbench /opt/
+
+%files from matlab_compiler_runtime
+    /opt/tools/pkg/mcr_runtime /opt/
+
+%files from fdfp
+    /opt/tools/bin /opt/4dfp/
+    /opt/tools/pkg/refdir /opt/4dfp/
+
+%files from julia
+    /opt/julia-1.9.3 /opt/julia
+
+%files
+    me_pipeline /opt/processing_pipeline/
+    extern/warpkit /opt/processing_pipeline/extern/
+    LICENSE /opt/processing_pipeline/
+    MANIFEST.in /opt/processing_pipeline/
+    pyproject.toml /opt/processing_pipeline/
+    README.md /opt/processing_pipeline/
+    setup.cfg /opt/processing_pipeline/
+    setup.py /opt/processing_pipeline/
+
+%post
+    # add symlink for msm
+    export FSLDIR=/opt/fsl
+    ln -s ${FSLDIR}/bin/msm ${FSLDIR}/share/fsl/bin/msm
+    # add libjulia to ldconfig
+    echo "/opt/julia/lib" >> /etc/ld.so.conf.d/julia.conf && ldconfig
+    # add nordic
+    cd /opt/ && wget https://github.com/vanandrew/NORDIC_Raw/releases/download/1.0/nordic-R2022a.zip && \
+    unzip nordic-R2022a.zip && rm nordic-R2022a.zip
+    export NORDIC=/opt/nordic
+    chmod 755 ${NORDIC}/run_NORDIC_main.sh
+    chmod 755 ${NORDIC}/NORDIC_main
+    # for 4dfp refdir make sure data is readable for all users
+    export REFDIR=/opt/4dfp/refdir
+    chmod -R 755 ${REFDIR}
+    export PATH=/opt/julia/bin:${PATH}
+    # install pipeline and warpkit
+    cd /opt/processing_pipeline && \
+    # upgrade pip before install
+    python3 -m pip install pip --upgrade && \
+    python3 -m pip install -e ./\[dev\] -v --config-settings editable_mode=strict && \
+    python3 -m pip install -e ./extern/warpkit -v --config-settings editable_mode=strict
+
+%runscript
+    exec run_pipeline $@

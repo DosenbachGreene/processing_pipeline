@@ -163,6 +163,7 @@ dmypy.json
 *.app
 
 # custom paths
+.secrets
 .vscode/
 tools/pkg/
 tools/bin/

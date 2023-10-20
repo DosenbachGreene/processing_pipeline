@@ -2,8 +2,9 @@ FROM ubuntu:22.04 as base
 LABEL maintainer="Andrew Van <vanandrew@wustl.edu>"
 
 # Set MATLAB VERSION to install appropriate MCR
-ARG MATLAB_VERSION
-RUN test -n "$MATLAB_VERSION" || (echo "MATLAB_VERSION not set. Did you forget to run install_nordic.sh?" && false)
+# ARG MATLAB_VERSION
+# RUN test -n "$MATLAB_VERSION" || (echo "MATLAB_VERSION not set. Did you forget to run install_nordic.sh?" && false)
+ENV MATLAB_VERSION=R2022a
 
 # set noninteractive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
@@ -41,7 +42,7 @@ RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer
 # add the freesufer license
 # TODO: we may need to remove this when this pipeline is public
 # since we aren't allowed to distribute the license
-ADD tools/license.txt /usr/local/freesurfer/7.3.2/license.txt
+# ADD tools/license.txt /usr/local/freesurfer/7.3.2/license.txt
 
 # get and install connectome workbench
 FROM base as connectome_workbench
@@ -66,9 +67,9 @@ RUN /opt/tools/install_4dfp.sh
 
 # get and install Julia
 FROM base as julia
-RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.3-linux-x86_64.tar.gz && \
-    tar -xzf julia-1.8.3-linux-x86_64.tar.gz && \
-    rm julia-1.8.3-linux-x86_64.tar.gz
+RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.9/julia-1.9.3-linux-x86_64.tar.gz && \
+    tar -xzf julia-1.9.3-linux-x86_64.tar.gz && \
+    rm julia-1.9.3-linux-x86_64.tar.gz
 
 # setup final image
 FROM base as final
@@ -192,7 +193,7 @@ ENV RELEASE=/opt/4dfp/bin
 ENV PATH=${RELEASE}:${PATH}
 
 # copy over julia
-COPY --from=julia /opt/julia-1.8.3/ /opt/julia/
+COPY --from=julia /opt/julia-1.9.3/ /opt/julia/
 ENV PATH=/opt/julia/bin:${PATH}
 # add libjulia to ldconfig
 RUN echo "/opt/julia/lib" >> /etc/ld.so.conf.d/julia.conf && ldconfig
@@ -209,10 +210,12 @@ ADD setup.py /opt/processing_pipeline/setup.py
 
 # adds nordic, but you need to make sure it exists in the tools directory
 # before building the image
-ADD tools/pkg/nordic /opt/processing_pipeline/tools/pkg/nordic
+# ADD tools/pkg/nordic /opt/processing_pipeline/tools/pkg/nordic
+RUN cd /opt/ && wget https://github.com/vanandrew/NORDIC_Raw/releases/download/1.0/nordic-R2022a.zip && \
+    unzip nordic-R2022a.zip && rm nordic-R2022a.zip
 
 # set NORDIC env variable
-ENV NORDIC=/opt/processing_pipeline/tools/pkg/nordic
+ENV NORDIC=/opt/nordic
 ENV PATH=${NORDIC}:${PATH}
 RUN chmod 755 ${NORDIC}/run_NORDIC_main.sh
 RUN chmod 755 ${NORDIC}/NORDIC_main

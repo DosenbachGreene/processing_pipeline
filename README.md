@@ -109,16 +109,11 @@ python3 -m pip install -e /path/to/repo/ -v --config-settings editable_mode=stri
 
 A docker build is currently available on [DockerHub](https://hub.docker.com/repository/docker/vanandrew/me_pipeline).
 
-To build the docker image, you will need to first compile NORDIC (see [above](#NORDIC)).
-Then, you can run build the docker image with:
+To build the docker image, you can run:
 
 ```bash
-docker buildx build --build-arg MATLAB_VERSION=R20XXx . -t ghcr.io/dosenbachgreene/me_pipeline
+docker buildx build . -t ghcr.io/dosenbachgreene/me_pipeline
 ```
-
-Where `MATLAB_VERSION` is the version defined in your `.env` file at the root of the project repo. The `.env` file
-is auto-generated after running the `install_nordic` script and specifies which MATLAB version NORDIC was compiled
-with.
 
 Alternatively, if you have docker compose installed, you can run:
 
@@ -126,14 +121,7 @@ Alternatively, if you have docker compose installed, you can run:
 docker compose build
 ```
 
-which will auto-source your `.env` file and pass the `MATLAB_VERSION` variable to the docker build command
-automatically.
-
 Both will do a multi-stage build of the docker image with the tag `ghcr.io/dosenbachgreene/me_pipeline`.
-
-> **__NOTE:__** The docker image currently requires that you run the `install_nordic.sh` script
-> prior to building the docker image. This is because the NORDIC MCR executable is not included
-> in the repo, and is instead built with MATLAB prior to building the docker image.
 
 The docker build makes the `run_pipline` script the entrypoint. An example invocation for the help is given below:
 
