@@ -123,13 +123,14 @@ if ($enter == FORMAT_CONVERT)           goto FORMAT_CONVERT;
 if ($enter == FC_QC)                    goto FC_QC;
 if ($enter == CIFTI_CREATION)           goto CIFTI_CREATION;
 
+goto NIFTI;
 
 FMRI_PP:
 ##################################
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-SE_cross_bold_pp.csh $1 $2 || exit $status
+/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SE_cross_bold_pp.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -146,7 +147,7 @@ foreach run ( $runID )
         set format = `echo $skip $nframe | gawk '{printf("%dx%d+", $1, $2-$1)}'`
         actmapf_4dfp ${format} $patid"_b"${run}_${procstring}_on_${outspacestr} -aavg
         var_4dfp -s $patid"_b"${run}_${procstring}_on_${outspacestr}
-        imgopr_4dfp -r$patid"_b"${run}_${procstring}_on_${outspacestr}_SNR ${patid}"_b"${run}_echo1_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_echo1_${procstring}_on_${outspacestr}_sd1 -u
+        imgopr_4dfp -r$patid"_b"${run}_${procstring}_on_${outspacestr}_SNR ${patid}"_b"${run}_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1 -u
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_avg $patid"_b"${run}_${procstring}_on_${outspacestr}_avg
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1 $patid"_b"${run}_${procstring}_on_${outspacestr}_sd1
         niftigz_4dfp -n -f $patid"_b"${run}_${procstring}_on_${outspacestr}_SNR $patid"_b"${run}_${procstring}_on_${outspacestr}_SNR
@@ -179,7 +180,7 @@ GOODVOXELS:
 ### Create goodvoxels masks
 ##################################
 echo "############## Create goodvoxels mask ##############"
-RibbonVolumetoSurfaceMapping.csh $1 $2 || exit $status
+/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/RibbonVolumetoSurfaceMapping.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 FCMRI_PP:
@@ -188,7 +189,7 @@ FCMRI_PP:
 ##################################
 echo "############## Run fcMRI processing ##############"
 if ( $#FCrunID ) then
-   SE_fcMRI_preproc_2019.csh $1 $2 || exit $status
+   /home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SE_fcMRI_preproc_2019.csh $1 $2 || exit $status
 else
 endif
 if ( $doexit ) exit
@@ -198,11 +199,13 @@ FORMAT_CONVERT:
 ### Convert format files
 ##################################
 echo "############## Convert format files ##############"
-pushd ./FCmaps
-set concroot = ${patid}_faln_dbnd_xr3d_uwrp_on_${outspacestr}
-split_format.csh ${concroot}
-format2lst ${concroot}.format -w > ${concroot}_tmask.txt
-popd
+if ( $#FCrunID ) then
+        pushd ./FCmaps
+        set concroot = ${patid}_faln_dbnd_xr3d_uwrp_on_${outspacestr}
+        split_format.csh ${concroot}
+        format2lst ${concroot}.format -w > ${concroot}_tmask.txt
+        popd
+endif 
 foreach run ( $FCrunID )
         pushd bold${run}
         set formatname = ${patid}_b${run}_faln_dbnd_xr3d_uwrp_on_${outspacestr}
@@ -240,5 +243,5 @@ CIFTI_CREATION:
 ### Create cifti files
 ##################################
 echo "############## Create CIFTI timeseries ##############"
-SurfaceMappingCiftiCreation_v3_SE.csh $1 $2 || exit $status
+/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SurfaceMappingCiftiCreation_v3_SE.csh $1 $2 || exit $status
 if ( $doexit ) exit
