@@ -29,7 +29,7 @@ ME_reg = true
 dbnd_flag = true
 
 # if NORDIC collected
-isnordic = true
+isnordic = false
 # if running NORDIC
 runnordic = false
 # if using NORDIC, set number of noise frames used

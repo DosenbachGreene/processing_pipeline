@@ -106,6 +106,7 @@ source $prmfile
 set instructions = ""
 if (${#argv} > 1) then
 		set instructions = $2
+		echo "instructions = "$instructions
 		if (! -e $instructions) then
 			echo $program": "$instructions not found
 			exit -1
@@ -352,6 +353,7 @@ else if ( $E4dfp && $GetBoldConfig ) then
 	echo "E4dfp and GetBoldConfig are mutally exclusive both can not be set at the same time"
 	exit 1
 endif
+
 if ( ! $?runnordic ) set runnordic = 0
 if ( ! $?isnordic ) set isnordic = 0
 if ( $runnordic ) then
@@ -361,7 +363,6 @@ endif
 if (! $?refframe) set refframe = 2
 if ( ! $?useold ) set useold = 0	# when set extant t4 files are not re-computed
 if ( ! $?OneStepResample ) set OneStepResample = 1
-
 
 ###################
 # set up structural
@@ -594,15 +595,11 @@ if ( $distort == 1 ) then		# spin echo distortion correction
 				dcm2niix -o SEFM -f ${patid}_sefm_Grp${i}_${j} -w 1 -z n $inpath/study$study[$j] || exit -1
 			endif
 			set file = SEFM/${patid}_sefm_Grp${i}_${j}.json
-			echo "Search for pedindex and readout_time_sec in $file"
 			set pedindex = `cat $file | jq -r '.PhaseEncodingDirection'`
-			echo "pedindex = $pedindex"
 			# If the pedindex is not set, try finding it in the PhaseEncodingAxis field
 			if ( $pedindex == "null" ) then
 				set pedindex = `cat $file | jq -r '.PhaseEncodingAxis'`
-				echo "pedindex = $pedindex"
 			set readout_time_sec = `cat $file | jq -r '.TotalReadoutTime'`
-			echo "Read out time = $readout_time_sec"
 			####################################################
 			# passge through NIfTI forces axial sefm orientation 
 			####################################################
@@ -711,11 +708,9 @@ if ( ! $?BOLDgrps ) exit 0; 		# $BOLDgrps must be defined to process BOLD data
 @ err = 0
 @ k = 1
 set nordstr = ""
-if ( $runnordic ) set nordstr = _preNORDIC
 
 
 while ($k <= ${#runID})
-	echo $runs
 	set run = $runID[$k]
 	endif
 	if (! -d bold$run) mkdir bold$run
@@ -775,12 +770,9 @@ while ($k <= ${#runID})
 		echo "@ nframe = $nframe"			>! $patid"_b"${run}.params
 		echo "@ fullframe = $fullframe"			>> $patid"_b"${run}.params
 		echo "@ necho = $necho"				>> $patid"_b"${run}.params
-		echo "Before TE"
 		set TE = (`cat $patid"_b"${run}${nordstr}_echo?.json | grep EchoTime | gawk '{sub(/,/,"",$2);print $2}' | \
 			gawk '{printf("%.1f ",1000*$1)}'`)
-		echo "after te, where TE is ="$TE
 		gawk -f $RELEASE/MEBIDS2params.awk $patid"_b"${run}${nordstr}_echo1.json >> $patid"_b"${run}.params || exit $status
-		echo "After MEBIDS2params.awk"
 		echo "set TE = ($TE)"				>> $patid"_b"${run}.params
 		set pedindex = `grep pedindex $patid"_b"${run}.params | gawk '{print $NF}'`
 
@@ -793,7 +785,6 @@ while ($k <= ${#runID})
 			echo "pedindex = $pedindex"
 		endif
 
-		echo "before fslhd call to get ped, pedindex = $pedindex"
 		set ped = `fslhd $patid"_b"${run}${nordstr}_echo1.nii | gawk -f $RELEASE/GetPED_2019.awk PEDindex=$pedindex`
 		echo "set ped = $ped"				>> $patid"_b"${run}.params
 
@@ -906,7 +897,6 @@ while ($k <= $runs)
 	echo bold$runID[$k]/$patid"_b"$runID[$k]_echo1 >> $$bold.lst
 	@ k++
 end
-echo "Running cross realign3d"
 echo cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log # -R disables resampling
 cross_realign3d_4dfp -n$skip -Rqv$normode -l$$bold.lst > ${patid}_xr3d.log || exit $status
 /bin/rm $$bold.lst
@@ -935,7 +925,6 @@ else
 	set MBstr = _faln
 endif
 
-echo "INside "
 source $patid.Config	# session-specific BOLD-specific params file
 
 @ k = 1
@@ -998,7 +987,6 @@ echo "7"
 # bias field correction (crucial if no prescan normalize)
 #########################################################
 BIAS_FIELD_CORRECTION:
-set nordstr = ""
 if ($dbnd_flag) then
 	set MBstr = _faln_dbnd
 else
@@ -1029,6 +1017,7 @@ while ($k <= ${#runID})
 end
 
 # Remove config and copy the contents of params file into config file
+
 cat bold1/$patid"_b1".params >> $patid.Config
 
 source $patid.Config	# session-specific BOLD-specific params file
@@ -1077,7 +1066,7 @@ endif
 BOLD_ANAT:
 @ i = 1		# index of BOLD run group
 @ k = 1		# index of run within session
-
+source $prmfile	# session-specific BOLD-specific params file
 if ($dbnd_flag) then
 	set MBstr = _faln_dbnd
 else
@@ -1085,8 +1074,6 @@ else
 endif
 if (! ${?old_faln_xr3d}) @ old_faln_xr3d = 0
 while ( $i <= $#BOLDgrps )
-
-	echo "INSIDE OF BOLD ANAT"
 	set adir = anatgrp${i}	# $adir is group-specific atlas-like directory for BOLD regitration to structural images
 	if ( ! -d $adir) mkdir $adir
 	set runs = (`echo ${BOLDgrps[$i]} | sed 's|,| |g'` )	# runs within-group are separated by commas in params file
@@ -1104,40 +1091,31 @@ while ( $i <= $#BOLDgrps )
 	##################################################################
 	# convert cross_realign3d_4dfp first frame affine xform to t4_file
 	##################################################################
-	echo "convert cross_realign3d_4dfp first frame affine xform to t4_file"
 	aff_conv x4 bold${run}/$patid"_b"${run}_echo1 bold${run}/$patid"_b"${run}_echo1 $adir/bold${run}_tmp.mat \
 			bold${run}/$patid"_b"${run}_echo1 bold${run}/$patid"_b"${run}_echo1 \
 			$adir/${anat}_to_${anat}_xr3d_t4 || exit $status
 	################################
 	# target frame to first frame t4
 	################################\
-	echo "target frame to first frame t4"
 	t4_inv $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${anat}_t4  || exit $status
 	
 	if ($BiasField) then	# use t4 file to xform xr3d_avg_BF (bias field) to first frame
-		echo "Bias field"
 		t4img_4dfp $adir/${anat}_xr3d_to_${anat}_t4 bold${run}/${patid}"_b"${run}_echo1${MBstr}_xr3d_avg_BF \
 			$adir/bold${run}_BF_on_frame1 -Obold${run}/$patid"_b"${run}_echo1  || exit $status
 		####################################################
 		# extract raw first frame and apply bias field to it
 		####################################################
-		echo "extract raw first frame and apply bias field to it"
 		extract_frame_4dfp bold${run}/$patid"_b"${run}_echo1 1 -o$adir/$patid"_b"${run}_echo1_frame1
-		echo "apply bias field to it"
 		imgopr_4dfp -p$adir/${anat} $adir/$patid"_b"${run}_echo1_frame1 $adir/bold${run}_BF_on_frame1 || exit $status
 		/bin/rm $adir/$$img.* $adir/bold${run}_tmp.mat
 	else
-		echo "no bias field"
 		extract_frame_4dfp bold${run}/$patid"_b"${run}_echo1 1 -o$adir/${anat} || exit $status
 	endif
-	echo "done with BOLD_ANAT"
 	nifti_4dfp -n $adir/$anat $adir/$anat || exit $status
-	echo "done with nifti_4dfp"
 	bet $adir/${anat} $adir/${anat}_brain -m -f 0.3 || exit $status
 	###############################
 	# create first frame brain mask
 	###############################
-	echo "create first frame brain mask"
 	nifti_4dfp -4 $adir/${anat}_brain_mask $adir/${anat}_brain_mask || exit $status
 	##############################
 	# set up distortion correction
@@ -1146,7 +1124,7 @@ while ( $i <= $#BOLDgrps )
 		####################################################
 		# pha2epi.csh registers and applies field map to EPI
 		####################################################
-		echo "pha2epi.csh registers and applies field map to EPI"
+		
 		/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
 		if ( $?t2wimg ) then
 			set struct = $wrkdir/atlas/${t2wimg}
@@ -1168,7 +1146,7 @@ while ( $i <= $#BOLDgrps )
 		end
 		set PHA_on_EPI = $adir/${FMAP:t}${i}_FMAP_on_${anat}_uwrp
 	else	# computed (synthetic) distortion correction
-		echo "synthetic distortion correction"
+		
 		if ( $?t2wimg ) then
 			set struct = $wrkdir/atlas/${t2wimg}
 			set warp   = $wrkdir/atlas/fnirt/${t2wimg}_to_MNI152_T1_2mm_fnirt_coeff
@@ -1176,84 +1154,68 @@ while ( $i <= $#BOLDgrps )
 			set struct = $wrkdir/atlas/${mpr}
 			set warp   = $wrkdir/atlas/fnirt/${mpr}_to_MNI152_T1_2mm_fnirt_coeff
 		endif
-		echo "synthetic fmaP"
+		
 		synthetic_FMAP.csh $adir/${anat} $adir/${anat}_brain_mask $struct ${struct}_brain_mask $warp \
 			${mean} $dwell $ped ${patid}_synthFMAP $synthstr -dir $adir || exit $status
 		set PHA_on_EPI = $adir/${patid}_synthFMAP_on_${anat}_uwrp
-		echo "done with synthetic distortion correction"
+	
 		nifti_4dfp -n $PHA_on_EPI $PHA_on_EPI || exit -1
 	endif
-	echo "done with distortion correction"
+
 	t4img_4dfp $adir/${anat}_uwrp_to_${struct:t}_t4 $adir/${anat}_uwrp \
 		   $adir/${anat}_uwrp_on_${struct:t} -O${struct} || exit -1
-	echo "done with t4img_4dfp"
+
 	t4_mul     $adir/${anat}_uwrp_to_${struct:t}_t4 atlas/${struct:t}_to_${target:t}_t4 \
 		   $adir/${anat}_uwrp_to_${target:t}_t4 || exit $status
-	echo "done with t4_mul"
+
 	t4_mul     $adir/${anat}_xr3d_to_${anat}_t4 $adir/${anat}_uwrp_to_${target:t}_t4 \
 		   $adir/${anat}_xr3d_to_${target:t}_t4 || exit -1
-	echo "done with t4_mul pt 2"
+
 	t4img_4dfp $adir/${anat}_to_${anat}_xr3d_t4 ${PHA_on_EPI} ${PHA_on_EPI}_xr3d -O${PHA_on_EPI}
-	echo "done with t4img_4dfp pt 2"
 
 	if ( $nlalign ) then	# user-set flag; when set do FNIRT
-		echo "do FNIRT"
 	###########################################################################
 	# initialize target frame to structural xform prior to FNIRT (fsl "premat")
 	###########################################################################
 		t4_mul $adir/${anat}_xr3d_to_${anat}_t4 $adir/${anat}_uwrp_to_${struct:t}_t4 \
 		       $adir/${anat}_xr3d_to_${struct:t}_t4 || exit $status
-		echo "done with t4_mul pt 3"
+		
 		aff_conv 4f $adir/${anat}_uwrp atlas/${struct:t} $adir/${anat}_xr3d_to_${struct:t}_t4 \
 			    $adir/${anat}_uwrp atlas/${struct:t} $adir/${anat}_xr3d_to_${struct:t}.mat
-		echo "done with aff_conv"
+		
 		convertwarp --ref=$outspace --premat=$adir/${anat}_xr3d_to_${struct:t}.mat --warp1=$warp --postmat=$postmat \
 			--out=$adir/${anat}_xr3d_to_fn_MNI152_T1_2mm_to_${outspace:t}_fnirt_coeff
 		############################################################
 		# generate command for one_step_resampling_AT.csh = $strwarp
 		############################################################
-		echo "done with convertwarp"
 		set strwarp = "-postwarp $adir/${anat}_xr3d_to_fn_MNI152_T1_2mm_to_${outspace:t}_fnirt_coeff"
 		############################
 		# transform anat to outspace
 		############################
-		echo "transform anat to outspace"
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
-		echo "done with fugue"
 		t4_mul $adir/${anat}_to_${anat}_xr3d_t4 $adir/${anat}_xr3d_to_${struct:t}_t4 $adir/${anat}_to_${struct:t}_t4 || exit $status
-		echo "done with t4_mul pt 4"
 		aff_conv 4f $adir/${anat} $struct $adir/${anat}_to_${struct:t}_t4 \
 			    $adir/${anat} $struct $adir/${anat}_to_${struct:t}.mat || exit $status
-		echo "done with aff_conv pt 2"
 		convertwarp --ref=$outspace --shiftmap=${PHA_on_EPI}_shiftmap --shiftdir=$ped --premat=$adir/${anat}_to_${struct:t}.mat \
 		            --warp1=$warp --postmat=$postmat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
-		echo "done with convertwarp pt 2"
 		applywarp --ref=$outspace --in=$adir/${anat} --warp=$adir/${anat}_to_${outspace:t}_warp \
 		          --out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
 	else	# no fnirt
-		echo "no fnirt"
 		aff_conv 4f $adir/${anat}_uwrp $REFDIR/711-2B_111 $adir/${anat}_xr3d_to_${target:t}_t4 \
 			    $adir/${anat}_uwrp $REFDIR/711-2B_111 $adir/${anat}_xr3d_to_${target:t}.mat || exit $status
-		echo "done with aff_conv pt 3"
 		convert_xfm -omat $adir/${anat}_xr3d_to_${outspace:t}.mat \
 			-concat $postmat $adir/${anat}_xr3d_to_${target:t}.mat || exit $status
-		echo "done with convert_xfm"
 		set strwarp = "-postmat $adir/${anat}_xr3d_to_${outspace:t}.mat"
 		############################
 		# transform anat to outspace
 		############################
-		echo "transform anat to outspace"
 		fugue --loadfmap=${PHA_on_EPI} --dwell=$dwell --unwarpdir=$ped --saveshift=${PHA_on_EPI}_shiftmap || exit $status
-		echo "done with fugue"
 		aff_conv 4f $adir/${anat} $adir/${anat} $adir/${anat}_to_${anat}_xr3d_t4 \
 			    $adir/${anat} $adir/${anat} $adir/${anat}_to_${anat}_xr3d.mat || exit $status
-		echo "done with aff_conv pt 4"
 		convertwarp --ref=$outspace --shiftmap=${PHA_on_EPI}_shiftmap --shiftdir=$ped --premat=$adir/${anat}_to_${anat}_xr3d.mat \
 			--postmat=$adir/${anat}_xr3d_to_${outspace:t}.mat --out=$adir/${anat}_to_${outspace:t}_warp || exit $status
-		echo "done with convertwarp pt 2"
 		applywarp --ref=$outspace --in=$adir/${anat} --warp=$adir/${anat}_to_${outspace:t}_warp \
 			--out=$adir/${anat}_uwrp_on_${outspacestr} || exit $status
-		echo "done with applywarp"
 	endif
 
 	@ j = 1

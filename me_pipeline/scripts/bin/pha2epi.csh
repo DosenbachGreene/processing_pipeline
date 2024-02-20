@@ -19,7 +19,7 @@ set idstr = '$Id: pha2epi.csh,v 1.4 2021/05/11 17:26:11 tanenbauma Exp $'
 echo $idstr
 
 if ( $?FSLDIR == 0 ) then
-	echo $program" error: FSLDIR environment variable not set"
+	echo " error: FSLDIR environment variable not set"
 	exit -1
 else
 	set FSL = $FSLDIR/bin
@@ -53,7 +53,7 @@ while ($#argv > 0)
 		case -o:
 			set outdir = `realpath $argv[1]`; shift; breaksw
 		default:
-			echo $program": Option $flag not recognized. See usage"
+			echo ": Option $flag not recognized. See usage"
 			goto USAGE
 	endsw
 end
@@ -189,7 +189,7 @@ echo 9
 popd
 exit 0
 USAGE:
-echo "Usage: $program <magnitude img> <field map> <EPI img> <dwell time> <phase encoding direction> [options]"
+echo "Usage: <magnitude img> <field map> <EPI img> <dwell time> <phase encoding direction> [options]"
 echo "Options:"
 echo "       -magmask <mask img>        Brain mask of the magnitude image for registration purposes"
 echo "       -epimask <mask img>        Brain mask of the EPI image for registration purposes"

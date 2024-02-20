@@ -448,11 +448,11 @@ class Instructions(Params):
     dbnd_flag: bool = True
 
     # if NORDIC collected
-    isnordic: bool = True
+    isnordic: bool = False
     # if running NORDIC
-    runnordic: bool = True
+    runnordic: bool = False
     # if using NORDIC, set number of noise frames used
-    noiseframes: int = 3
+    noiseframes: int = 0
 
     # synthetic field map variables - affect processing only if $distor == 3
     # TODO: These aren't valid paths; FIX
