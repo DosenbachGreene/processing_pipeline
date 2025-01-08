@@ -355,10 +355,8 @@ def get_fieldmaps(layout: BIDSLayout) -> Dict:
                         func_file = layout.get(
                             subject=subject, session=session, task=task, run=run, suffix="bold", extension="nii.gz"
                         )[0]
-                        print(f"Functional file path is: {func_file.path}")
                     # Get all fieldmap files for this run
                     fmap_files = layout.get_fieldmap(func_file.path, return_list=True)
-                    print(f"Fieldmap files are: {fmap_files}")
                     # just grab the first fieldmap file it we couldn't find any
                     if not fmap_files:
                         fmap_AP = Path(

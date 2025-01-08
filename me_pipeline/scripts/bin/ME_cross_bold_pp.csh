@@ -643,7 +643,7 @@ endif
 # convert fMRI data from DICOM to 4dfp
 ######################################
 @ err = 0
-@ k = 4
+@ k = 1
 while ($k <= $runs)
 	@ std = $BOLDruns[$k]
 	set run = $runID[$k]
@@ -814,18 +814,13 @@ while ($k <= ${#runID})
 	source bold$runID[$k]/$patid"_b"$runID[$k].params	# define $necho $nframe $fullframe
 	set run = $runID[$k]
 	pushd bold$run
-	set rundir = $cwd
-	echo "Working directory: `cwd`"
 	set log = $patid"_b"${run}${nordstr}_NORDIC.log;
 	if (-e $log) /bin/rm -f $log; touch $log;
 	@ e = 1
 	while ( $e <= $necho )
 		set echo_mag = ${rundir}/$patid"_b"${run}${nordstr}_echo${e}.nii
-		echo "echo_mag = $echo_mag"
 		set echo_ph =  ${rundir}/$patid"_b"${run}${nordstr}_echo${e}_ph.nii
-		echo "echo_ph = $echo_ph"
 		set outname =  ${rundir}/$patid"_b"${run}_echo${e}
-		echo "outname = $outname"
 		date
 		# use MCR version of nordic
 		echo run_NORDIC_main.sh ${MCRROOT} ${echo_mag} ${echo_ph} ${outname} ${noiseframes} ${num_cpus}
@@ -857,7 +852,6 @@ BOLD1:
 # verify BOLD runs were set up identically
 ##########################################
 @ k = 1
-echo " NORD STRING IS $nordstr"
 while ($k <= $#runID)
 	source  bold$runID[$k]/$patid"_b"$runID[$k].params
 	fslinfo bold$runID[$k]/$patid"_b"$runID[$k]$nordstr"_echo1".nii | sed '/dim4/d' | sed '/cal_max/d' | sed '/cal_min/d' >! $$fslinfo_run$k

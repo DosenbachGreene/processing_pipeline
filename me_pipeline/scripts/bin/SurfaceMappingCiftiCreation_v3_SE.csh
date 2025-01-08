@@ -165,15 +165,10 @@ foreach run ( ${runID} )
 	endif
     
 	echo "########### Create Cifti Timeseries ###################################"	
-	echo "before timename_L"
 	set timename_L = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_L_dil10_32k_fs_LR${surfsmoothstr}
-	echo "before timename_R"
 	set timename_R = ${vol2surfdir}/${patid}_b${run}_${outspacestr}${FCprocaddstring}_R_dil10_32k_fs_LR${surfsmoothstr}
-	echo "before outname"
 	set outname = ${patid}_b${run}_${outspacestr}${FCprocaddstring}_LR_surf_subcort_32k_fsLR_brainstem${smoothstr}
-   	echo "before wb command"
 	${workbenchdir}/wb_command -cifti-create-dense-timeseries ../${ciftidir}/${outname}.dtseries.nii -volume ${subfuncvol}.nii.gz ${subcortical_mask} -left-metric ../${timename_L}.func.gii -roi-left ${left_mask} -right-metric ../${timename_R}.func.gii -roi-right ${right_mask} -timestep ${TR_vol} -timestart 0
-	echo "before rm"
 	rm -f ${funcvol}.nii.gz
 	popd
 end
