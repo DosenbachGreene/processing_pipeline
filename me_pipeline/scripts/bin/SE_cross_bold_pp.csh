@@ -189,6 +189,7 @@ while ($i <= ${#argv})
 	case regtest:
 	case DISTORT
 	case MODEL:
+	case BOLD_ANAT:
 	case BOLD*:
 	case NORDIC:
 	case NORM:
@@ -256,7 +257,6 @@ else
 endif
 
 if ( $?sefm ) then				# spin echo distortion correction
-	echo "Inside of sefm="$sefm
 	set distort = 1
 	if ( ${#sefm} != ${#BOLDgrps} ) then
 		echo ${#sefm}
@@ -609,7 +609,7 @@ if ( $distort == 1 ) then		# spin echo distortion correction
 			# generate $SEFMstr = argument string for sefm_pp_AT.csh
 			########################################################
 			if ($readout_time_sec == "null") then
-				echo "Couldn't get Total Readout Time from header file, setting it manually to 0.063781"
+				echo "WARNING: couldn't get Total Readout Time from header file, setting it manually to 0.063781. THIS IS ONLY RELEVANT FOR BAYLOR PROCESSING."
 				set readout_time_sec = 0.063781
 			endif
 
@@ -760,7 +760,6 @@ while ($k <= ${#runID})
 				end
 			endif
 		endif
-		echo "Before fmri properties"
 		#######################################################################################
 		# get fMRI properties; multiple single run BOLD params files will be consolidated later 
 		#######################################################################################
@@ -772,7 +771,7 @@ while ($k <= ${#runID})
 		echo "@ necho = $necho"				>> $patid"_b"${run}.params
 		set TE = (`cat $patid"_b"${run}${nordstr}_echo?.json | grep EchoTime | gawk '{sub(/,/,"",$2);print $2}' | \
 			gawk '{printf("%.1f ",1000*$1)}'`)
-		gawk -f $RELEASE/MEBIDS2params.awk $patid"_b"${run}${nordstr}_echo1.json >> $patid"_b"${run}.params || exit $status
+		gawk -f /data/nil-bluearc/raichle/lin64-tools/MEBIDS2params.awk $patid"_b"${run}${nordstr}_echo1.json >> $patid"_b"${run}.params || exit $status
 		echo "set TE = ($TE)"				>> $patid"_b"${run}.params
 		set pedindex = `grep pedindex $patid"_b"${run}.params | gawk '{print $NF}'`
 
@@ -820,7 +819,6 @@ while ($k <= ${#runID})
 		if ($status) exit -1
 		echo "status="$status
 		date
-		echo after running nordic
 	endif
 
 	if (${noiseframes} != 0) then
@@ -912,11 +910,9 @@ end
 # slice time correction and debanding
 #####################################
 
-#TODO: THE FOLLOWING CAN GO
 RECOMPUTE_MOTION:
 
 # Step 1: Find the line with "dwell = 0" in the original file
-
 set nordstr = ""
 if ( $runnordic ) set nordstr = _preNORDIC
 if ($dbnd_flag) then
@@ -950,7 +946,6 @@ if ($old_faln_xr3d) then
 #########################
 # apply motion correction
 #########################
-echo "1"
 	if (-e $patid"_xr3d".lst) /bin/rm $patid"_xr3d".lst; touch $patid"_xr3d".lst
 	@ k = 1
 	while ($k <= $runs)
@@ -959,30 +954,25 @@ echo "1"
 		@ k++
 	end
 	cat $patid"_xr3d".lst
-echo "2"
 #######################################
 # resample without recomputing mat (-N)
 #######################################
 	cross_realign3d_4dfp -n$skip -qv$normode -N -l$patid"_xr3d".lst  >> /dev/null || exit $status	
 else
-echo "3"
 ###########################################################
 # recompute motion correction after slice timing correction
 ###########################################################
 	echo | gawk '{printf("");}' >! ${patid}_faln_bold.lst	# create zero length file
 	@ k = 1
-	echo "4"
 	while ($k <= $#runID)
 		rm   bold$runID[$k]/$patid"_b"$runID[$k]"_echo1"${MBstr}_xr3d.mat	# force cross_realign3d_4dfp to recompute
 		echo bold$runID[$k]/$patid"_b"$runID[$k]"_echo1"${MBstr} >> ${patid}_faln_bold.lst
 		@ k++
 	end
-	echo "5"
 	date										>! ${patid}_faln_xr3d.log
 	echo	cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst 	>> ${patid}_faln_xr3d.log	# resampling enabled
 		cross_realign3d_4dfp -n$skip -qv$normode -l${patid}_faln_bold.lst 	>> ${patid}_faln_xr3d.log	|| exit $status
 endif
-echo "7"
 #########################################################
 # bias field correction (crucial if no prescan normalize)
 #########################################################
@@ -995,24 +985,17 @@ endif
 
 @ k = 1
 while ($k <= ${#runID})
-	echo 1
 	set params_file = bold$runID[$k]/$patid"_b"$runID[$k].params
 	set dwell_line = `grep "set dwell = 0" $params_file`
 	set run = $runID[$k]
 	# Step 2: Extract the "echotime" value from the JSON file
-	echo 2
 	set json_file = bold$runID[$k]/$patid"_b"${run}${nordstr}_echo1.json
-	echo 2.2
 	set echo_time = `grep -o '"EchoTime": [0-9.]*' $json_file | awk -F': ' '{print $2}'`
-	echo 2.3
 	set echo_train_length = `grep -o '"EchoTrainLength": [0-9]*' $json_file | awk -F': ' '{print $2}'`
-	echo 2.4
 	set dwell = `echo "$echo_time / $echo_train_length" | bc -l`
-	echo 3
-	echo "Dwell time is $dwell"
+
 	# Step 3: Replace "dwell = 0" with "dwell = echotime" in the original file
 	sed -i "s/dwell = 0/dwell = $dwell/" $params_file
-	echo "Replacement completed."
 	@ k++
 end
 
@@ -1125,7 +1108,7 @@ while ( $i <= $#BOLDgrps )
 		# pha2epi.csh registers and applies field map to EPI
 		####################################################
 		
-		/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
+		$PROCESSING_PIPELINE_PATH/pha2epi.csh ${FMAP}${i}_mag ${FMAP}${i}_FMAP $adir/$anat $dwell $ped -o $adir
 		if ( $?t2wimg ) then
 			set struct = $wrkdir/atlas/${t2wimg}
 			set mode = (4099 1027 2051 2051 10243)	# for imgreg_4dfp loop
@@ -1235,10 +1218,10 @@ while ( $i <= $#BOLDgrps )
 			set PHA_on_EPI = $adir/${FMAP:t}${i}_FMAP_on_${anat}_uwrp
 			set strwarp = "-postmat $adir/${anat}_xr3d_to_${outspace:t}.mat"
 			
-			echo /home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
+			echo $PROCESSING_PIPELINE_PATH/one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
 				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr}_xr3d_uwrp_on_${outspacestr}
-			/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
+			$PROCESSING_PIPELINE_PATH/one_step_resampling_AT.csh -i bold$runID[$k]/$patid"_b"$runID[$k]_echo1${MBstr} -xr3dmat $xr3dmat \
 				-phase ${PHA_on_EPI}_xr3d -ped $ped -dwell $dwell $OneStepstr -ref $outspace $strwarp \
 				-out bold$runID[$k]/$patid"_b"$runID[$k]${MBstr}_xr3d_uwrp_on_${outspacestr} || exit $status
 

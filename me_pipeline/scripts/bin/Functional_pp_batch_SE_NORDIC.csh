@@ -130,7 +130,7 @@ FMRI_PP:
 ### Run fMRI pre-processing
 ##################################
 echo "############## Run fMRI processing ##############"
-/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SE_cross_bold_pp.csh $1 $2 || exit $status
+$PROCESSING_PIPELINE_PATH/SE_cross_bold_pp.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 NIFTI:
@@ -180,7 +180,7 @@ GOODVOXELS:
 ### Create goodvoxels masks
 ##################################
 echo "############## Create goodvoxels mask ##############"
-/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/RibbonVolumetoSurfaceMapping.csh $1 $2 || exit $status
+$PROCESSING_PIPELINE_PATH/RibbonVolumetoSurfaceMapping.csh $1 $2 || exit $status
 if ( $doexit ) exit
 
 FCMRI_PP:
@@ -189,7 +189,7 @@ FCMRI_PP:
 ##################################
 echo "############## Run fcMRI processing ##############"
 if ( $#FCrunID ) then
-   /home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SE_fcMRI_preproc_2019.csh $1 $2 || exit $status
+   $PROCESSING_PIPELINE_PATH/SE_fcMRI_preproc_2019.csh $1 $2 || exit $status
 else
 endif
 if ( $doexit ) exit
@@ -243,5 +243,5 @@ CIFTI_CREATION:
 ### Create cifti files
 ##################################
 echo "############## Create CIFTI timeseries ##############"
-/home/usr/suljicv/GMT3/Vahdeta/processing_pipeline/me_pipeline/scripts/bin/SurfaceMappingCiftiCreation_v3_SE.csh $1 $2 || exit $status
+$PROCESSING_PIPELINE_PATH/SurfaceMappingCiftiCreation_v3_SE.csh $1 $2 || exit $status
 if ( $doexit ) exit

@@ -60,6 +60,7 @@ FUNCTIONAL_MODULES = [
 FMRI_PP_MODULES = [
     "regtest",
     "DISTORT",
+    "BOLD_ANAT",
     "BOLD",
     "NORDIC",
     "BOLD1",

@@ -91,7 +91,7 @@ if ( $Atlas_ROIs ) then
 	set left_mask = ${templatedir}/L.atlasroi.32k_fs_LR.shape.gii
 	set right_mask = ${templatedir}/R.atlasroi.32k_fs_LR.shape.gii
 else
-	set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}.nii
+	set subcortical_mask = ${maskdir}/subcortical_mask_LR_${outspacestr}_label.nii
 	set left_mask = ${maskdir}/L.atlasroi.32k_fs_LR.shape.gii
 	set right_mask = ${maskdir}/R.atlasroi.32k_fs_LR.shape.gii
 endif
