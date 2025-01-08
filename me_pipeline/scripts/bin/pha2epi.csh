@@ -69,7 +69,6 @@ set mag = ${mag:t}
 nifti_4dfp -n ${outdir}/${mag} ${outdir}/${mag} || exit $status
 
 # magnitude mask
-echo 1
 if ( ! $?magmask ) then  
 	$FSL/bet ${outdir}/${mag} ${outdir}/${mag:t}_brain -n -m -f .2 -R || exit $status
 	set magmask = ${mag}_brain_mask 
@@ -82,8 +81,7 @@ else
 	endif
 	set ${magmask} = ${magmask:t}
 	nifti_4dfp -n ${outdir}/$magmask ${outdir}/${magmask} || exit $status
-endif 
-echo 2
+endif
 # phase image
 set d = `dirname $pha`
 if ( `echo "cd $d; pwd" | tcsh -f` != $outdir ) then 
@@ -92,7 +90,6 @@ if ( `echo "cd $d; pwd" | tcsh -f` != $outdir ) then
 endif
 set pha = ${pha:t}
 nifti_4dfp -n ${outdir}/$pha ${outdir}/$pha || exit $status
-echo 3
 # EPI
 set d = `dirname $epi`
 if ( `echo "cd $d; pwd" | tcsh -f` != $outdir ) then 
@@ -100,9 +97,7 @@ if ( `echo "cd $d; pwd" | tcsh -f` != $outdir ) then
 	cp -f ${epi}.4dfp.* ${outdir}	|| exit $status
 endif
 set epi = ${epi:t}
-echo 4
 nifti_4dfp -n ${outdir}/$epi ${outdir}/$epi || exit $status
-echo 5
 # EPI mask
 if ( ! $?epimask ) then  	# if $epimask was not specified on command line
 	$FSL/bet ${outdir}/${epi} ${outdir}/${epi}_brain -n -m -f .2 -R || exit $status
@@ -117,7 +112,6 @@ else				# move specified $epimask to $outdir
 	set ${epimask} = ${epimask:t}
 	nifti_4dfp -n ${outdir}/${epimask} ${outdir}/${epimask} || exit $status
 endif
-echo 6
 pushd $outdir
 #########################################################
 # register mag image to uncorrected EPI (fMRI, DWI, etc.)
@@ -129,14 +123,12 @@ pushd $outdir
 	imgreg_4dfp ${epi} ${epimask} ${mag} ${magmask} $t4file 1027  || exit $status
 	imgreg_4dfp ${epi} ${epimask} ${mag} ${magmask} $t4file 3075  || exit $status
 	imgreg_4dfp ${epi} ${epimask} ${mag} ${magmask} $t4file 10243 || exit $status
-echo "Number 7"
 ################################################################
 # refine the registration by excluding voxels that move too much
 ################################################################
 	foreach T ( 0.7 1 )	# $T is threshold in units of voxels on the shift-map used to make a mask for imgreg_4dfp
 		# $t4file is ${mag}_to_${epi}_t4
 		echo "aff_conv 4f ${mag} ${epi} $t4file ${mag} ${epi} ${mag}_to_${epi}.mat"
-		echo "1.a"
 		aff_conv 4f ${mag} ${epi} $t4file ${mag} ${epi} ${mag}_to_${epi}.mat || exit $status
 		echo "flirt -in ${pha} -ref ${epi}  -out ${pha}_on_${epi}_tmp -init ${mag}_to_${epi}.mat -applyxfm"
 		# apply ${mag}_to_${epi}_t4 to ${pha}
@@ -147,23 +139,17 @@ echo "Number 7"
 			--saveshift=${pha}_on_${epi}_tmp_shift --in=${epi}  --unwarp=${epi}_uwrp_tmp || exit $status
 		echo "fslmaths ${pha}_on_${epi}_tmp_shift -abs -uthr $T -bin -mul ${epimask} ${pha}_on_${epi}_tmp_shift_mask"
 		$FSL/fslmaths ${pha}_on_${epi}_tmp_shift -abs -uthr $T -bin -mul ${epimask} ${pha}_on_${epi}_tmp_shift_mask || exit $status
-		echo "1.b"
 		echo "nifti_4dfp -4 ${pha}_on_${epi}_tmp_shift_mask ${pha}_on_${epi}_tmp_shift_mask"
 		nifti_4dfp -4 ${pha}_on_${epi}_tmp_shift_mask ${pha}_on_${epi}_tmp_shift_mask 
 		echo "imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 2051"
-		echo "1.c"
 		nifti_4dfp -4 ${epi}_uwrp_tmp ${epi}_uwrp_tmp || exit $status
 		echo "imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 2051"
-		echo "1.d"
 		imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 2051 
 		echo "imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 515"
-		echo "1.e"
 		imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 515  
 		echo "imgreg_4dfp ${epi}_uwrp_tmp ${pha}_on_${epi}_tmp_shift_mask ${mag} ${magmask} $t4file 1027"
-		echo "1.f"
 		rm ${epi}_uwrp_tmp.4dfp.* ${pha}_on_${epi}_tmp_shift_mask.* ${pha}_on_${epi}_tmp_shift.* ${pha}_on_${epi}_tmp.*
 	end
-echo 8
 #####################################
 # apply refined distortion correction
 #####################################
@@ -185,7 +171,6 @@ echo 8
 	nifti_4dfp -4 ${epi}_uwrp_brain_mask.nii  ${epi}_uwrp_brain_mask
 	nifti_4dfp -4 ${pha}_on_${epi}_uwrp       ${pha}_on_${epi}_uwrp	
 	rm -r ${epi}_uwrp_brain_mask.nii          ${epi}_uwrp_brain.*
-echo 9
 popd
 exit 0
 USAGE:
